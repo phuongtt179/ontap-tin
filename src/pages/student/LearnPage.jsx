@@ -102,7 +102,7 @@ export default function LearnPage() {
   return (
     <div className="flex h-[calc(100vh-64px)]">
       {/* Left: topic list */}
-      <div className="w-56 shrink-0 border-r border-gray-200 bg-gray-50 overflow-y-auto">
+      <div className="w-72 shrink-0 border-r border-gray-200 bg-gray-50 overflow-y-auto">
         <div className="p-4 border-b border-gray-200">
           <h1 className="text-base font-bold text-gray-800">Học tập</h1>
           <p className="text-xs text-gray-400 mt-0.5">Khối {profile?.grade}</p>
