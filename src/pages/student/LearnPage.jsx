@@ -83,7 +83,7 @@ export default function LearnPage() {
     )
   }
 
-  if (lessons.length === 0) {
+  if (topics.length === 0 && lessons.length === 0) {
     return (
       <div className="p-4 md:p-8">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">Học tập</h1>
@@ -110,7 +110,7 @@ export default function LearnPage() {
         <div className="p-2 space-y-1">
           {topicList.map(topicKey => {
             const label = topicKey === '__no_topic__' ? 'Chưa phân loại' : topicKey
-            const count = grouped[topicKey].length
+            const count = (grouped[topicKey] || []).length
             const isSelected = selectedTopic === topicKey
             return (
               <button
