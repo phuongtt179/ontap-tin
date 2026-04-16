@@ -33,6 +33,7 @@ function QuestionEditModal({ question: q, onClose, onDone }) {
   const [saving, setSaving] = useState(false)
 
   const topicOptions = topics.filter(t => t.grade === form.grade || t.grade === 'all')
+  const blankCount = (form.question.match(/___/g) || []).length
 
   async function handleSave() {
     if (!form.question.trim()) return
@@ -151,12 +152,43 @@ function QuestionEditModal({ question: q, onClose, onDone }) {
           {/* Fill blank answer */}
           {q.type === 'fill_blank' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Đáp án</label>
-              <input
-                value={form.correct_answer}
-                onChange={e => setForm({ ...form, correct_answer: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+              {blankCount > 1 ? (
+                <div>
+                  <div className="bg-indigo-50 rounded-lg px-3 py-2 text-sm text-indigo-700 mb-3">
+                    Phát hiện <strong>{blankCount}</strong> chỗ trống
+                  </div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Đáp án cho mỗi chỗ trống</label>
+                  <div className="space-y-2">
+                    {Array.from({ length: blankCount }).map((_, i) => {
+                      const vals = form.correct_answer.split(',')
+                      return (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                          <input
+                            value={vals[i] || ''}
+                            onChange={e => {
+                              const next = form.correct_answer.split(',')
+                              next[i] = e.target.value
+                              setForm({ ...form, correct_answer: next.join(',') })
+                            }}
+                            className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            placeholder={`Đáp án chỗ trống ${i + 1}`}
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Đáp án</label>
+                  <input
+                    value={form.correct_answer}
+                    onChange={e => setForm({ ...form, correct_answer: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              )}
             </div>
           )}
 

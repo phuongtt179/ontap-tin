@@ -14,7 +14,7 @@ export default function StudentExamsPage() {
 
   useEffect(() => {
     if (profile) loadExams()
-  }, [profile])
+  }, [profile?.id])
 
   async function loadExams() {
     setLoading(true)

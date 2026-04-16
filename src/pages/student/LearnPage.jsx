@@ -29,7 +29,7 @@ export default function LearnPage() {
 
   useEffect(() => {
     if (profile && user) loadData()
-  }, [profile, user])
+  }, [profile?.id, user?.id])
 
   async function loadData() {
     setLoading(true)

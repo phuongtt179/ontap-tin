@@ -74,6 +74,7 @@ export default function QuestionFormModal({ onClose, onDone }) {
     items: ['', '', ''],
     drag_answers: [''],
     drag_distractors: ['', ''],
+    fill_answers: [''],
   })
   const [saving, setSaving] = useState(false)
 
@@ -92,6 +93,11 @@ export default function QuestionFormModal({ onClose, onDone }) {
         if (!form.correct_answer) { toast.error('Chọn đáp án đúng'); return null }
         return { correct_answer: form.correct_answer }
       case 'fill_blank':
+        if (blankCount > 0) {
+          const answers = form.fill_answers.slice(0, blankCount).map(w => w.trim())
+          if (answers.some(w => !w)) { toast.error(`Nhập đủ ${blankCount} đáp án cho các chỗ trống`); return null }
+          return { correct_answer: answers.join(',') }
+        }
         if (!form.correct_answer.trim()) { toast.error('Nhập đáp án'); return null }
         return { correct_answer: form.correct_answer.trim() }
       case 'matching': {
@@ -162,6 +168,9 @@ export default function QuestionFormModal({ onClose, onDone }) {
   function setDistractor(i, value) {
     const drag_distractors = [...form.drag_distractors]; drag_distractors[i] = value; setForm({ ...form, drag_distractors })
   }
+  function setFillAnswer(i, value) {
+    const fill_answers = [...form.fill_answers]; fill_answers[i] = value; setForm({ ...form, fill_answers })
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -187,7 +196,7 @@ export default function QuestionFormModal({ onClose, onDone }) {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Nội dung câu hỏi
-              {form.type === 'drag_word' && (
+              {(form.type === 'drag_word' || form.type === 'fill_blank') && (
                 <span className="ml-2 text-xs font-normal text-gray-400">Dùng <code className="bg-gray-100 px-1 rounded">___</code> để đánh dấu chỗ trống</span>
               )}
             </label>
@@ -270,10 +279,33 @@ export default function QuestionFormModal({ onClose, onDone }) {
           {/* Fill blank */}
           {form.type === 'fill_blank' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Đáp án</label>
-              <input value={form.correct_answer} onChange={e => setForm({ ...form, correct_answer: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Nhập đáp án đúng" />
+              {blankCount > 0 ? (
+                <div>
+                  <div className="bg-indigo-50 rounded-lg px-3 py-2 text-sm text-indigo-700 mb-3">
+                    Phát hiện <strong>{blankCount}</strong> chỗ trống
+                  </div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Đáp án cho mỗi chỗ trống</label>
+                  <div className="space-y-2">
+                    {Array.from({ length: blankCount }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                        <input
+                          value={form.fill_answers[i] || ''}
+                          onChange={e => setFillAnswer(i, e.target.value)}
+                          className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder={`Đáp án chỗ trống ${i + 1}`} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Đáp án</label>
+                  <input value={form.correct_answer} onChange={e => setForm({ ...form, correct_answer: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Nhập đáp án đúng" />
+                </div>
+              )}
             </div>
           )}
 

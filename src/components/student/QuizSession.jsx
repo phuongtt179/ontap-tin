@@ -18,7 +18,7 @@ function normalizeAnswer(type, ans, correct) {
     const norm = s => s?.split(',').map(p => p.trim()).sort().join(',')
     return norm(ans) === norm(correct)
   }
-  if (type === 'drag_word') {
+  if (type === 'drag_word' || (type === 'fill_blank' && (correct || '').includes(','))) {
     const a = ans.split(',').map(w => w.trim().toLowerCase())
     const c = (correct || '').split(',').map(w => w.trim().toLowerCase())
     return a.length === c.length && a.every((w, i) => w === c[i])
@@ -199,15 +199,40 @@ export default function QuizSession({
               />
             ))}
 
-            {q.type === 'fill_blank' && (
-              <input
-                value={selected || ''}
-                onChange={e => handleSelect(e.target.value)}
-                disabled={confirmed && showAnswer}
-                placeholder="Nhập câu trả lời..."
-                className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-indigo-500 disabled:bg-gray-50"
-              />
-            )}
+            {q.type === 'fill_blank' && (() => {
+              const blanks = (q.question.match(/___/g) || []).length
+              if (blanks > 1) {
+                const vals = selected ? selected.split(',') : []
+                return (
+                  <div className="space-y-2">
+                    {Array.from({ length: blanks }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                        <input
+                          value={vals[i] || ''}
+                          onChange={e => {
+                            const next = [...vals]; next[i] = e.target.value
+                            handleSelect(next.join(','))
+                          }}
+                          disabled={confirmed && showAnswer}
+                          placeholder={`Chỗ trống ${i + 1}...`}
+                          className="flex-1 border-2 border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-indigo-500 disabled:bg-gray-50"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )
+              }
+              return (
+                <input
+                  value={selected || ''}
+                  onChange={e => handleSelect(e.target.value)}
+                  disabled={confirmed && showAnswer}
+                  placeholder="Nhập câu trả lời..."
+                  className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-indigo-500 disabled:bg-gray-50"
+                />
+              )
+            })()}
 
             {q.type === 'matching' && (
               <MatchingQuestion

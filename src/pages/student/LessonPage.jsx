@@ -201,7 +201,7 @@ function checkAnswer(type, ans, correct) {
     const norm = s => s.split(',').map(p => p.trim()).sort().join(',')
     return norm(ans) === norm(correct)
   }
-  if (type === 'drag_word') {
+  if (type === 'drag_word' || (type === 'fill_blank' && correct.includes(','))) {
     const a = ans.split(',').map(w => w.trim().toLowerCase())
     const c = correct.split(',').map(w => w.trim().toLowerCase())
     return a.length === c.length && a.every((w, i) => w === c[i])
@@ -319,14 +319,38 @@ function LessonQuiz({ questions, onSubmit }) {
                   </div>
                 )}
 
-                {q.type === 'fill_blank' && (
-                  <input
-                    value={answers[q.id] || ''}
-                    onChange={e => setAnswer(q.id, e.target.value)}
-                    placeholder="Nhập đáp án..."
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                )}
+                {q.type === 'fill_blank' && (() => {
+                  const blanks = (q.question.match(/___/g) || []).length
+                  if (blanks > 1) {
+                    const vals = (answers[q.id] || '').split(',')
+                    return (
+                      <div className="space-y-2">
+                        {Array.from({ length: blanks }).map((_, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                            <input
+                              value={vals[i] || ''}
+                              onChange={e => {
+                                const next = [...vals]; next[i] = e.target.value
+                                setAnswer(q.id, next.join(','))
+                              }}
+                              placeholder={`Chỗ trống ${i + 1}...`}
+                              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  }
+                  return (
+                    <input
+                      value={answers[q.id] || ''}
+                      onChange={e => setAnswer(q.id, e.target.value)}
+                      placeholder="Nhập đáp án..."
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  )
+                })()}
 
                 {q.type === 'drag_word' && (
                   <DragWordInput q={q} value={answers[q.id] || ''} onChange={val => setAnswer(q.id, val)} />
@@ -414,7 +438,7 @@ export default function LessonPage() {
 
   useEffect(() => {
     if (user) loadAll()
-  }, [id, user])
+  }, [id, user?.id])
 
   async function loadAll() {
     setLoading(true)
