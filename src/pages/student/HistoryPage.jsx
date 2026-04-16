@@ -21,9 +21,9 @@ export default function HistoryPage() {
           .limit(50),
         supabase
           .from('exam_sessions')
-          .select('*')
+          .select('id, exam_id, user_id, score, correct, total, attempt_number, submitted_at')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
+          .order('submitted_at', { ascending: false })
           .limit(50),
       ])
 
@@ -93,10 +93,12 @@ export default function HistoryPage() {
           <div className="space-y-3 max-w-2xl">
             {examSessions.map(s => {
               const percent = Math.round((s.correct / s.total) * 100)
-              const date = new Date(s.created_at).toLocaleDateString('vi-VN', {
-                day: '2-digit', month: '2-digit', year: 'numeric',
-                hour: '2-digit', minute: '2-digit',
-              })
+              const date = s.submitted_at
+                ? new Date(s.submitted_at).toLocaleDateString('vi-VN', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit',
+                  })
+                : ''
               return (
                 <div key={s.id} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
                   <div className="flex items-start justify-between gap-3">

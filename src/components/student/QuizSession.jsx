@@ -103,6 +103,7 @@ export default function QuizSession({
           score,
           answers: finalAnswers,
           attempt_number: attemptNumber,
+          submitted_at: new Date().toISOString(),
         })
       } else {
         await supabase.from('quiz_sessions').insert({
