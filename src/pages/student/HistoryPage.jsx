@@ -12,7 +12,7 @@ export default function HistoryPage() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: practice }, { data: exams }] = await Promise.all([
+      const [{ data: practice }, { data: examSessionsData }] = await Promise.all([
         supabase
           .from('quiz_sessions')
           .select('*')
@@ -21,13 +21,29 @@ export default function HistoryPage() {
           .limit(50),
         supabase
           .from('exam_sessions')
-          .select('*, exams(title)')
+          .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(50),
       ])
+
       setPracticeSessions(practice || [])
-      setExamSessions(exams || [])
+
+      // Fetch exam titles separately to avoid FK join error
+      const sessions = examSessionsData || []
+      if (sessions.length > 0) {
+        const examIds = [...new Set(sessions.map(s => s.exam_id))]
+        const { data: examsData } = await supabase
+          .from('exams')
+          .select('id, title')
+          .in('id', examIds)
+        const titlesMap = {}
+        ;(examsData || []).forEach(e => { titlesMap[e.id] = e.title })
+        setExamSessions(sessions.map(s => ({ ...s, examTitle: titlesMap[s.exam_id] || 'Đề thi' })))
+      } else {
+        setExamSessions([])
+      }
+
       setLoading(false)
     }
     load()
@@ -86,7 +102,7 @@ export default function HistoryPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-800 text-sm truncate">
-                        {s.exams?.title || 'Đề thi'}
+                        {s.examTitle || 'Đề thi'}
                       </p>
                       <div className="flex items-center gap-3 mt-1 flex-wrap">
                         <span className="text-sm text-gray-600">
