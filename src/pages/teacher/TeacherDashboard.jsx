@@ -80,7 +80,7 @@ export default function TeacherDashboard() {
         <StatCard label="Học sinh" value={stats.students} color="bg-orange-50 text-orange-700" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-6">
         {/* Exam ranking */}
         <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
