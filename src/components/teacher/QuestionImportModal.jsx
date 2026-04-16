@@ -15,8 +15,21 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
   const [step, setStep] = useState(1) // 1: paste, 2: preview & edit
   const [rawText, setRawText] = useState('')
   const [parsed, setParsed] = useState([])
-  const [meta, setMeta] = useState({ grade: grades[0], topic: topics[0], difficulty: 'easy' })
   const [saving, setSaving] = useState(false)
+
+  const topicsForGrade = (grade) =>
+    topics.filter(t => (t.grade === grade || t.grade === 'all')).map(t => t.name)
+
+  const initialGrade = grades[0] || ''
+  const initialTopics = topicsForGrade(initialGrade)
+  const [meta, setMeta] = useState({ grade: initialGrade, topic: initialTopics[0] || '', difficulty: 'easy' })
+
+  const currentTopics = topicsForGrade(meta.grade)
+
+  function handleGradeChange(grade) {
+    const available = topicsForGrade(grade)
+    setMeta({ ...meta, grade, topic: available[0] || '' })
+  }
 
   function handleParse() {
     const result = parseQuestions(rawText)
@@ -99,7 +112,7 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-600 mb-1 block">Khối</label>
-                  <select value={meta.grade} onChange={e => setMeta({ ...meta, grade: e.target.value })}
+                  <select value={meta.grade} onChange={e => handleGradeChange(e.target.value)}
                     className="w-full border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     {grades.map(g => <option key={g} value={g}>Khối {g}</option>)}
                   </select>
@@ -108,7 +121,7 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
                   <label className="text-xs font-medium text-gray-600 mb-1 block">Chủ đề</label>
                   <select value={meta.topic} onChange={e => setMeta({ ...meta, topic: e.target.value })}
                     className="w-full border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    {topics.map(t => <option key={t} value={t}>{t}</option>)}
+                    {currentTopics.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>

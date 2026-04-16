@@ -37,7 +37,15 @@ export default function QuestionsPage() {
     else { toast.success('Đã xóa'); fetchQuestions() }
   }
 
-  const topicNames = topics.map(t => t.name)
+  const topicsForGrade = filterGrade
+    ? topics.filter(t => t.grade === filterGrade || t.grade === 'all')
+    : topics
+  const topicNames = topicsForGrade.map(t => t.name)
+
+  function handleGradeChange(grade) {
+    setFilterGrade(grade)
+    setFilterTopic('')
+  }
 
   return (
     <div className="p-4 md:p-8">
@@ -63,7 +71,7 @@ export default function QuestionsPage() {
       <div className="flex gap-3 mb-6">
         <select
           value={filterGrade}
-          onChange={e => setFilterGrade(e.target.value)}
+          onChange={e => handleGradeChange(e.target.value)}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">Tất cả khối</option>
@@ -110,7 +118,7 @@ export default function QuestionsPage() {
           onClose={() => setShowImport(false)}
           onSaved={() => { setShowImport(false); fetchQuestions() }}
           grades={GRADES}
-          topics={topicNames}
+          topics={topics}
         />
       )}
     </div>
