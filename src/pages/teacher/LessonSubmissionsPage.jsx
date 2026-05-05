@@ -205,31 +205,24 @@ export default function LessonSubmissionsPage() {
                           : isSb3 ? <File size={20} className="text-yellow-500 shrink-0" />
                           : <File size={20} className="text-gray-400 shrink-0" />}
                         <span className="flex-1 text-sm text-gray-700 truncate">{fileName}</span>
-                        <div className="flex items-center gap-3 shrink-0">
-                          {isSb3 && (
-                            <a href={turboUrl} target="_blank" rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-xs text-yellow-600 hover:underline font-medium">
-                              <ExternalLink size={12} /> Mở TurboWarp
-                            </a>
-                          )}
-                          <a href={url} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium">
-                            <ExternalLink size={12} /> Tải xuống
-                          </a>
-                        </div>
+                        <a href={url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium shrink-0">
+                          <ExternalLink size={12} /> Tải xuống
+                        </a>
                       </div>
                     </div>
 
-                    {/* Embedded Office viewer for PPTX / DOCX */}
-                    {isOffice && (
+                    {/* Embedded viewer: Office Online for PPTX/DOCX, TurboWarp for SB3 */}
+                    {(isOffice || isSb3) && (
                       <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-100">
                         <iframe
-                          src={officeViewerUrl}
+                          src={isOffice ? officeViewerUrl : turboUrl}
                           width="100%"
                           height="540"
                           frameBorder="0"
                           title="Xem file"
                           className="w-full block"
+                          allow="autoplay"
                         />
                       </div>
                     )}
