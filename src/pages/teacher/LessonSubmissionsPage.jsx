@@ -212,19 +212,25 @@ export default function LessonSubmissionsPage() {
                       </div>
                     </div>
 
-                    {/* Embedded viewer: Office Online for PPTX/DOCX, TurboWarp for SB3 */}
-                    {(isOffice || isSb3) && (
+                    {/* Embedded Office viewer for PPTX / DOCX */}
+                    {isOffice && (
                       <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-100">
                         <iframe
-                          src={isOffice ? officeViewerUrl : turboUrl}
+                          src={officeViewerUrl}
                           width="100%"
                           height="540"
                           frameBorder="0"
                           title="Xem file"
                           className="w-full block"
-                          allow="autoplay"
                         />
                       </div>
+                    )}
+                    {/* SB3: TurboWarp does not support iframe with external URLs — open in tab */}
+                    {isSb3 && (
+                      <a href={turboUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2 justify-center w-full py-3 rounded-xl border-2 border-dashed border-yellow-300 bg-yellow-50 text-yellow-700 text-sm font-medium hover:bg-yellow-100 transition">
+                        <ExternalLink size={15} /> Mở trong TurboWarp (tab mới)
+                      </a>
                     )}
                   </div>
                 )
