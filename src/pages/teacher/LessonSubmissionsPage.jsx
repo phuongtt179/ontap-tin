@@ -179,15 +179,20 @@ export default function LessonSubmissionsPage() {
               {/* File nộp */}
               {selected.submission.file_url && (() => {
                 const url = selected.submission.file_url
-                const ext = url.split('.').pop().toLowerCase()
+                const ext = url.split('.').pop().toLowerCase().split('?')[0]
                 const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
                 const isWord = ['doc', 'docx'].includes(ext)
                 const isPpt = ['ppt', 'pptx'].includes(ext)
                 const isPdf = ext === 'pdf'
+                const isSb3 = ext === 'sb3'
+                const isOffice = isWord || isPpt
                 const fileName = decodeURIComponent(url.split('/').pop().split('?')[0])
+                const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`
+                const turboUrl = `https://turbowarp.org/editor?project_url=${encodeURIComponent(url)}`
                 return (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">File bài nộp</p>
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">File bài nộp</p>
+                    {/* File info bar */}
                     <div className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
                       {isImage && (
                         <img src={url} alt="Bài nộp" className="w-full max-h-72 object-contain bg-white border-b border-gray-200" />
@@ -197,15 +202,37 @@ export default function LessonSubmissionsPage() {
                           : isWord ? <FileText size={20} className="text-blue-600 shrink-0" />
                           : isPpt ? <FileText size={20} className="text-orange-500 shrink-0" />
                           : isPdf ? <FileText size={20} className="text-red-500 shrink-0" />
-                          : ext === 'sb3' ? <File size={20} className="text-yellow-500 shrink-0" />
+                          : isSb3 ? <File size={20} className="text-yellow-500 shrink-0" />
                           : <File size={20} className="text-gray-400 shrink-0" />}
                         <span className="flex-1 text-sm text-gray-700 truncate">{fileName}</span>
-                        <a href={url} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium shrink-0">
-                          <ExternalLink size={12} /> Mở / Tải xuống
-                        </a>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {isSb3 && (
+                            <a href={turboUrl} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-xs text-yellow-600 hover:underline font-medium">
+                              <ExternalLink size={12} /> Mở TurboWarp
+                            </a>
+                          )}
+                          <a href={url} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium">
+                            <ExternalLink size={12} /> Tải xuống
+                          </a>
+                        </div>
                       </div>
                     </div>
+
+                    {/* Embedded Office viewer for PPTX / DOCX */}
+                    {isOffice && (
+                      <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-100">
+                        <iframe
+                          src={officeViewerUrl}
+                          width="100%"
+                          height="540"
+                          frameBorder="0"
+                          title="Xem file"
+                          className="w-full block"
+                        />
+                      </div>
+                    )}
                   </div>
                 )
               })()}
