@@ -219,15 +219,11 @@ function calcCompleted(prog, les) {
 /* ── FileIcon ──────────────────────────────────────────────── */
 function FileIcon({ url, size = 20 }) {
   const ext = (url || '').split('.').pop().toLowerCase()
-  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
-  const isWord = ['doc', 'docx'].includes(ext)
-  const isPpt = ['ppt', 'pptx'].includes(ext)
-  const isPdf = ext === 'pdf'
-
-  if (isImage) return <FileImage size={size} className="text-blue-400" />
-  if (isWord) return <FileText size={size} className="text-blue-600" />
-  if (isPpt) return <FileText size={size} className="text-orange-500" />
-  if (isPdf) return <FileText size={size} className="text-red-500" />
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return <FileImage size={size} className="text-blue-400" />
+  if (ext === 'docx' || ext === 'doc') return <FileText size={size} className="text-blue-600" />
+  if (ext === 'pptx' || ext === 'ppt') return <FileText size={size} className="text-orange-500" />
+  if (ext === 'sb3') return <File size={size} className="text-yellow-500" />
+  if (ext === 'pdf') return <FileText size={size} className="text-red-500" />
   return <File size={size} className="text-gray-400" />
 }
 
@@ -794,11 +790,11 @@ export default function LessonPage() {
                       <>
                         <Upload size={28} className="text-gray-300" />
                         <span className="text-sm text-gray-500">Bấm để chọn file</span>
-                        <span className="text-xs text-gray-400">Hỗ trợ: Word, PowerPoint, PDF, ảnh (JPG, PNG)</span>
+                        <span className="text-xs text-gray-400">Chấp nhận: PowerPoint (.pptx) · Word (.docx) · Scratch (.sb3)</span>
                       </>
                     )}
                     <input type="file" className="hidden"
-                      accept=".doc,.docx,.ppt,.pptx,.pdf,.jpg,.jpeg,.png,.gif"
+                      accept=".pptx,.docx,.sb3"
                       onChange={e => e.target.files?.[0] && setPracticeFile(e.target.files[0])} />
                   </label>
 

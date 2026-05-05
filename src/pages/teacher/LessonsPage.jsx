@@ -59,7 +59,16 @@ function LessonFormModal({ lesson, onClose, onDone }) {
     if (filterTopic) q = q.eq('topic', filterTopic)
     if (filterDiff) q = q.eq('difficulty', filterDiff)
     q.order('created_at', { ascending: false }).then(({ data }) => {
-      setQuestions(data || [])
+      const fetched = data || []
+      setQuestions(fetched)
+      // Auto-clean stale question_ids (deleted questions) when viewing full list
+      if (!filterTopic && !filterDiff && form.question_ids.length > 0) {
+        const validIds = new Set(fetched.map(q => q.id))
+        const cleaned = form.question_ids.filter(id => validIds.has(id))
+        if (cleaned.length !== form.question_ids.length) {
+          setForm(f => ({ ...f, question_ids: cleaned }))
+        }
+      }
       setLoadingQ(false)
     })
   }, [step, form.grade, filterTopic, filterDiff])
@@ -310,7 +319,7 @@ function LessonFormModal({ lesson, onClose, onDone }) {
             /* ── Step 3: Practice settings ── */
             <div className="space-y-4">
               <p className="text-sm text-gray-500">
-                Học sinh sẽ làm bài trên máy tính rồi tải file lên (Word, PowerPoint, PDF, ảnh...).
+                Học sinh sẽ làm bài trên máy tính rồi tải file lên. Chấp nhận: <strong>.pptx</strong>, <strong>.docx</strong>, <strong>.sb3</strong>.
               </p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Đề bài / Hướng dẫn cho học sinh</label>

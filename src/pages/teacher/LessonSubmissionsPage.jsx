@@ -197,6 +197,7 @@ export default function LessonSubmissionsPage() {
                           : isWord ? <FileText size={20} className="text-blue-600 shrink-0" />
                           : isPpt ? <FileText size={20} className="text-orange-500 shrink-0" />
                           : isPdf ? <FileText size={20} className="text-red-500 shrink-0" />
+                          : ext === 'sb3' ? <File size={20} className="text-yellow-500 shrink-0" />
                           : <File size={20} className="text-gray-400 shrink-0" />}
                         <span className="flex-1 text-sm text-gray-700 truncate">{fileName}</span>
                         <a href={url} target="_blank" rel="noopener noreferrer"
