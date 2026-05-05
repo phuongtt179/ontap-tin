@@ -59,19 +59,20 @@ function LessonFormModal({ lesson, onClose, onDone }) {
     if (filterTopic) q = q.eq('topic', filterTopic)
     if (filterDiff) q = q.eq('difficulty', filterDiff)
     q.order('created_at', { ascending: false }).then(({ data }) => {
-      const fetched = data || []
-      setQuestions(fetched)
-      // Auto-clean stale question_ids (deleted questions) when viewing full list
-      if (!filterTopic && !filterDiff && form.question_ids.length > 0) {
-        const validIds = new Set(fetched.map(q => q.id))
-        const cleaned = form.question_ids.filter(id => validIds.has(id))
-        if (cleaned.length !== form.question_ids.length) {
-          setForm(f => ({ ...f, question_ids: cleaned }))
-        }
-      }
+      setQuestions(data || [])
       setLoadingQ(false)
     })
   }, [step, form.grade, filterTopic, filterDiff])
+
+  // Auto-clean stale question_ids once the full (unfiltered) question list is loaded
+  useEffect(() => {
+    if (step !== 2 || loadingQ || filterTopic || filterDiff || questions.length === 0) return
+    const validIds = new Set(questions.map(q => q.id))
+    setForm(f => {
+      const cleaned = f.question_ids.filter(id => validIds.has(id))
+      return cleaned.length === f.question_ids.length ? f : { ...f, question_ids: cleaned }
+    })
+  }, [step, loadingQ, filterTopic, filterDiff, questions])
 
   function toggleQuestion(id) {
     setForm(f => ({
