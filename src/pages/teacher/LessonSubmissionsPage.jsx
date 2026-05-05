@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
-import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users } from 'lucide-react'
-import WordEditor from '../../components/editor/WordEditor'
-import PPTEditor from '../../components/editor/PPTEditor'
+import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users, FileText, FileImage, File, ExternalLink } from 'lucide-react'
 
 export default function LessonSubmissionsPage() {
   const { id } = useParams()
@@ -178,36 +176,47 @@ export default function LessonSubmissionsPage() {
 
           {selected.submission ? (
             <div className="space-y-4 mb-6">
-              {/* Bài nộp dạng editor */}
-              {selected.submission.content_json && lesson?.practice_type === 'word' && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Bài thực hành Word</p>
-                  <div className="border border-gray-200 rounded-xl overflow-hidden">
-                    <WordEditor content={selected.submission.content_json} readonly />
+              {/* File nộp */}
+              {selected.submission.file_url && (() => {
+                const url = selected.submission.file_url
+                const ext = url.split('.').pop().toLowerCase()
+                const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
+                const isWord = ['doc', 'docx'].includes(ext)
+                const isPpt = ['ppt', 'pptx'].includes(ext)
+                const isPdf = ext === 'pdf'
+                const fileName = decodeURIComponent(url.split('/').pop().split('?')[0])
+                return (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">File bài nộp</p>
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
+                      {isImage && (
+                        <img src={url} alt="Bài nộp" className="w-full max-h-72 object-contain bg-white border-b border-gray-200" />
+                      )}
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        {isImage ? <FileImage size={20} className="text-blue-400 shrink-0" />
+                          : isWord ? <FileText size={20} className="text-blue-600 shrink-0" />
+                          : isPpt ? <FileText size={20} className="text-orange-500 shrink-0" />
+                          : isPdf ? <FileText size={20} className="text-red-500 shrink-0" />
+                          : <File size={20} className="text-gray-400 shrink-0" />}
+                        <span className="flex-1 text-sm text-gray-700 truncate">{fileName}</span>
+                        <a href={url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium shrink-0">
+                          <ExternalLink size={12} /> Mở / Tải xuống
+                        </a>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
-              {selected.submission.content_json && lesson?.practice_type === 'ppt' && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Bài thực hành PowerPoint</p>
-                  <PPTEditor content={selected.submission.content_json} readonly />
-                </div>
-              )}
+                )
+              })()}
 
-              {/* Bài nộp dạng cũ (text + ảnh) */}
+              {/* Ghi chú học sinh */}
               {selected.submission.text_content && (
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Nội dung bài nộp</p>
+                  <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Ghi chú của học sinh</p>
                   <p className="text-sm text-gray-800 whitespace-pre-wrap">{selected.submission.text_content}</p>
                 </div>
               )}
-              {selected.submission.file_url && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Ảnh minh chứng</p>
-                  <img src={selected.submission.file_url} alt="Bài nộp" className="rounded-xl border max-h-80 object-contain" />
-                </div>
-              )}
-              {!selected.submission.content_json && !selected.submission.text_content && !selected.submission.file_url && (
+              {!selected.submission.file_url && !selected.submission.text_content && (
                 <p className="text-sm text-gray-400 italic">Học sinh không để lại nội dung</p>
               )}
 

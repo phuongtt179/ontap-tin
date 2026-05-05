@@ -308,32 +308,16 @@ function LessonFormModal({ lesson, onClose, onDone }) {
             </div>
           ) : (
             /* ── Step 3: Practice settings ── */
-            <div className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Loại thực hành</label>
-                <div className="flex gap-3">
-                  {[
-                    { value: 'word', label: '📝 Word', desc: 'Soạn thảo văn bản' },
-                    { value: 'ppt', label: '📊 PowerPoint', desc: 'Trình chiếu' },
-                  ].map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setForm({ ...form, practice_type: opt.value })}
-                      className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm transition text-left ${form.practice_type === opt.value ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-indigo-300'}`}
-                    >
-                      <div className="font-semibold text-base mb-0.5">{opt.label}</div>
-                      <div className="text-xs text-gray-500">{opt.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">
+                Học sinh sẽ làm bài trên máy tính rồi tải file lên (Word, PowerPoint, PDF, ảnh...).
+              </p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Đề bài / Hướng dẫn cho học sinh</label>
                 <textarea
                   value={form.practice_instructions}
                   onChange={e => setForm({ ...form, practice_instructions: e.target.value })}
-                  rows={6}
+                  rows={7}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   placeholder="Ví dụ: Soạn thảo đoạn văn giới thiệu bản thân, có ít nhất 1 ảnh minh họa, định dạng tiêu đề in đậm..."
                   autoFocus
