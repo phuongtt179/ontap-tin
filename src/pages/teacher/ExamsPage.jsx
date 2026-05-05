@@ -25,6 +25,11 @@ function ExamFormModal({ exam, onClose, onDone }) {
     show_answer: exam?.show_answer ?? true,
     show_score: exam?.show_score ?? true,
     question_ids: exam?.question_ids || [],
+    has_practical: exam?.has_practical ?? false,
+    practical_type: exam?.practical_type || 'word',
+    practical_instructions: exam?.practical_instructions || '',
+    theory_weight: exam?.theory_weight ?? 60,
+    practical_weight: exam?.practical_weight ?? 40,
   })
   const [classes, setClasses] = useState([])
   const [questions, setQuestions] = useState([])
@@ -87,6 +92,11 @@ function ExamFormModal({ exam, onClose, onDone }) {
       show_answer: form.show_answer,
       show_score: form.show_score,
       question_ids: form.question_ids,
+      has_practical: form.has_practical,
+      practical_type: form.has_practical ? form.practical_type : null,
+      practical_instructions: form.has_practical ? form.practical_instructions.trim() || null : null,
+      theory_weight: form.has_practical ? form.theory_weight : 100,
+      practical_weight: form.has_practical ? form.practical_weight : 0,
     }
     const { error } = isEdit
       ? await supabase.from('exams').update(payload).eq('id', exam.id)
@@ -227,6 +237,66 @@ function ExamFormModal({ exam, onClose, onDone }) {
                     <span className="text-gray-400 text-xs ml-1">(tắt = học sinh chỉ thấy "Đã nộp bài")</span>
                   </span>
                 </div>
+              </div>
+
+              {/* Phần thực hành */}
+              <div className="border-t border-gray-100 pt-3 space-y-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Phần thực hành</p>
+                <div className="flex items-center gap-3">
+                  <button type="button"
+                    onClick={() => setForm({ ...form, has_practical: !form.has_practical })}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition shrink-0 ${form.has_practical ? 'bg-indigo-600' : 'bg-gray-300'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${form.has_practical ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                  <span className="text-sm text-gray-700">Có phần thực hành Word/PPT trong đề thi</span>
+                </div>
+
+                {form.has_practical && (
+                  <div className="space-y-3 pl-2 border-l-2 border-indigo-200">
+                    <div className="flex gap-3">
+                      {[{ value: 'word', label: '📝 Word' }, { value: 'ppt', label: '📊 PowerPoint' }].map(opt => (
+                        <button key={opt.value} type="button"
+                          onClick={() => setForm({ ...form, practical_type: opt.value })}
+                          className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm transition ${form.practical_type === opt.value ? 'border-indigo-500 bg-indigo-50 font-medium' : 'border-gray-200 hover:border-indigo-300'}`}>
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Yêu cầu thực hành</label>
+                      <textarea
+                        value={form.practical_instructions}
+                        onChange={e => setForm({ ...form, practical_instructions: e.target.value })}
+                        rows={3}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                        placeholder="Ví dụ: Soạn thảo đoạn văn giới thiệu về mùa xuân, có tiêu đề in đậm, ít nhất 1 hình ảnh..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tỉ lệ điểm</label>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600">Lý thuyết</span>
+                          <input type="number" min={0} max={100} value={form.theory_weight}
+                            onChange={e => setForm({ ...form, theory_weight: Number(e.target.value), practical_weight: 100 - Number(e.target.value) })}
+                            className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center" />
+                          <span className="text-sm text-gray-500">%</span>
+                        </div>
+                        <span className="text-gray-400">+</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600">Thực hành</span>
+                          <input type="number" min={0} max={100} value={form.practical_weight}
+                            onChange={e => setForm({ ...form, practical_weight: Number(e.target.value), theory_weight: 100 - Number(e.target.value) })}
+                            className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center" />
+                          <span className="text-sm text-gray-500">%</span>
+                        </div>
+                        <span className="text-sm text-gray-400">= 100%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (

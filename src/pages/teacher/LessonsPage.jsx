@@ -29,6 +29,8 @@ function LessonFormModal({ lesson, onClose, onDone }) {
     video_url: lesson?.video_url || '',
     order: lesson?.order ?? 0,
     has_practice: lesson?.has_practice ?? false,
+    practice_type: lesson?.practice_type || 'word',
+    practice_instructions: lesson?.practice_instructions || '',
     is_published: lesson?.is_published ?? false,
     question_ids: lesson?.question_ids || [],
   })
@@ -92,6 +94,8 @@ function LessonFormModal({ lesson, onClose, onDone }) {
       video_url: form.video_url.trim() || null,
       order: form.order || 0,
       has_practice: form.has_practice,
+      practice_type: form.has_practice ? form.practice_type : null,
+      practice_instructions: form.has_practice ? form.practice_instructions.trim() || null : null,
       is_published: form.is_published,
       question_ids: form.question_ids,
     }
@@ -111,21 +115,33 @@ function LessonFormModal({ lesson, onClose, onDone }) {
           <div>
             <h2 className="text-base font-bold text-gray-800">{isEdit ? 'Sửa bài học' : 'Tạo bài học mới'}</h2>
             <div className="flex gap-2 mt-1.5">
-              {[1, 2].map(s => (
-                <button key={s}
-                  onClick={() => { if (s === 2 && !form.title.trim()) return; setStep(s) }}
-                  className={`text-xs px-3 py-0.5 rounded-full font-medium transition ${step === s ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+              <button
+                onClick={() => setStep(1)}
+                className={`text-xs px-3 py-0.5 rounded-full font-medium transition ${step === 1 ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+              >
+                1. Thông tin
+              </button>
+              <button
+                onClick={() => { if (!form.title.trim()) return; setStep(2) }}
+                className={`text-xs px-3 py-0.5 rounded-full font-medium transition ${step === 2 ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+              >
+                {`2. Câu hỏi${form.question_ids.length > 0 ? ` (${form.question_ids.length})` : ''}`}
+              </button>
+              {form.has_practice && (
+                <button
+                  onClick={() => { if (!form.title.trim()) return; setStep(3) }}
+                  className={`text-xs px-3 py-0.5 rounded-full font-medium transition ${step === 3 ? 'bg-orange-500 text-white' : 'bg-orange-50 text-orange-600 hover:bg-orange-100'}`}
                 >
-                  {s === 1 ? '1. Thông tin' : `2. Câu hỏi${form.question_ids.length > 0 ? ` (${form.question_ids.length})` : ''}`}
+                  3. Bài thực hành
                 </button>
-              ))}
+              )}
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-y-auto min-h-0 p-6">
           {step === 1 ? (
             <div className="space-y-4">
               <div>
@@ -206,9 +222,18 @@ function LessonFormModal({ lesson, onClose, onDone }) {
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${form.has_practice ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
                 <span className="text-sm text-gray-700">Có bài nộp thực hành</span>
+                {form.has_practice && (
+                  <button
+                    type="button"
+                    onClick={() => { if (!form.title.trim()) { toast.error('Nhập tiêu đề bài học'); return } setStep(3) }}
+                    className="ml-1 text-xs text-orange-600 hover:text-orange-700 underline"
+                  >
+                    → Cài đặt thực hành
+                  </button>
+                )}
               </div>
             </div>
-          ) : (
+          ) : step === 2 ? (
             <div>
               {/* Filters + random */}
               <div className="flex gap-2 mb-4 flex-wrap items-center">
@@ -281,13 +306,48 @@ function LessonFormModal({ lesson, onClose, onDone }) {
                 </div>
               )}
             </div>
+          ) : (
+            /* ── Step 3: Practice settings ── */
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Loại thực hành</label>
+                <div className="flex gap-3">
+                  {[
+                    { value: 'word', label: '📝 Word', desc: 'Soạn thảo văn bản' },
+                    { value: 'ppt', label: '📊 PowerPoint', desc: 'Trình chiếu' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, practice_type: opt.value })}
+                      className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm transition text-left ${form.practice_type === opt.value ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-indigo-300'}`}
+                    >
+                      <div className="font-semibold text-base mb-0.5">{opt.label}</div>
+                      <div className="text-xs text-gray-500">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Đề bài / Hướng dẫn cho học sinh</label>
+                <textarea
+                  value={form.practice_instructions}
+                  onChange={e => setForm({ ...form, practice_instructions: e.target.value })}
+                  rows={6}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  placeholder="Ví dụ: Soạn thảo đoạn văn giới thiệu bản thân, có ít nhất 1 ảnh minh họa, định dạng tiêu đề in đậm..."
+                  autoFocus
+                />
+                <p className="text-xs text-gray-400 mt-1">Nội dung này sẽ hiển thị cho học sinh khi làm bài.</p>
+              </div>
+            </div>
           )}
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t shrink-0">
-          {step === 2
-            ? <button onClick={() => setStep(1)} className="text-sm text-gray-500 hover:text-gray-700">← Quay lại</button>
+          {step > 1
+            ? <button onClick={() => setStep(step - 1)} className="text-sm text-gray-500 hover:text-gray-700">← Quay lại</button>
             : <span />
           }
           <div className="flex gap-3">

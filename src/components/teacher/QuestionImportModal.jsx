@@ -9,6 +9,9 @@ const QUESTION_TYPES = {
   multiple_choice: 'Trắc nghiệm',
   true_false: 'Đúng / Sai',
   fill_blank: 'Điền từ',
+  drag_word: 'Kéo thả từ',
+  ordering: 'Sắp xếp',
+  matching: 'Ghép đôi',
 }
 
 export default function QuestionImportModal({ onClose, onSaved, grades, topics }) {
@@ -54,6 +57,24 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
     }))
   }
 
+  function updateMatchOption(qIndex, optIndex, value) {
+    setParsed(prev => prev.map((q, i) => {
+      if (i !== qIndex) return q
+      const match_options = [...(q.match_options || [])]
+      match_options[optIndex] = { ...match_options[optIndex], text: value }
+      return { ...q, match_options }
+    }))
+  }
+
+  function updateWordBank(qIndex, value) {
+    const words = value.split(',').map(w => w.trim()).filter(Boolean)
+    setParsed(prev => prev.map((q, i) => {
+      if (i !== qIndex) return q
+      const options = words.map((text, idx) => ({ key: String.fromCharCode(65 + idx), text }))
+      return { ...q, options }
+    }))
+  }
+
   function removeQuestion(index) {
     setParsed(prev => prev.filter((_, i) => i !== index))
   }
@@ -77,6 +98,7 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
         question: q.question,
         type: q.type,
         options: q.options,
+        match_options: q.match_options?.length ? q.match_options : null,
         correct_answer: q.correct_answer,
         image_url: q.image_url,
         grade: meta.grade,
@@ -145,7 +167,7 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
                   onChange={e => setRawText(e.target.value)}
                   rows={14}
                   className="w-full border border-gray-300 rounded-lg p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                  placeholder={`Ví dụ:\nCâu 1: Thiết bị nào dùng để nhập dữ liệu?\nA. Màn hình\nB. Bàn phím\nC. Loa\nD. Máy in\nĐáp án: B\n\nCâu 2: Chuột là thiết bị xuất. Đúng hay sai?\nĐáp án: Sai`}
+                  placeholder={`Ví dụ:\nCâu 1: Thiết bị nào dùng để nhập dữ liệu?\nA. Màn hình\nB. Bàn phím\nC. Loa\nD. Máy in\nĐáp án: B\n\nCâu 2: Chuột là thiết bị xuất. Đúng hay sai?\nĐáp án: Sai\n\nCâu 3: Điền từ vào chỗ ___ cho đúng\nTừ: bàn phím, chuột, màn hình\nĐáp án: bàn phím\n\nCâu 4: Sắp xếp các bước đúng thứ tự\n1. Bật máy tính\n2. Đăng nhập\n3. Mở phần mềm\n\nCâu 5: Ghép đôi thiết bị với chức năng\nBàn phím | Nhập văn bản\nChuột | Di chuyển con trỏ`}
                 />
               </div>
             </div>
@@ -238,6 +260,72 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
                         onChange={e => updateQuestion(i, 'correct_answer', e.target.value)}
                         className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400 w-full"
                       />
+                    </div>
+                  )}
+
+                  {/* Drag word */}
+                  {q.type === 'drag_word' && (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">Từ vựng (cách nhau bằng dấu phẩy)</label>
+                        <input
+                          value={q.options.map(o => o.text).join(', ')}
+                          onChange={e => updateWordBank(i, e.target.value)}
+                          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400 w-full"
+                          placeholder="từ1, từ2, từ3..."
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">Đáp án (thứ tự từ cần điền)</label>
+                        <input
+                          value={q.correct_answer || ''}
+                          onChange={e => updateQuestion(i, 'correct_answer', e.target.value)}
+                          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400 w-full"
+                          placeholder="từ1, từ2..."
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Ordering */}
+                  {q.type === 'ordering' && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-gray-500 block">Các mục (thứ tự hiện tại = đáp án đúng)</label>
+                      {q.options.map((opt, oi) => (
+                        <div key={oi} className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">
+                            {oi + 1}
+                          </span>
+                          <input
+                            value={opt.text}
+                            onChange={e => updateOption(i, oi, e.target.value)}
+                            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Matching */}
+                  {q.type === 'matching' && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-gray-500 block">Cặp ghép đôi (trái | phải)</label>
+                      {q.options.map((opt, oi) => (
+                        <div key={oi} className="flex items-center gap-2">
+                          <span className="w-6 text-xs font-bold text-indigo-600 text-center shrink-0">{opt.key}</span>
+                          <input
+                            value={opt.text}
+                            onChange={e => updateOption(i, oi, e.target.value)}
+                            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
+                          <span className="text-gray-400 text-xs shrink-0">→</span>
+                          <input
+                            value={(q.match_options || [])[oi]?.text || ''}
+                            onChange={e => updateMatchOption(i, oi, e.target.value)}
+                            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
+                        </div>
+                      ))}
                     </div>
                   )}
 

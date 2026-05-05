@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users } from 'lucide-react'
+import WordEditor from '../../components/editor/WordEditor'
+import PPTEditor from '../../components/editor/PPTEditor'
 
 export default function LessonSubmissionsPage() {
   const { id } = useParams()
@@ -18,6 +20,7 @@ export default function LessonSubmissionsPage() {
 
   const [selected, setSelected] = useState(null) // { student, submission }
   const [comment, setComment] = useState('')
+  const [score, setScore] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => { loadAll() }, [id])
@@ -66,18 +69,19 @@ export default function LessonSubmissionsPage() {
     if (!selected) return
     setSaving(true)
     const sub = selected.submission
-    const { error } = await supabase.from('lesson_submissions').update({
+    const scoreVal = score !== '' ? parseFloat(score) : null
+    const updates = {
       teacher_comment: comment,
       reviewed_at: new Date().toISOString(),
-    }).eq('id', sub.id)
+      ...(scoreVal != null && !isNaN(scoreVal) ? { score: scoreVal } : {}),
+    }
+    const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
     setSaving(false)
     if (error) { toast.error('Lưu thất bại: ' + error.message); return }
     toast.success('Đã lưu nhận xét')
-    setSubmissionMap(prev => ({
-      ...prev,
-      [selected.student.id]: { ...sub, teacher_comment: comment, reviewed_at: new Date().toISOString() }
-    }))
-    setSelected(prev => prev ? { ...prev, submission: { ...sub, teacher_comment: comment, reviewed_at: new Date().toISOString() } } : prev)
+    const updated = { ...sub, ...updates }
+    setSubmissionMap(prev => ({ ...prev, [selected.student.id]: updated }))
+    setSelected(prev => prev ? { ...prev, submission: updated } : prev)
   }
 
   if (loading) {
@@ -174,6 +178,23 @@ export default function LessonSubmissionsPage() {
 
           {selected.submission ? (
             <div className="space-y-4 mb-6">
+              {/* Bài nộp dạng editor */}
+              {selected.submission.content_json && lesson?.practice_type === 'word' && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Bài thực hành Word</p>
+                  <div className="border border-gray-200 rounded-xl overflow-hidden">
+                    <WordEditor content={selected.submission.content_json} readonly />
+                  </div>
+                </div>
+              )}
+              {selected.submission.content_json && lesson?.practice_type === 'ppt' && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Bài thực hành PowerPoint</p>
+                  <PPTEditor content={selected.submission.content_json} readonly />
+                </div>
+              )}
+
+              {/* Bài nộp dạng cũ (text + ảnh) */}
               {selected.submission.text_content && (
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                   <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Nội dung bài nộp</p>
@@ -186,19 +207,39 @@ export default function LessonSubmissionsPage() {
                   <img src={selected.submission.file_url} alt="Bài nộp" className="rounded-xl border max-h-80 object-contain" />
                 </div>
               )}
-              {!selected.submission.text_content && !selected.submission.file_url && (
+              {!selected.submission.content_json && !selected.submission.text_content && !selected.submission.file_url && (
                 <p className="text-sm text-gray-400 italic">Học sinh không để lại nội dung</p>
               )}
+
+              {/* Chấm điểm + nhận xét */}
               <div className="bg-white border border-gray-200 rounded-xl p-5">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-4">
                   <MessageSquare size={16} className="text-indigo-500" />
-                  <h3 className="font-semibold text-gray-800 text-sm">Nhận xét của giáo viên</h3>
+                  <h3 className="font-semibold text-gray-800 text-sm">Chấm điểm & Nhận xét</h3>
                 </div>
+
+                <div className="flex items-center gap-3 mb-3">
+                  <label className="text-sm font-medium text-gray-700 shrink-0">Điểm:</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={10}
+                    step={0.5}
+                    value={score}
+                    onChange={e => setScore(e.target.value)}
+                    placeholder="0–10"
+                    className="w-24 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  {selected.submission.score != null && (
+                    <span className="text-sm text-gray-400">Hiện tại: <b className="text-indigo-600">{selected.submission.score}</b></span>
+                  )}
+                </div>
+
                 <textarea
                   value={comment}
                   onChange={e => setComment(e.target.value)}
                   rows={4}
-                  placeholder="Nhập nhận xét..."
+                  placeholder="Nhập nhận xét cho học sinh..."
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none mb-3"
                 />
                 <button
@@ -207,7 +248,7 @@ export default function LessonSubmissionsPage() {
                   className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
                 >
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                  Lưu nhận xét
+                  Lưu điểm & nhận xét
                 </button>
               </div>
             </div>
@@ -243,7 +284,7 @@ export default function LessonSubmissionsPage() {
               return (
                 <div
                   key={student.id}
-                  onClick={() => hasPractice ? (setSelected({ student, submission: sub || null }), setComment(sub?.teacher_comment || '')) : null}
+                  onClick={() => hasPractice ? (setSelected({ student, submission: sub || null }), setComment(sub?.teacher_comment || ''), setScore(sub?.score ?? '')) : null}
                   className={`bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 ${hasPractice ? 'cursor-pointer hover:border-indigo-300 hover:shadow-sm transition' : ''}`}
                 >
                   {/* Avatar */}
@@ -285,7 +326,8 @@ export default function LessonSubmissionsPage() {
                       {hasPractice && (
                         <span className={`text-xs px-1.5 py-0.5 rounded flex items-center gap-0.5 font-medium
                           ${sub ? (sub.reviewed_at ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700') : 'bg-gray-100 text-gray-400'}`}>
-                          <Upload size={9} /> {sub ? (sub.reviewed_at ? 'Đã nhận xét ✓' : 'Chờ nhận xét') : 'Chưa nộp'}
+                          <Upload size={9} />
+                          {sub ? (sub.reviewed_at ? `Đã chấm${sub.score != null ? ` (${sub.score}đ)` : ''} ✓` : 'Chờ chấm') : 'Chưa nộp'}
                         </span>
                       )}
                     </div>

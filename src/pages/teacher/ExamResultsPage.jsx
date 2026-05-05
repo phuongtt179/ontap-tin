@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { ArrowLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Loader2, CheckCircle } from 'lucide-react'
+import WordEditor from '../../components/editor/WordEditor'
+import PPTEditor from '../../components/editor/PPTEditor'
+import toast from 'react-hot-toast'
 
 export default function ExamResultsPage() {
   const { id } = useParams()
@@ -14,6 +17,9 @@ export default function ExamResultsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedStudent, setSelectedStudent] = useState(null) // { profile, sessions }
   const [selectedSession, setSelectedSession] = useState(null)
+  const [practicalScore, setPracticalScore] = useState('')
+  const [practicalComment, setPracticalComment] = useState('')
+  const [savingPractical, setSavingPractical] = useState(false)
 
   useEffect(() => { loadData() }, [id])
 
@@ -58,6 +64,24 @@ export default function ExamResultsPage() {
     .filter(st => !filterClass || st.profile?.class_name === filterClass)
     .sort((a, b) => Math.max(...b.sessions.map(s => s.score)) - Math.max(...a.sessions.map(s => s.score)))
 
+  async function savePractical() {
+    if (!selectedSession) return
+    setSavingPractical(true)
+    const scoreVal = practicalScore !== '' ? parseFloat(practicalScore) : null
+    const updates = {
+      practical_comment: practicalComment,
+      practical_reviewed_at: new Date().toISOString(),
+      ...(scoreVal != null && !isNaN(scoreVal) ? { practical_score: scoreVal } : {}),
+    }
+    const { error } = await supabase.from('exam_sessions').update(updates).eq('id', selectedSession.id)
+    setSavingPractical(false)
+    if (error) { toast.error('Lưu thất bại: ' + error.message); return }
+    toast.success('Đã lưu điểm thực hành')
+    const updated = { ...selectedSession, ...updates }
+    setSelectedSession(updated)
+    setSessions(prev => prev.map(s => s.id === updated.id ? updated : s))
+  }
+
   if (loading) return (
     <div className="flex justify-center py-16">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
@@ -95,7 +119,11 @@ export default function ExamResultsPage() {
                   .map(s => (
                     <button
                       key={s.id}
-                      onClick={() => setSelectedSession(s)}
+                      onClick={() => {
+                        setSelectedSession(s)
+                        setPracticalScore(s.practical_score ?? '')
+                        setPracticalComment(s.practical_comment || '')
+                      }}
                       className={`text-xs px-3 py-1 rounded-full border transition ${
                         selectedSession?.id === s.id
                           ? 'bg-indigo-600 border-indigo-600 text-white'
@@ -110,11 +138,23 @@ export default function ExamResultsPage() {
           </div>
 
           {selectedSession && (
-            <div className="p-5 space-y-3">
+            <div className="p-5 space-y-4">
               {/* Session summary */}
               <div className="flex flex-wrap gap-4 text-sm text-gray-600 pb-3 border-b border-gray-100">
-                <span>Điểm: <strong className="text-indigo-700 text-base">{selectedSession.score}</strong></span>
+                <span>Lý thuyết: <strong className="text-indigo-700 text-base">{selectedSession.score}</strong>/10</span>
                 <span>{selectedSession.correct}/{selectedSession.total} câu đúng</span>
+                {selectedSession.practical_score != null && (
+                  <span>Thực hành: <strong className="text-orange-600 text-base">{selectedSession.practical_score}</strong>/10</span>
+                )}
+                {exam.has_practical && exam.theory_weight != null && (
+                  <span className="text-gray-400">
+                    Tổng: {(() => {
+                      const t = selectedSession.score * (exam.theory_weight / 100)
+                      const p = (selectedSession.practical_score ?? 0) * (exam.practical_weight / 100)
+                      return Math.round((t + p) * 10) / 10
+                    })()}/10
+                  </span>
+                )}
                 <span className="text-gray-400">
                   {new Date(selectedSession.submitted_at).toLocaleDateString('vi-VN', {
                     day: '2-digit', month: '2-digit', year: 'numeric',
@@ -123,28 +163,79 @@ export default function ExamResultsPage() {
                 </span>
               </div>
 
-              {/* Question breakdown */}
-              {questions.map((q, i) => {
-                const ans = selectedSession.answers?.[i]
-                const isOk = ans?.toLowerCase() === q.correct_answer?.toLowerCase()
-                return (
-                  <div
-                    key={q.id}
-                    className={`rounded-xl border p-3 text-sm ${isOk ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}
-                  >
-                    <p className="font-medium text-gray-800 mb-1">{i + 1}. {q.question}</p>
-                    {isOk
-                      ? <p className="text-green-700">✓ {ans}</p>
-                      : (
-                        <p className="text-red-600">
-                          ✗ Học sinh: <strong>{ans || '(bỏ qua)'}</strong>
-                          {' '}— Đúng: <strong>{q.correct_answer}</strong>
-                        </p>
-                      )
-                    }
+              {/* Theory questions */}
+              {questions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Phần lý thuyết</p>
+                  {questions.map((q, i) => {
+                    const ans = selectedSession.answers?.[i]
+                    const isOk = ans?.toLowerCase() === q.correct_answer?.toLowerCase()
+                    return (
+                      <div key={q.id} className={`rounded-xl border p-3 text-sm ${isOk ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                        <p className="font-medium text-gray-800 mb-1">{i + 1}. {q.question}</p>
+                        {isOk
+                          ? <p className="text-green-700">✓ {ans}</p>
+                          : <p className="text-red-600">✗ Học sinh: <strong>{ans || '(bỏ qua)'}</strong> — Đúng: <strong>{q.correct_answer}</strong></p>
+                        }
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Practical section */}
+              {exam.has_practical && selectedSession.practical_content && (
+                <div className="space-y-3 pt-2 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Phần thực hành {exam.practical_type === 'word' ? '📝 Word' : '📊 PowerPoint'}
+                  </p>
+                  {exam.practical_type === 'word' && (
+                    <div className="border border-gray-200 rounded-xl overflow-hidden">
+                      <WordEditor content={selectedSession.practical_content} readonly />
+                    </div>
+                  )}
+                  {exam.practical_type === 'ppt' && (
+                    <PPTEditor content={selectedSession.practical_content} readonly />
+                  )}
+
+                  {/* Grading form */}
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+                    <p className="text-sm font-semibold text-gray-700">Chấm điểm thực hành</p>
+                    <div className="flex items-center gap-3">
+                      <label className="text-sm text-gray-600 shrink-0">Điểm (0–10):</label>
+                      <input
+                        type="number" min={0} max={10} step={0.5}
+                        value={practicalScore}
+                        onChange={e => setPracticalScore(e.target.value)}
+                        placeholder="VD: 8.5"
+                        className="w-24 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      {selectedSession.practical_score != null && (
+                        <span className="text-sm text-gray-400">Hiện tại: <b className="text-orange-600">{selectedSession.practical_score}</b></span>
+                      )}
+                    </div>
+                    <textarea
+                      value={practicalComment}
+                      onChange={e => setPracticalComment(e.target.value)}
+                      rows={3}
+                      placeholder="Nhận xét phần thực hành..."
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                    />
+                    <button
+                      onClick={savePractical}
+                      disabled={savingPractical}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition"
+                    >
+                      {savingPractical ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                      Lưu điểm thực hành
+                    </button>
                   </div>
-                )
-              })}
+                </div>
+              )}
+
+              {exam.has_practical && !selectedSession.practical_content && (
+                <p className="text-sm text-gray-400 italic pt-2 border-t border-gray-100">Học sinh chưa nộp phần thực hành</p>
+              )}
             </div>
           )}
         </div>
@@ -184,8 +275,11 @@ export default function ExamResultsPage() {
                   <button
                     key={st.profile?.id || i}
                     onClick={() => {
+                      const latest = st.sessions.sort((a, b) => a.attempt_number - b.attempt_number).slice(-1)[0]
                       setSelectedStudent(st)
-                      setSelectedSession(st.sessions.sort((a, b) => a.attempt_number - b.attempt_number).slice(-1)[0])
+                      setSelectedSession(latest)
+                      setPracticalScore(latest.practical_score ?? '')
+                      setPracticalComment(latest.practical_comment || '')
                     }}
                     className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 hover:border-indigo-300 hover:bg-indigo-50/30 transition text-left"
                   >
