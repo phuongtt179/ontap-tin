@@ -314,11 +314,11 @@ function LessonQuiz({ questions, onSubmit }) {
                     {opts.map((opt, oi) => {
                       const label = String.fromCharCode(65 + oi)
                       const val = optText(opt)
-                      const selected = answers[q.id] === val
+                      const selected = answers[q.id] === label
                       return (
                         <button
                           key={oi}
-                          onClick={() => setAnswer(q.id, val)}
+                          onClick={() => setAnswer(q.id, label)}
                           className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 text-left text-sm transition ${
                             selected
                               ? 'border-indigo-500 bg-indigo-50 text-indigo-800'
