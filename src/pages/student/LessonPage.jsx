@@ -187,6 +187,15 @@ function OrderingInput({ q, value, onChange }) {
 }
 
 /* ── Helpers ───────────────────────────────────────────────── */
+function parseTasks(instructions) {
+  if (!instructions) return [{ instructions: '' }]
+  try {
+    const arr = JSON.parse(instructions)
+    if (Array.isArray(arr) && arr.length > 0) return arr
+  } catch {}
+  return [{ instructions }]
+}
+
 function getEmbedUrl(url) {
   if (!url) return null
   const m = url.match(/(?:youtu\.be\/|[?&]v=)([a-zA-Z0-9_-]{11})/)
@@ -457,17 +466,12 @@ export default function LessonPage() {
   const [lesson, setLesson] = useState(null)
   const [questions, setQuestions] = useState([])
   const [progress, setProgress] = useState(null)
-  const [submission, setSubmission] = useState(null)
+  const [taskSubmissions, setTaskSubmissions] = useState([])   // submission|null per task
+  const [taskFiles, setTaskFiles] = useState([])               // File|null per task
+  const [taskNotes, setTaskNotes] = useState([])               // string per task
+  const [taskSubmitting, setTaskSubmitting] = useState(null)   // task index being submitted
   const [loading, setLoading] = useState(true)
-
   const [quizActive, setQuizActive] = useState(false)
-
-  // Practice form state
-  const [practiceFile, setPracticeFile] = useState(null)   // File object
-  const [practiceNote, setPracticeNote] = useState('')
-  const [practiceSubmitting, setPracticeSubmitting] = useState(false)
-
-  // Comment save state
   const [videoMarking, setVideoMarking] = useState(false)
 
   useEffect(() => {
@@ -493,11 +497,19 @@ export default function LessonPage() {
       .select('*').eq('user_id', user.id).eq('lesson_id', id).maybeSingle()
     setProgress(progData || null)
 
-    // 4. Fetch submission (most recent)
+    // 4. Fetch all task submissions
+    const tasks = parseTasks(lessonData.practice_instructions)
     const { data: subData } = await supabase.from('lesson_submissions')
       .select('*').eq('user_id', user.id).eq('lesson_id', id)
-      .order('submitted_at', { ascending: false }).limit(1).maybeSingle()
-    setSubmission(subData || null)
+      .order('submitted_at', { ascending: true })
+    const subs = Array(tasks.length).fill(null)
+    ;(subData || []).forEach(s => {
+      const tidx = s.content_json?.task_index ?? 0
+      if (tidx >= 0 && tidx < tasks.length) subs[tidx] = s
+    })
+    setTaskSubmissions(subs)
+    setTaskFiles(Array(tasks.length).fill(null))
+    setTaskNotes(Array(tasks.length).fill(''))
 
     setLoading(false)
   }
@@ -528,34 +540,37 @@ export default function LessonPage() {
     else toast('Chưa đạt, hãy thử lại nhé!', { icon: '📖' })
   }
 
-  async function handlePracticeSubmit() {
-    if (!practiceFile && !practiceNote.trim()) {
+  async function handleTaskSubmit(taskIdx) {
+    const file = taskFiles[taskIdx]
+    const note = taskNotes[taskIdx] || ''
+    if (!file && !note.trim()) {
       toast.error('Vui lòng chọn file hoặc nhập ghi chú')
       return
     }
-    setPracticeSubmitting(true)
+    setTaskSubmitting(taskIdx)
     try {
       let fileUrl = null
-      if (practiceFile) {
-        fileUrl = await uploadFile(practiceFile)
-      }
-      const { data: subInserted, error: subError } = await supabase.from('lesson_submissions').insert({
+      if (file) fileUrl = await uploadFile(file)
+      const { data: subInserted, error } = await supabase.from('lesson_submissions').insert({
         user_id: user.id,
         lesson_id: id,
         file_url: fileUrl,
-        text_content: practiceNote.trim() || null,
-        content_json: null,
+        text_content: note.trim() || null,
+        content_json: { task_index: taskIdx },
         submitted_at: new Date().toISOString(),
       }).select().single()
-
-      if (subError) throw subError
-      setSubmission(subInserted)
-      await upsertProgress({ practice_submitted: true })
-      toast.success('Đã nộp bài thực hành')
+      if (error) throw error
+      const newSubs = [...taskSubmissions]
+      newSubs[taskIdx] = subInserted
+      setTaskSubmissions(newSubs)
+      if (newSubs.every(s => s !== null)) {
+        await upsertProgress({ practice_submitted: true })
+      }
+      toast.success(`Đã nộp bài ${taskIdx + 1}`)
     } catch (err) {
       toast.error('Nộp bài thất bại: ' + err.message)
     } finally {
-      setPracticeSubmitting(false)
+      setTaskSubmitting(null)
     }
   }
 
@@ -573,6 +588,8 @@ export default function LessonPage() {
   const hasQuiz = questions.length > 0
   const hasPractice = lesson.has_practice
   const embedUrl = getEmbedUrl(lesson.video_url)
+  const practiceTasks = parseTasks(lesson.practice_instructions)
+  const submittedCount = taskSubmissions.filter(Boolean).length
 
   const videoOk = !hasVideo || progress?.video_watched
   const quizOk = !hasQuiz || progress?.quiz_passed
@@ -625,7 +642,7 @@ export default function LessonPage() {
             {hasPractice && (
               <div className={`flex items-center gap-1.5 text-xs font-medium ${practiceOk ? 'text-green-600' : 'text-gray-400'}`}>
                 <Upload size={13} />
-                <span>Thực hành {practiceOk ? '✓' : '○'}</span>
+                <span>Thực hành {practiceOk ? '✓' : `${submittedCount}/${practiceTasks.length}`}</span>
               </div>
             )}
           </div>
@@ -726,100 +743,99 @@ export default function LessonPage() {
             <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
               <Upload size={16} className="text-orange-500" />
               <h2 className="font-semibold text-gray-800 text-sm">Nộp bài thực hành</h2>
+              <span className="ml-auto text-xs text-gray-400">{submittedCount}/{practiceTasks.length} bài đã nộp</span>
             </div>
-            <div className="p-4">
-              {/* Đề bài */}
-              {lesson.practice_instructions && (
-                <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-amber-700 mb-1">Đề bài:</p>
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{lesson.practice_instructions}</p>
-                </div>
-              )}
+            <div className="p-4 space-y-4">
+              {practiceTasks.map((task, i) => {
+                const sub = taskSubmissions[i]
+                const file = taskFiles[i]
+                const note = taskNotes[i] || ''
+                const isSubmitting = taskSubmitting === i
+                return (
+                  <div key={i} className={`rounded-xl border p-4 space-y-3 ${sub ? 'border-green-200 bg-green-50/40' : 'border-gray-200'}`}>
+                    {/* Task header */}
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-700 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                      <span className="text-sm font-semibold text-gray-700">Bài {i + 1}</span>
+                      {sub && <CheckCircle size={14} className="text-green-500 ml-auto" />}
+                    </div>
 
-              {submission ? (
-                /* ── Đã nộp ── */
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 text-sm text-green-600 font-medium bg-green-50 px-3 py-1.5 rounded-lg">
-                      <CheckCircle size={15} /> Đã nộp bài
-                    </span>
-                    <span className="text-xs text-gray-400">{new Date(submission.submitted_at).toLocaleString('vi-VN')}</span>
-                    {submission.score != null && (
-                      <span className="text-sm font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg">Điểm: {submission.score}</span>
+                    {/* Instructions */}
+                    {task.instructions && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <p className="text-xs font-semibold text-amber-700 mb-1">Đề bài:</p>
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap">{task.instructions}</p>
+                      </div>
                     )}
-                  </div>
 
-                  {/* File đã nộp */}
-                  {submission.file_url && <SubmittedFile url={submission.file_url} />}
-                  {submission.text_content && (
-                    <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 whitespace-pre-wrap">
-                      {submission.text_content}
-                    </div>
-                  )}
-
-                  {/* Nhận xét giáo viên */}
-                  {submission.teacher_comment ? (
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-                      <p className="text-xs font-semibold text-indigo-600 mb-1">Nhận xét của giáo viên:</p>
-                      <p className="text-sm text-gray-800">{submission.teacher_comment}</p>
-                      {submission.reviewed_at && (
-                        <p className="text-xs text-gray-400 mt-1">{new Date(submission.reviewed_at).toLocaleString('vi-VN')}</p>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic">Giáo viên chưa nhận xét</p>
-                  )}
-                </div>
-              ) : (
-                /* ── Form nộp bài ── */
-                <div className="space-y-4">
-                  <p className="text-xs text-gray-500">
-                    Làm bài trên máy tính của bạn (Word, PowerPoint, ảnh chụp...) rồi tải lên đây.
-                  </p>
-
-                  {/* File drop zone */}
-                  <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl px-4 py-8 cursor-pointer transition
-                    ${practiceFile ? 'border-orange-400 bg-orange-50' : 'border-gray-300 hover:border-orange-400 hover:bg-orange-50'}`}>
-                    {practiceFile ? (
-                      <>
-                        <FileIcon url={practiceFile.name} size={32} />
-                        <span className="text-sm font-medium text-gray-800 text-center break-all max-w-xs">{practiceFile.name}</span>
-                        <span className="text-xs text-gray-400">{(practiceFile.size / 1024).toFixed(0)} KB · Bấm để đổi file</span>
-                      </>
+                    {sub ? (
+                      /* ── Đã nộp ── */
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
+                            <CheckCircle size={12} /> Đã nộp · {new Date(sub.submitted_at).toLocaleString('vi-VN')}
+                          </span>
+                          {sub.score != null && (
+                            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">Điểm: {sub.score}</span>
+                          )}
+                        </div>
+                        {sub.file_url && <SubmittedFile url={sub.file_url} />}
+                        {sub.text_content && (
+                          <div className="bg-white rounded-lg border p-2 text-xs text-gray-600 whitespace-pre-wrap">{sub.text_content}</div>
+                        )}
+                        {sub.teacher_comment ? (
+                          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                            <p className="text-xs font-semibold text-indigo-600 mb-1">Nhận xét của giáo viên:</p>
+                            <p className="text-sm text-gray-800">{sub.teacher_comment}</p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-400 italic">Giáo viên chưa nhận xét</p>
+                        )}
+                      </div>
                     ) : (
-                      <>
-                        <Upload size={28} className="text-gray-300" />
-                        <span className="text-sm text-gray-500">Bấm để chọn file</span>
-                        <span className="text-xs text-gray-400">Chấp nhận: PowerPoint (.pptx) · Word (.docx) · Scratch (.sb3)</span>
-                      </>
+                      /* ── Form nộp ── */
+                      <div className="space-y-3">
+                        <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl px-4 py-5 cursor-pointer transition
+                          ${file ? 'border-orange-400 bg-orange-50' : 'border-gray-300 hover:border-orange-400 hover:bg-orange-50'}`}>
+                          {file ? (
+                            <>
+                              <FileIcon url={file.name} size={26} />
+                              <span className="text-sm font-medium text-gray-800 text-center break-all max-w-xs">{file.name}</span>
+                              <span className="text-xs text-gray-400">{(file.size / 1024).toFixed(0)} KB · Bấm để đổi</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload size={22} className="text-gray-300" />
+                              <span className="text-sm text-gray-500">Bấm để chọn file</span>
+                              <span className="text-xs text-gray-400">.pptx · .docx · .sb3</span>
+                            </>
+                          )}
+                          <input type="file" className="hidden" accept=".pptx,.docx,.sb3"
+                            onChange={e => {
+                              if (!e.target.files?.[0]) return
+                              const next = [...taskFiles]; next[i] = e.target.files[0]; setTaskFiles(next)
+                            }} />
+                        </label>
+                        <textarea
+                          value={note}
+                          onChange={e => { const next = [...taskNotes]; next[i] = e.target.value; setTaskNotes(next) }}
+                          rows={2}
+                          placeholder="Ghi chú thêm (tuỳ chọn)..."
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                        />
+                        <button
+                          onClick={() => handleTaskSubmit(i)}
+                          disabled={isSubmitting || (!file && !note.trim())}
+                          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                        >
+                          {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                          {isSubmitting ? 'Đang nộp...' : `Nộp bài ${i + 1}`}
+                        </button>
+                      </div>
                     )}
-                    <input type="file" className="hidden"
-                      accept=".pptx,.docx,.sb3"
-                      onChange={e => e.target.files?.[0] && setPracticeFile(e.target.files[0])} />
-                  </label>
-
-                  {/* Ghi chú */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú <span className="text-gray-400 font-normal">(tuỳ chọn)</span></label>
-                    <textarea
-                      value={practiceNote}
-                      onChange={e => setPracticeNote(e.target.value)}
-                      rows={3}
-                      placeholder="Ghi chú thêm cho giáo viên..."
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                    />
                   </div>
-
-                  <button
-                    onClick={handlePracticeSubmit}
-                    disabled={practiceSubmitting || (!practiceFile && !practiceNote.trim())}
-                    className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                  >
-                    {practiceSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                    {practiceSubmitting ? 'Đang nộp...' : 'Nộp bài thực hành'}
-                  </button>
-                </div>
-              )}
+                )
+              })}
             </div>
           </section>
         )}

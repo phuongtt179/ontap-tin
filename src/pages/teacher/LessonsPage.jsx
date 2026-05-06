@@ -15,6 +15,15 @@ const TYPE_LABELS = {
   matching: 'Nối đôi', ordering: 'Sắp xếp', drag_word: 'Kéo thả từ',
 }
 
+function parseTasks(instructions) {
+  if (!instructions) return [{ instructions: '' }]
+  try {
+    const arr = JSON.parse(instructions)
+    if (Array.isArray(arr) && arr.length > 0) return arr
+  } catch {}
+  return [{ instructions }]
+}
+
 /* ── LessonFormModal ───────────────────────────────────────── */
 function LessonFormModal({ lesson, onClose, onDone }) {
   const { grades: GRADES } = useGrades()
@@ -29,8 +38,7 @@ function LessonFormModal({ lesson, onClose, onDone }) {
     video_url: lesson?.video_url || '',
     order: lesson?.order ?? 0,
     has_practice: lesson?.has_practice ?? false,
-    practice_type: lesson?.practice_type || 'word',
-    practice_instructions: lesson?.practice_instructions || '',
+    practice_tasks: parseTasks(lesson?.practice_instructions),
     is_published: lesson?.is_published ?? false,
     question_ids: lesson?.question_ids || [],
   })
@@ -93,6 +101,16 @@ function LessonFormModal({ lesson, onClose, onDone }) {
     setForm(f => ({ ...f, question_ids: [] }))
   }
 
+  function addTask() {
+    setForm(f => ({ ...f, practice_tasks: [...f.practice_tasks, { instructions: '' }] }))
+  }
+  function removeTask(idx) {
+    setForm(f => ({ ...f, practice_tasks: f.practice_tasks.filter((_, i) => i !== idx) }))
+  }
+  function updateTask(idx, val) {
+    setForm(f => ({ ...f, practice_tasks: f.practice_tasks.map((t, i) => i === idx ? { ...t, instructions: val } : t) }))
+  }
+
   async function handleSave() {
     if (!form.title.trim()) { toast.error('Nhập tiêu đề bài học'); return }
     setSaving(true)
@@ -104,8 +122,10 @@ function LessonFormModal({ lesson, onClose, onDone }) {
       video_url: form.video_url.trim() || null,
       order: form.order || 0,
       has_practice: form.has_practice,
-      practice_type: form.has_practice ? form.practice_type : null,
-      practice_instructions: form.has_practice ? form.practice_instructions.trim() || null : null,
+      practice_type: null,
+      practice_instructions: form.has_practice
+        ? JSON.stringify(form.practice_tasks.filter(t => t.instructions.trim()))
+        : null,
       is_published: form.is_published,
       question_ids: form.question_ids,
     }
@@ -318,22 +338,35 @@ function LessonFormModal({ lesson, onClose, onDone }) {
             </div>
           ) : (
             /* ── Step 3: Practice settings ── */
-            <div className="space-y-4">
-              <p className="text-sm text-gray-500">
-                Học sinh sẽ làm bài trên máy tính rồi tải file lên. Chấp nhận: <strong>.pptx</strong>, <strong>.docx</strong>, <strong>.sb3</strong>.
+            <div className="space-y-3">
+              <p className="text-xs text-gray-500">
+                Mỗi bài yêu cầu học sinh nộp 1 file (.pptx · .docx · .sb3).
               </p>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Đề bài / Hướng dẫn cho học sinh</label>
-                <textarea
-                  value={form.practice_instructions}
-                  onChange={e => setForm({ ...form, practice_instructions: e.target.value })}
-                  rows={7}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                  placeholder="Ví dụ: Soạn thảo đoạn văn giới thiệu bản thân, có ít nhất 1 ảnh minh họa, định dạng tiêu đề in đậm..."
-                  autoFocus
-                />
-                <p className="text-xs text-gray-400 mt-1">Nội dung này sẽ hiển thị cho học sinh khi làm bài.</p>
-              </div>
+              {form.practice_tasks.map((task, i) => (
+                <div key={i} className="border border-gray-200 rounded-xl p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-gray-700">Bài {i + 1}</span>
+                    {form.practice_tasks.length > 1 && (
+                      <button type="button" onClick={() => removeTask(i)}
+                        className="text-red-400 hover:text-red-600 transition">
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    value={task.instructions}
+                    onChange={e => updateTask(i, e.target.value)}
+                    rows={3}
+                    autoFocus={i === form.practice_tasks.length - 1}
+                    placeholder={`Đề bài / hướng dẫn bài ${i + 1}...`}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  />
+                </div>
+              ))}
+              <button type="button" onClick={addTask}
+                className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition">
+                <Plus size={14} /> Thêm bài tập
+              </button>
             </div>
           )}
         </div>

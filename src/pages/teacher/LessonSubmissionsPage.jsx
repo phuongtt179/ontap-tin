@@ -4,6 +4,15 @@ import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users, FileText, FileImage, File, ExternalLink } from 'lucide-react'
 
+function parseTasks(instructions) {
+  if (!instructions) return [{ instructions: '' }]
+  try {
+    const arr = JSON.parse(instructions)
+    if (Array.isArray(arr) && arr.length > 0) return arr
+  } catch {}
+  return [{ instructions }]
+}
+
 export default function LessonSubmissionsPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -55,7 +64,8 @@ export default function LessonSubmissionsPage() {
         supabase.from('lesson_submissions').select('*').eq('lesson_id', id).in('user_id', userIds),
       ])
       const pm = {}; (progData || []).forEach(p => { pm[p.user_id] = p })
-      const sm = {}; (subData || []).forEach(s => { sm[s.user_id] = s })
+      const sm = {}
+      ;(subData || []).forEach(s => { if (!sm[s.user_id]) sm[s.user_id] = []; sm[s.user_id].push(s) })
       setProgressMap(pm)
       setSubmissionMap(sm)
     }
@@ -66,20 +76,20 @@ export default function LessonSubmissionsPage() {
   async function saveComment() {
     if (!selected) return
     setSaving(true)
-    const sub = selected.submission
     const scoreVal = score !== '' ? parseFloat(score) : null
     const updates = {
       teacher_comment: comment,
       reviewed_at: new Date().toISOString(),
       ...(scoreVal != null && !isNaN(scoreVal) ? { score: scoreVal } : {}),
     }
-    const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
+    const subIds = selected.submissions.map(s => s.id)
+    const { error } = await supabase.from('lesson_submissions').update(updates).in('id', subIds)
     setSaving(false)
     if (error) { toast.error('Lưu thất bại: ' + error.message); return }
     toast.success('Đã lưu nhận xét')
-    const updated = { ...sub, ...updates }
-    setSubmissionMap(prev => ({ ...prev, [selected.student.id]: updated }))
-    setSelected(prev => prev ? { ...prev, submission: updated } : prev)
+    const updatedSubs = selected.submissions.map(s => ({ ...s, ...updates }))
+    setSubmissionMap(prev => ({ ...prev, [selected.student.id]: updatedSubs }))
+    setSelected(prev => prev ? { ...prev, submissions: updatedSubs } : prev)
   }
 
   if (loading) {
@@ -102,7 +112,8 @@ export default function LessonSubmissionsPage() {
   const total = displayedStudents.length
   const videoCount = hasVideo ? displayedStudents.filter(s => progressMap[s.id]?.video_watched).length : null
   const quizCount = hasQuiz ? displayedStudents.filter(s => progressMap[s.id]?.quiz_passed).length : null
-  const practiceCount = hasPractice ? displayedStudents.filter(s => submissionMap[s.id]).length : null
+  const taskCount = parseTasks(lesson?.practice_instructions).length
+  const practiceCount = hasPractice ? displayedStudents.filter(s => (submissionMap[s.id] || []).length >= taskCount).length : null
   const completedCount = displayedStudents.filter(s => progressMap[s.id]?.completed).length
 
   return (
@@ -170,130 +181,110 @@ export default function LessonSubmissionsPage() {
             <p className="font-semibold text-base">{selected.student.full_name}</p>
             <p className="text-indigo-200 text-sm mt-0.5">
               {selected.student.class_name ? `Lớp ${selected.student.class_name}` : `Khối ${selected.student.grade}`}
-              {selected.submission && ` · Nộp lúc ${new Date(selected.submission.submitted_at).toLocaleString('vi-VN')}`}
+              {' · '}{selected.submissions.length}/{taskCount} bài đã nộp
             </p>
           </div>
 
-          {selected.submission ? (
-            <div className="space-y-4 mb-6">
-              {/* File nộp */}
-              {selected.submission.file_url && (() => {
-                const url = selected.submission.file_url
-                const ext = url.split('.').pop().toLowerCase().split('?')[0]
-                const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
-                const isWord = ['doc', 'docx'].includes(ext)
-                const isPpt = ['ppt', 'pptx'].includes(ext)
-                const isPdf = ext === 'pdf'
-                const isSb3 = ext === 'sb3'
-                const isOffice = isWord || isPpt
-                const fileName = decodeURIComponent(url.split('/').pop().split('?')[0])
-                const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`
-                const turboUrl = `https://turbowarp.org/editor?project_url=${encodeURIComponent(url)}`
-                return (
-                  <div className="space-y-3">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">File bài nộp</p>
-                    {/* File info bar */}
-                    <div className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
-                      {isImage && (
-                        <img src={url} alt="Bài nộp" className="w-full max-h-72 object-contain bg-white border-b border-gray-200" />
-                      )}
-                      <div className="flex items-center gap-3 px-4 py-3">
-                        {isImage ? <FileImage size={20} className="text-blue-400 shrink-0" />
-                          : isWord ? <FileText size={20} className="text-blue-600 shrink-0" />
-                          : isPpt ? <FileText size={20} className="text-orange-500 shrink-0" />
-                          : isPdf ? <FileText size={20} className="text-red-500 shrink-0" />
-                          : isSb3 ? <File size={20} className="text-yellow-500 shrink-0" />
-                          : <File size={20} className="text-gray-400 shrink-0" />}
-                        <span className="flex-1 text-sm text-gray-700 truncate">{fileName}</span>
-                        <a href={url} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium shrink-0">
-                          <ExternalLink size={12} /> Tải xuống
-                        </a>
-                      </div>
-                    </div>
-
-                    {/* Embedded Office viewer for PPTX / DOCX */}
-                    {isOffice && (
-                      <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-100">
-                        <iframe
-                          src={officeViewerUrl}
-                          width="100%"
-                          height="540"
-                          frameBorder="0"
-                          title="Xem file"
-                          className="w-full block"
-                        />
-                      </div>
-                    )}
-                    {/* SB3: TurboWarp does not support iframe with external URLs — open in tab */}
-                    {isSb3 && (
-                      <a href={turboUrl} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2 justify-center w-full py-3 rounded-xl border-2 border-dashed border-yellow-300 bg-yellow-50 text-yellow-700 text-sm font-medium hover:bg-yellow-100 transition">
-                        <ExternalLink size={15} /> Mở trong TurboWarp (tab mới)
-                      </a>
-                    )}
+          <div className="space-y-4 mb-6">
+            {/* Per-task submissions */}
+            {parseTasks(lesson?.practice_instructions).map((task, i) => {
+              const sub = selected.submissions.find(s => (s.content_json?.task_index ?? 0) === i)
+              return (
+                <div key={i} className={`rounded-xl border p-4 space-y-3 ${sub ? 'border-gray-200' : 'border-dashed border-gray-200 bg-gray-50'}`}>
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-700 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                    <span className="text-sm font-semibold text-gray-700">Bài {i + 1}</span>
+                    {task.instructions && <span className="text-xs text-gray-400 truncate flex-1">{task.instructions.substring(0, 60)}{task.instructions.length > 60 ? '…' : ''}</span>}
                   </div>
-                )
-              })()}
-
-              {/* Ghi chú học sinh */}
-              {selected.submission.text_content && (
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Ghi chú của học sinh</p>
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{selected.submission.text_content}</p>
+                  {sub ? (() => {
+                    const url = sub.file_url
+                    const ext = url ? url.split('.').pop().toLowerCase().split('?')[0] : ''
+                    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
+                    const isWord = ['doc', 'docx'].includes(ext)
+                    const isPpt = ['ppt', 'pptx'].includes(ext)
+                    const isSb3 = ext === 'sb3'
+                    const isOffice = isWord || isPpt
+                    const fileName = url ? decodeURIComponent(url.split('/').pop().split('?')[0]) : ''
+                    return (
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-400">Nộp lúc {new Date(sub.submitted_at).toLocaleString('vi-VN')}</p>
+                        {url && (
+                          <div className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
+                            {isImage && <img src={url} alt="" className="w-full max-h-60 object-contain bg-white border-b border-gray-200" />}
+                            <div className="flex items-center gap-3 px-4 py-3">
+                              {isImage ? <FileImage size={18} className="text-blue-400 shrink-0" />
+                                : isWord ? <FileText size={18} className="text-blue-600 shrink-0" />
+                                : isPpt ? <FileText size={18} className="text-orange-500 shrink-0" />
+                                : isSb3 ? <File size={18} className="text-yellow-500 shrink-0" />
+                                : <File size={18} className="text-gray-400 shrink-0" />}
+                              <span className="flex-1 text-sm text-gray-700 truncate">{fileName}</span>
+                              <a href={url} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium shrink-0">
+                                <ExternalLink size={12} /> Tải xuống
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                        {isOffice && url && (
+                          <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-100">
+                            <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`}
+                              width="100%" height="480" frameBorder="0" title="Xem file" className="w-full block" />
+                          </div>
+                        )}
+                        {isSb3 && url && (
+                          <a href={`https://turbowarp.org/editor?project_url=${encodeURIComponent(url)}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-2 justify-center w-full py-2.5 rounded-xl border-2 border-dashed border-yellow-300 bg-yellow-50 text-yellow-700 text-sm font-medium hover:bg-yellow-100 transition">
+                            <ExternalLink size={14} /> Mở trong TurboWarp (tab mới)
+                          </a>
+                        )}
+                        {sub.text_content && (
+                          <div className="bg-gray-50 rounded-lg p-2 text-xs text-gray-600 whitespace-pre-wrap border">{sub.text_content}</div>
+                        )}
+                      </div>
+                    )
+                  })() : (
+                    <p className="text-sm text-gray-400 italic">Học sinh chưa nộp bài này</p>
+                  )}
                 </div>
-              )}
-              {!selected.submission.file_url && !selected.submission.text_content && (
-                <p className="text-sm text-gray-400 italic">Học sinh không để lại nội dung</p>
-              )}
+              )
+            })}
 
-              {/* Chấm điểm + nhận xét */}
+            {/* Chấm điểm + nhận xét */}
+            {selected.submissions.length > 0 && (
               <div className="bg-white border border-gray-200 rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <MessageSquare size={16} className="text-indigo-500" />
-                  <h3 className="font-semibold text-gray-800 text-sm">Chấm điểm & Nhận xét</h3>
+                  <h3 className="font-semibold text-gray-800 text-sm">Chấm điểm & Nhận xét chung</h3>
                 </div>
-
                 <div className="flex items-center gap-3 mb-3">
                   <label className="text-sm font-medium text-gray-700 shrink-0">Điểm:</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={10}
-                    step={0.5}
-                    value={score}
-                    onChange={e => setScore(e.target.value)}
-                    placeholder="0–10"
+                  <input type="number" min={0} max={10} step={0.5} value={score}
+                    onChange={e => setScore(e.target.value)} placeholder="0–10"
                     className="w-24 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
-                  {selected.submission.score != null && (
-                    <span className="text-sm text-gray-400">Hiện tại: <b className="text-indigo-600">{selected.submission.score}</b></span>
+                  {selected.submissions[0]?.score != null && (
+                    <span className="text-sm text-gray-400">Hiện tại: <b className="text-indigo-600">{selected.submissions[0].score}</b></span>
                   )}
                 </div>
-
-                <textarea
-                  value={comment}
-                  onChange={e => setComment(e.target.value)}
-                  rows={4}
+                <textarea value={comment} onChange={e => setComment(e.target.value)} rows={4}
                   placeholder="Nhập nhận xét cho học sinh..."
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none mb-3"
                 />
-                <button
-                  onClick={saveComment}
-                  disabled={saving}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-                >
+                <button onClick={saveComment} disabled={saving}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                   Lưu điểm & nhận xét
                 </button>
               </div>
-            </div>
-          ) : (
-            <div className="text-center py-10 text-gray-400">
-              <Upload size={32} className="mx-auto mb-2 opacity-30" />
-              <p>Học sinh chưa nộp bài thực hành</p>
-            </div>
-          )}
+            )}
+            {selected.submissions.length === 0 && (
+              <div className="text-center py-10 text-gray-400">
+                <Upload size={32} className="mx-auto mb-2 opacity-30" />
+                <p>Học sinh chưa nộp bài nào</p>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         /* ── Student progress list ── */
@@ -306,13 +297,12 @@ export default function LessonSubmissionsPage() {
           <div className="space-y-2">
             {displayedStudents.map(student => {
               const prog = progressMap[student.id]
-              const sub = submissionMap[student.id]
+              const subs = submissionMap[student.id] || []
               const completed = prog?.completed
               const videoOk = !hasVideo || prog?.video_watched
               const quizOk = !hasQuiz || prog?.quiz_passed
-              const practiceOk = !hasPractice || !!sub
+              const practiceOk = !hasPractice || subs.length >= taskCount
 
-              // Calculate overall %
               const steps = [hasVideo, hasQuiz, hasPractice].filter(Boolean)
               const done = [videoOk && hasVideo, quizOk && hasQuiz, practiceOk && hasPractice].filter(Boolean)
               const pct = steps.length > 0 ? Math.round((done.length / steps.length) * 100) : 0
@@ -320,7 +310,7 @@ export default function LessonSubmissionsPage() {
               return (
                 <div
                   key={student.id}
-                  onClick={() => hasPractice ? (setSelected({ student, submission: sub || null }), setComment(sub?.teacher_comment || ''), setScore(sub?.score ?? '')) : null}
+                  onClick={() => hasPractice ? (setSelected({ student, submissions: subs }), setComment(subs[0]?.teacher_comment || ''), setScore(subs[0]?.score ?? '')) : null}
                   className={`bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 ${hasPractice ? 'cursor-pointer hover:border-indigo-300 hover:shadow-sm transition' : ''}`}
                 >
                   {/* Avatar */}
@@ -361,9 +351,12 @@ export default function LessonSubmissionsPage() {
                       )}
                       {hasPractice && (
                         <span className={`text-xs px-1.5 py-0.5 rounded flex items-center gap-0.5 font-medium
-                          ${sub ? (sub.reviewed_at ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700') : 'bg-gray-100 text-gray-400'}`}>
+                          ${subs.length >= taskCount ? (subs.some(s => s.reviewed_at) ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700') : 'bg-gray-100 text-gray-400'}`}>
                           <Upload size={9} />
-                          {sub ? (sub.reviewed_at ? `Đã chấm${sub.score != null ? ` (${sub.score}đ)` : ''} ✓` : 'Chờ chấm') : 'Chưa nộp'}
+                          {subs.length === 0 ? 'Chưa nộp'
+                            : subs.length < taskCount ? `${subs.length}/${taskCount} bài`
+                            : subs.some(s => s.reviewed_at) ? `Đã chấm${subs[0]?.score != null ? ` (${subs[0].score}đ)` : ''} ✓`
+                            : 'Chờ chấm'}
                         </span>
                       )}
                     </div>
