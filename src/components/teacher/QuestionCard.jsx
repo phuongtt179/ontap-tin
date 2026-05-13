@@ -12,6 +12,8 @@ const TYPE_LABELS = {
   matching: 'Nối đôi',
   ordering: 'Sắp xếp',
   drag_word: 'Kéo thả từ',
+  word_order: 'Sắp xếp từ',
+  essay: 'Tự luận',
 }
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
@@ -267,6 +269,7 @@ export default function QuestionCard({ question: q, index, onDelete, onUpdate })
             <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">{TYPE_LABELS[q.type]}</span>
             <span className="text-xs text-gray-400">Khối {q.grade}</span>
             {q.image_url && <span className="text-xs text-green-600">📷</span>}
+            {q.audio_url && <span className="text-xs text-blue-600">🔊</span>}
             <button onClick={e => { e.stopPropagation(); setShowEdit(true) }}
               className="text-gray-400 hover:text-indigo-600 p-1 transition">
               <Pencil size={14} />
@@ -365,6 +368,38 @@ export default function QuestionCard({ question: q, index, onDelete, onUpdate })
                   ))}
                 </div>
               </div>
+            )}
+
+            {q.type === 'word_order' && (
+              <div className="space-y-2">
+                <div className="text-sm text-green-700 bg-green-50 px-3 py-1.5 rounded-lg">
+                  Câu đúng: <strong>{q.correct_answer}</strong>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {q.options?.map(opt => (
+                    <span key={opt.key} className="px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded text-xs text-indigo-700">{opt.text}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {q.type === 'essay' && (
+              <div className="space-y-1.5">
+                <div className="text-xs text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg">
+                  Tự luận — giáo viên chấm thủ công
+                  {q.options?.[0]?.max_score && <span className="ml-2">| Điểm tối đa: <strong>{q.options[0].max_score}</strong></span>}
+                  {q.options?.[0]?.allow_file && <span className="ml-2">| Cho nộp file</span>}
+                </div>
+                {q.correct_answer && (
+                  <div className="text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg">
+                    Đáp án mẫu: {q.correct_answer}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {q.audio_url && (
+              <audio controls src={q.audio_url} className="h-8 w-full rounded mt-1" />
             )}
 
             <div className="flex gap-3 text-xs text-gray-400 pt-1">

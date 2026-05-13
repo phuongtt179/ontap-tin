@@ -1,7 +1,25 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { CheckCircle, XCircle, Clock, ChevronRight, RotateCcw, ArrowUp, ArrowDown } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, ChevronRight, RotateCcw, ArrowUp, ArrowDown, Paperclip } from 'lucide-react'
+import { normalizeAnswer } from '../../utils/normalizeAnswer'
+import toast from 'react-hot-toast'
+
+const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+
+function normalizeOptions(options) {
+  if (!Array.isArray(options)) return []
+  return options.map((opt, i) => {
+    const fallbackKey = String.fromCharCode(65 + i)
+    if (typeof opt === 'string') return { key: fallbackKey, text: opt, image_url: '' }
+    if (!opt || typeof opt !== 'object') return { key: fallbackKey, text: String(opt ?? ''), image_url: '' }
+    if (opt.key !== undefined && opt.text !== undefined) return opt
+    const keys = Object.keys(opt)
+    if (keys.length >= 1 && keys[0].length === 1) return { key: keys[0], text: opt[keys[0]], image_url: opt.image_url || '' }
+    return { key: fallbackKey, text: opt.text || opt.value || opt.label || '', image_url: opt.image_url || '' }
+  })
+}
 
 function shuffle(arr) {
   const a = [...arr]
@@ -12,24 +30,76 @@ function shuffle(arr) {
   return a
 }
 
-function normalizeAnswer(type, ans, correct) {
-  if (!ans) return false
-  if (type === 'matching') {
-    const norm = s => s?.split(',').map(p => p.trim()).sort().join(',')
-    return norm(ans) === norm(correct)
+// Câu tự luận — học sinh gõ bài và/hoặc nộp file
+function EssayQuestion({ q, value, onChange, disabled }) {
+  const allowFile = q.options?.[0]?.allow_file
+  const [uploading, setUploading] = useState(false)
+  const text = value?.text || ''
+  const fileUrl = value?.file_url || ''
+  const fileName = value?.file_name || ''
+
+  async function handleFileUpload(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    if (file.size > 20 * 1024 * 1024) { toast.error('File tối đa 20MB'); return }
+    setUploading(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('upload_preset', UPLOAD_PRESET)
+    const isImage = file.type.startsWith('image/')
+    const endpoint = isImage
+      ? `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`
+      : `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`
+    try {
+      const res = await fetch(endpoint, { method: 'POST', body: fd })
+      const json = await res.json()
+      if (!res.ok || json.error) { toast.error('Upload thất bại'); return }
+      onChange({ text, file_url: json.secure_url, file_name: file.name })
+    } catch { toast.error('Upload thất bại') }
+    finally { setUploading(false) }
   }
-  if (type === 'drag_word' || (type === 'fill_blank' && (correct || '').includes(','))) {
-    const a = ans.split(',').map(w => w.trim().toLowerCase())
-    const c = (correct || '').split(',').map(w => w.trim().toLowerCase())
-    return a.length === c.length && a.every((w, i) => w === c[i])
-  }
-  return ans.toLowerCase() === (correct || '').toLowerCase()
+
+  return (
+    <div className="space-y-3">
+      <textarea
+        value={text}
+        onChange={e => onChange({ file_url: fileUrl, file_name: fileName, text: e.target.value })}
+        disabled={disabled}
+        rows={7}
+        placeholder="Nhập bài làm của bạn tại đây..."
+        className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-indigo-500 resize-none disabled:bg-gray-50"
+      />
+      {allowFile && (
+        fileUrl ? (
+          <div className="flex items-center gap-2 text-sm text-indigo-700 bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-200">
+            <Paperclip size={14} className="shrink-0" />
+            <span className="flex-1 truncate">{fileName || 'File đã nộp'}</span>
+            {!disabled && (
+              <button onClick={() => onChange({ text, file_url: '', file_name: '' })}
+                className="text-red-400 hover:text-red-600 text-lg leading-none">×</button>
+            )}
+          </div>
+        ) : (
+          <label className={`flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl border-2 border-dashed cursor-pointer transition w-full
+            ${uploading || disabled ? 'opacity-50 cursor-not-allowed border-gray-200 text-gray-400'
+            : 'border-gray-300 hover:border-indigo-400 text-gray-500 hover:text-indigo-600'}`}>
+            <Paperclip size={14} />
+            {uploading ? 'Đang tải lên...' : 'Đính kèm file (PDF, Word, ảnh...)'}
+            <input type="file" className="hidden" disabled={uploading || disabled}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+              onChange={handleFileUpload} />
+          </label>
+        )
+      )}
+      <p className="text-xs text-gray-400">Câu tự luận — giáo viên sẽ chấm điểm sau khi nộp bài.</p>
+    </div>
+  )
 }
 
 export default function QuizSession({
   questions, mode, timeLimit, onFinish,
   examMode = false, examId = null, attemptNumber = 1,
-  showAnswer = true, showScore = true,
+  showAnswer = true, showScore = true, tnMaxScore = 10,
 }) {
   const { user } = useAuth()
   const [current, setCurrent] = useState(0)
@@ -40,7 +110,7 @@ export default function QuizSession({
   const [timeLeft, setTimeLeft] = useState(timeLimit ? timeLimit * 60 : null)
 
   useEffect(() => {
-    if (!timeLeft) return
+    if (timeLeft === null) return
     if (timeLeft <= 0) { handleFinish(); return }
     const t = setTimeout(() => setTimeLeft(tl => tl - 1), 1000)
     return () => clearTimeout(t)
@@ -55,6 +125,10 @@ export default function QuizSession({
     if (!showAnswer) {
       setAnswers(prev => ({ ...prev, [current]: answer }))
     }
+  }
+
+  function handleEssayChange(value) {
+    setAnswers(prev => ({ ...prev, [current]: value }))
   }
 
   function handleConfirm() {
@@ -87,11 +161,16 @@ export default function QuizSession({
     const finalAnswers = { ...answers }
     if (selected && !confirmed) finalAnswers[current] = selected
 
+    // Essay không tính tự động — chỉ tính câu tự chấm
     let correct = 0
+    const autoQuestions = questions.filter(q => q.type !== 'essay')
     questions.forEach((q, i) => {
+      if (q.type === 'essay') return
       if (normalizeAnswer(q.type, finalAnswers[i], q.correct_answer)) correct++
     })
-    const score = Math.round((correct / questions.length) * 10 * 10) / 10
+    const score = autoQuestions.length > 0
+      ? Math.round((correct / autoQuestions.length) * tnMaxScore * 10) / 10
+      : 0
 
     try {
       if (examMode && examId) {
@@ -130,55 +209,84 @@ export default function QuizSession({
         onRetry={onFinish}
         examMode={examMode}
         showScore={showScore}
+        tnMaxScore={tnMaxScore}
       />
     )
   }
 
-  const isCorrect = confirmed && normalizeAnswer(q.type, selected, q.correct_answer)
-  const answeredCount = showAnswer
-    ? Object.keys(answers).length + (selected && !confirmed ? 1 : 0)
-    : Object.keys(answers).length
+  const isCorrect = q.type !== 'essay' && confirmed && normalizeAnswer(q.type, selected, q.correct_answer)
+
+  function isAnsweredAt(i) {
+    const a = answers[i]
+    if (a == null) return !!(showAnswer && i === current && selected)
+    if (typeof a === 'object') return !!(a.text?.trim() || a.file_url)
+    return true
+  }
+  const answeredCount = questions.filter((_, i) => isAnsweredAt(i)).length
+
+  const autoIndices = questions.map((_, i) => questions[i].type !== 'essay' ? i : null).filter(i => i !== null)
+  const essayIndices = questions.map((_, i) => questions[i].type === 'essay' ? i : null).filter(i => i !== null)
+  const hasEssay = essayIndices.length > 0
+
+  function renderNavBtn(i) {
+    const isAnswered = isAnsweredAt(i)
+    const isCurrent = i === current
+    let cls = 'w-8 h-8 rounded-full text-xs font-semibold flex items-center justify-center cursor-pointer border-2 transition '
+    if (isCurrent) cls += 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-110'
+    else if (isAnswered) cls += 'bg-red-100 border-red-300 text-red-600'
+    else cls += 'bg-white border-gray-300 text-gray-500 hover:border-indigo-400 hover:text-indigo-600'
+    return <button key={i} onClick={() => jumpTo(i)} className={cls}>{i + 1}</button>
+  }
 
   return (
     <div className="flex min-h-screen justify-center">
-      <div className="flex flex-col md:flex-row w-full max-w-3xl">
-        {/* Main quiz area */}
-        <div className="flex-1 p-4 md:p-8">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-5">
-            <span className="text-sm text-gray-500">
+      <div className="flex flex-col md:flex-row w-full">
+
+        {/* Phần chính: câu hỏi + đáp án */}
+        <div className="flex-1 p-4 md:p-8 bg-gray-50 overflow-y-auto">
+          <div className="flex items-start justify-between mb-4 max-w-3xl mx-auto gap-4">
+            <span className="text-sm text-gray-500 pt-1">
               Câu <span className="font-bold text-gray-800">{current + 1}</span> / {questions.length}
             </span>
             {timeLeft !== null && (
-              <div className={`flex items-center gap-1.5 text-sm font-medium ${timeLeft < 60 ? 'text-red-600' : 'text-gray-600'}`}>
-                <Clock size={16} />
-                {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border-2 shadow-sm
+                ${timeLeft < 60 ? 'border-red-400 bg-red-50 text-red-600' : 'border-indigo-200 bg-white text-indigo-700'}`}>
+                <Clock size={18} />
+                <span className="text-2xl font-bold tabular-nums">
+                  {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+                </span>
               </div>
             )}
           </div>
 
-          {/* Progress bar */}
-          <div className="h-1.5 bg-gray-200 rounded-full mb-7">
+          <div className="h-1.5 bg-gray-200 rounded-full mb-7 max-w-3xl mx-auto">
             <div
               className="h-1.5 bg-indigo-600 rounded-full transition-all"
               style={{ width: `${(answeredCount / questions.length) * 100}%` }}
             />
           </div>
 
-          {/* Question */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-4">
+          {/* Nội dung câu hỏi */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-4 max-w-3xl mx-auto">
+            {q.audio_url && (
+              <div className="mb-4">
+                <audio controls className="w-full rounded-xl" src={q.audio_url}>
+                  Trình duyệt không hỗ trợ phát âm thanh
+                </audio>
+              </div>
+            )}
             {q.image_url && (
               <img src={q.image_url} alt="" className="rounded-lg mb-4 max-h-48 w-auto" />
             )}
-            <p className="text-gray-800 font-medium text-base leading-relaxed">{q.question}</p>
+            <p className="text-gray-800 font-medium text-base leading-relaxed whitespace-pre-wrap">{q.question}</p>
           </div>
 
-          {/* Options */}
-          <div className="space-y-2.5 mb-6">
-            {q.type === 'multiple_choice' && q.options?.map(opt => (
+          {/* Khu vực đáp án */}
+          <div className="space-y-2.5 mb-6 max-w-3xl mx-auto">
+            {q.type === 'multiple_choice' && normalizeOptions(q.options).map((opt, idx) => (
               <OptionButton
                 key={opt.key}
-                label={opt.key}
+                label={String.fromCharCode(65 + idx)}
                 text={opt.text}
                 imageUrl={opt.image_url}
                 selected={selected === opt.key}
@@ -201,37 +309,50 @@ export default function QuizSession({
             ))}
 
             {q.type === 'fill_blank' && (() => {
-              const blanks = (q.question.match(/___/g) || []).length
-              if (blanks > 1) {
-                const vals = selected ? selected.split(',') : []
+              const correctAnswers = (q.correct_answer || '').split(',')
+              const blanksCount = correctAnswers.length
+              const currentAnswers = selected ? selected.split(',') : Array(blanksCount).fill('')
+              if (blanksCount === 1) {
                 return (
-                  <div className="space-y-2">
-                    {Array.from({ length: blanks }).map((_, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
-                        <input
-                          value={vals[i] || ''}
-                          onChange={e => {
-                            const next = [...vals]; next[i] = e.target.value
-                            handleSelect(next.join(','))
-                          }}
-                          disabled={confirmed && showAnswer}
-                          placeholder={`Chỗ trống ${i + 1}...`}
-                          className="flex-1 border-2 border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-indigo-500 disabled:bg-gray-50"
-                        />
-                      </div>
-                    ))}
-                  </div>
+                  <input
+                    value={selected || ''}
+                    onChange={e => handleSelect(e.target.value)}
+                    disabled={confirmed && showAnswer}
+                    placeholder="Nhập câu trả lời..."
+                    className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-indigo-500 disabled:bg-gray-50"
+                  />
                 )
               }
               return (
-                <input
-                  value={selected || ''}
-                  onChange={e => handleSelect(e.target.value)}
-                  disabled={confirmed && showAnswer}
-                  placeholder="Nhập câu trả lời..."
-                  className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-indigo-500 disabled:bg-gray-50"
-                />
+                <div className="space-y-2">
+                  {Array.from({ length: blanksCount }).map((_, i) => {
+                    const ans = currentAnswers[i] || ''
+                    const isCorrect = ans.trim().toLowerCase() === (correctAnswers[i] || '').trim().toLowerCase()
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                        <input
+                          value={ans}
+                          onChange={e => {
+                            const newAnswers = [...currentAnswers]
+                            newAnswers[i] = e.target.value
+                            handleSelect(newAnswers.join(','))
+                          }}
+                          disabled={confirmed && showAnswer}
+                          placeholder={`Chỗ trống ${i + 1}`}
+                          className={`flex-1 border-2 rounded-xl px-4 py-2 text-base focus:outline-none disabled:bg-gray-50 ${
+                            confirmed && showAnswer
+                              ? isCorrect ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50'
+                              : 'border-gray-300 focus:border-indigo-500'
+                          }`}
+                        />
+                        {confirmed && showAnswer && !isCorrect && (
+                          <span className="text-red-500 text-xs shrink-0">→ {correctAnswers[i]}</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               )
             })()}
 
@@ -264,11 +385,31 @@ export default function QuizSession({
                 disabled={confirmed && showAnswer}
               />
             )}
+
+            {q.type === 'word_order' && (
+              <WordOrderQuestion
+                key={current}
+                q={q}
+                value={selected}
+                onChange={handleSelect}
+                disabled={confirmed && showAnswer}
+              />
+            )}
+
+            {q.type === 'essay' && (
+              <EssayQuestion
+                key={current}
+                q={q}
+                value={answers[current]}
+                onChange={handleEssayChange}
+                disabled={false}
+              />
+            )}
           </div>
 
-          {/* Feedback — only when showAnswer */}
-          {confirmed && showAnswer && (
-            <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-4 text-sm font-medium
+          {/* Phản hồi đúng/sai */}
+          {confirmed && showAnswer && q.type !== 'essay' && (
+            <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-4 text-sm font-medium max-w-3xl mx-auto
               ${isCorrect ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
               {isCorrect
                 ? <><CheckCircle size={18} /> Chính xác!</>
@@ -277,60 +418,73 @@ export default function QuizSession({
             </div>
           )}
 
-          {/* Action button */}
-          {!showAnswer ? (
-            <button
-              onClick={handleNext}
-              disabled={!selected}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isLastQuestion ? 'Xem kết quả' : <><span>Câu tiếp theo</span><ChevronRight size={18} /></>}
-            </button>
-          ) : !confirmed ? (
-            <button
-              onClick={handleConfirm}
-              disabled={!selected}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50"
-            >
-              Xác nhận
-            </button>
-          ) : (
-            <button
-              onClick={handleNext}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
-            >
-              {isLastQuestion ? 'Xem kết quả' : 'Câu tiếp theo'} <ChevronRight size={18} />
-            </button>
-          )}
+          {/* Nút hành động */}
+          <div className="max-w-3xl mx-auto">
+            {q.type === 'essay' ? (
+              <button
+                onClick={handleNext}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              >
+                {isLastQuestion ? 'Nộp bài' : <><span>Câu tiếp theo</span><ChevronRight size={18} /></>}
+              </button>
+            ) : !showAnswer ? (
+              <button
+                onClick={handleNext}
+                disabled={!selected}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isLastQuestion ? 'Xem kết quả' : <><span>Câu tiếp theo</span><ChevronRight size={18} /></>}
+              </button>
+            ) : !confirmed ? (
+              <button
+                onClick={handleConfirm}
+                disabled={!selected}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50"
+              >
+                Xác nhận
+              </button>
+            ) : (
+              <button
+                onClick={handleNext}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              >
+                {isLastQuestion ? 'Xem kết quả' : 'Câu tiếp theo'} <ChevronRight size={18} />
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Question navigator panel */}
-        <div className="md:w-60 shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 p-4">
+        {/* Panel điều hướng bên phải */}
+        <div className="md:w-60 shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 p-4 overflow-y-auto">
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
             Danh sách câu
           </div>
 
-          <div className="grid gap-2.5 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(2rem, 1fr))' }}>
-            {questions.map((_, i) => {
-              const isAnswered = answers[i] !== undefined || (showAnswer && i === current && selected)
-              const isCurrent = i === current
-              let cls = 'w-8 h-8 rounded-full text-xs font-semibold flex items-center justify-center cursor-pointer border-2 transition '
-              if (isCurrent)
-                cls += 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-110'
-              else if (isAnswered)
-                cls += 'bg-red-100 border-red-300 text-red-600'
-              else
-                cls += 'bg-white border-gray-300 text-gray-500 hover:border-indigo-400 hover:text-indigo-600'
+          {hasEssay ? (
+            <div className="mb-4 space-y-3">
+              {autoIndices.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-1.5">Tự chấm ({autoIndices.length})</p>
+                  <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(2rem, 1fr))' }}>
+                    {autoIndices.map(i => renderNavBtn(i))}
+                  </div>
+                </div>
+              )}
+              {essayIndices.length > 0 && (
+                <div>
+                  <p className="text-xs text-amber-500 mb-1.5">Tự luận ({essayIndices.length})</p>
+                  <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(2rem, 1fr))' }}>
+                    {essayIndices.map(i => renderNavBtn(i))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-2.5 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(2rem, 1fr))' }}>
+              {questions.map((_, i) => renderNavBtn(i))}
+            </div>
+          )}
 
-              return (
-                <button key={i} onClick={() => jumpTo(i)} className={cls}>
-                  {i + 1}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Legend */}
           <div className="space-y-2 text-xs text-gray-500 border-t border-gray-100 pt-4">
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-indigo-600 inline-block shrink-0" />
@@ -351,7 +505,13 @@ export default function QuizSession({
           </div>
 
           <button
-            onClick={handleFinish}
+            onClick={() => {
+              const unanswered = questions.length - Object.keys(answers).length
+              const msg = unanswered > 0
+                ? `Còn ${unanswered} câu chưa trả lời. Bạn có chắc muốn nộp bài không?`
+                : 'Bạn có chắc muốn nộp bài không?'
+              if (window.confirm(msg)) handleFinish()
+            }}
             className="mt-5 w-full text-xs bg-red-50 hover:bg-red-100 text-red-600 font-medium py-2 rounded-lg transition border border-red-200"
           >
             Nộp bài
@@ -385,6 +545,14 @@ function OptionButton({ label, text, imageUrl, selected, confirmed, correct, onC
     </button>
   )
 }
+
+const PAIR_COLORS = [
+  { cls: 'border-blue-400 bg-blue-50 text-blue-800',   label: 'text-blue-600' },
+  { cls: 'border-purple-400 bg-purple-50 text-purple-800', label: 'text-purple-600' },
+  { cls: 'border-amber-400 bg-amber-50 text-amber-800',  label: 'text-amber-600' },
+  { cls: 'border-rose-400 bg-rose-50 text-rose-800',    label: 'text-rose-600' },
+  { cls: 'border-teal-400 bg-teal-50 text-teal-800',   label: 'text-teal-600' },
+]
 
 function MatchingQuestion({ q, value, onChange, disabled }) {
   const rightShuffled = useMemo(() => shuffle(q.match_options || []), [q.id])
@@ -432,11 +600,11 @@ function MatchingQuestion({ q, value, onChange, disabled }) {
     <div className="bg-white rounded-2xl border border-gray-200 p-4">
       <p className="text-xs text-gray-400 mb-3">Bấm cột trái → sau đó bấm cột phải để nối</p>
       <div className="flex gap-3">
-        {/* Left column */}
         <div className="flex-1 space-y-2">
-          {q.options?.map(opt => {
+          {q.options?.map((opt, idx) => {
             const matched = pairs[opt.key]
             const isActive = activeLeft === opt.key
+            const color = PAIR_COLORS[idx % PAIR_COLORS.length]
             return (
               <div key={opt.key} className="flex items-center gap-1">
                 <button
@@ -444,7 +612,7 @@ function MatchingQuestion({ q, value, onChange, disabled }) {
                   disabled={disabled}
                   className={`flex-1 text-left px-3 py-2 rounded-lg border-2 text-sm transition ${
                     isActive ? 'border-indigo-500 bg-indigo-50 text-indigo-800'
-                    : matched ? 'border-green-400 bg-green-50 text-green-800'
+                    : matched ? color.cls
                     : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-indigo-300'
                   }`}
                 >
@@ -459,29 +627,29 @@ function MatchingQuestion({ q, value, onChange, disabled }) {
           })}
         </div>
 
-        {/* Arrow */}
         <div className="flex flex-col justify-around text-gray-300 text-lg select-none">
           {q.options?.map((_, i) => <span key={i}>→</span>)}
         </div>
 
-        {/* Right column */}
         <div className="flex-1 space-y-2">
           {rightShuffled.map(opt => {
             const isUsed = usedRight.has(opt.key)
             const pairedLeft = Object.entries(pairs).find(([, r]) => r === opt.key)?.[0]
+            const leftIdx = pairedLeft ? (q.options?.findIndex(o => o.key === pairedLeft) ?? 0) : 0
+            const color = PAIR_COLORS[leftIdx % PAIR_COLORS.length]
             return (
               <button
                 key={opt.key}
                 onClick={() => handleRightClick(opt.key)}
                 disabled={disabled || (isUsed && !activeLeft)}
                 className={`w-full text-left px-3 py-2 rounded-lg border-2 text-sm transition ${
-                  isUsed ? 'border-green-400 bg-green-50 text-green-800'
+                  isUsed && pairedLeft ? color.cls
                   : activeLeft ? 'border-indigo-300 bg-white text-gray-700 hover:border-indigo-500 hover:bg-indigo-50'
                   : 'border-gray-200 bg-gray-50 text-gray-500'
                 }`}
               >
                 {opt.image_url && <img src={opt.image_url} alt="" className="h-12 w-auto mb-1 rounded" />}
-                {isUsed && <span className="font-bold mr-1 text-green-600">{pairedLeft}-</span>}
+                {isUsed && pairedLeft && <span className={`font-bold mr-1 ${color.label}`}>{pairedLeft}-</span>}
                 {opt.text}
               </button>
             )
@@ -546,6 +714,7 @@ function OrderingQuestion({ q, value, onChange, disabled }) {
   )
 }
 
+// Kéo thả từ vào chỗ trống — hỗ trợ cả click lẫn drag-and-drop
 function DragWordQuestion({ q, value, onChange, disabled }) {
   const segments = q.question.split('___')
   const blankCount = segments.length - 1
@@ -556,71 +725,125 @@ function DragWordQuestion({ q, value, onChange, disabled }) {
     return Array(blankCount).fill(null)
   })
 
+  const [activeWord, setActiveWord] = useState(null)
+  const [dragSrc, setDragSrc] = useState(null)
+
   const usedWords = new Set(filled.filter(Boolean))
 
-  function placeWord(word) {
-    if (disabled) return
-    const idx = filled.findIndex(f => !f)
-    if (idx === -1) return
-    const newFilled = [...filled]
-    newFilled[idx] = word
-    setFilled(newFilled)
-    const ans = newFilled.filter(Boolean)
-    if (ans.length > 0) onChange(newFilled.map(w => w || '').join(','))
-  }
-
-  function removeWord(idx) {
-    if (disabled) return
-    const newFilled = [...filled]
-    newFilled[idx] = null
+  function commit(newFilled) {
     setFilled(newFilled)
     const hasAny = newFilled.some(Boolean)
     onChange(hasAny ? newFilled.map(w => w || '').join(',') : null)
   }
 
+  function handleWordClick(word) {
+    if (disabled || usedWords.has(word)) return
+    setActiveWord(prev => prev === word ? null : word)
+  }
+
+  function handleBlankClick(idx) {
+    if (disabled) return
+    if (activeWord) {
+      const newFilled = [...filled]
+      newFilled[idx] = activeWord
+      setActiveWord(null)
+      commit(newFilled)
+    } else if (filled[idx]) {
+      const word = filled[idx]
+      const newFilled = [...filled]
+      newFilled[idx] = null
+      commit(newFilled)
+      setActiveWord(word)
+    }
+  }
+
+  function onDragStartBank(e, word) {
+    setDragSrc({ type: 'bank', word })
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  function onDragStartBlank(e, idx) {
+    if (!filled[idx]) return
+    setDragSrc({ type: 'blank', word: filled[idx], index: idx })
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  function onDropBlank(e, idx) {
+    e.preventDefault()
+    if (!dragSrc) return
+    const newFilled = [...filled]
+    if (dragSrc.type === 'blank') {
+      newFilled[idx] = dragSrc.word
+      newFilled[dragSrc.index] = filled[idx] || null
+    } else {
+      newFilled[idx] = dragSrc.word
+    }
+    setDragSrc(null)
+    commit(newFilled)
+  }
+
+  function onDropBank(e) {
+    e.preventDefault()
+    if (!dragSrc || dragSrc.type === 'bank') return
+    const newFilled = [...filled]
+    newFilled[dragSrc.index] = null
+    setDragSrc(null)
+    commit(newFilled)
+  }
+
   return (
     <div className="space-y-4">
-      {/* Sentence with blanks */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 text-base leading-relaxed text-gray-800">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 text-base leading-loose text-gray-800 whitespace-pre-wrap">
         {segments.map((seg, i) => (
           <span key={i}>
-            {seg}
+            <span>{seg}</span>
             {i < blankCount && (
-              <button
-                onClick={() => removeWord(i)}
-                disabled={disabled || !filled[i]}
-                className={`inline-flex items-center mx-1 px-3 py-0.5 rounded-lg border-2 min-w-16 text-sm font-semibold transition ${
-                  filled[i]
-                    ? 'border-indigo-400 bg-indigo-50 text-indigo-800 hover:bg-red-50 hover:border-red-300 hover:text-red-600'
-                    : 'border-dashed border-gray-300 text-gray-300 cursor-default'
-                }`}
+              <span
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => onDropBlank(e, i)}
+                onClick={() => handleBlankClick(i)}
+                className={`inline-flex items-center mx-1 px-3 py-0.5 rounded-lg border-2 min-w-16 text-sm font-semibold transition cursor-pointer select-none
+                  ${filled[i]
+                    ? 'border-indigo-400 bg-indigo-50 text-indigo-800 hover:border-red-300 hover:bg-red-50'
+                    : activeWord
+                      ? 'border-dashed border-indigo-400 bg-indigo-50/60 text-indigo-300 animate-pulse'
+                      : 'border-dashed border-gray-300 text-gray-300'
+                  }`}
               >
-                {filled[i] || '___'}
-              </button>
+                {filled[i]
+                  ? <span draggable={!disabled} onDragStart={e => onDragStartBlank(e, i)} className="cursor-grab">{filled[i]}</span>
+                  : <span className="select-none text-gray-300">{'____'}</span>
+                }
+              </span>
             )}
           </span>
         ))}
       </div>
 
-      {/* Word bank */}
-      <div>
-        <p className="text-xs text-gray-400 mb-2">Bấm từ để điền vào chỗ trống · Bấm chỗ trống để xóa</p>
-        <div className="flex flex-wrap gap-2">
+      <div onDragOver={e => e.preventDefault()} onDrop={onDropBank}>
+        <p className="text-xs text-gray-400 mb-2">
+          Kéo thả từ vào ô · hoặc bấm từ rồi bấm ô để điền · bấm ô đã điền để lấy lại
+        </p>
+        <div className="flex flex-wrap gap-2 min-h-12 p-3 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50">
           {wordBank.map(opt => {
             const isUsed = usedWords.has(opt.text)
+            const isActive = activeWord === opt.text
             return (
-              <button
+              <span
                 key={opt.key}
-                onClick={() => !isUsed && placeWord(opt.text)}
-                disabled={disabled || isUsed}
-                className={`px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition ${
-                  isUsed
-                    ? 'border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed'
-                    : 'border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50 hover:border-indigo-500'
-                }`}
+                draggable={!disabled && !isUsed}
+                onDragStart={e => onDragStartBank(e, opt.text)}
+                onClick={() => handleWordClick(opt.text)}
+                className={`px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition select-none
+                  ${isUsed
+                    ? 'border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed opacity-40'
+                    : isActive
+                      ? 'border-indigo-500 bg-indigo-600 text-white cursor-pointer shadow-md scale-105'
+                      : 'border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50 cursor-grab'
+                  }`}
               >
                 {opt.text}
-              </button>
+              </span>
             )
           })}
         </div>
@@ -629,13 +852,137 @@ function DragWordQuestion({ q, value, onChange, disabled }) {
   )
 }
 
-function QuizResult({ questions, answers, onRetry, examMode = false, showScore = true }) {
+// Sắp xếp từ thành câu hoàn chỉnh
+function WordOrderQuestion({ q, value, onChange, disabled }) {
+  const wordBank = useMemo(() => shuffle(normalizeOptions(q.options)), [q.id])
+  const [ordered, setOrdered] = useState(() => {
+    if (value) return value.split(',').map(w => w.trim()).filter(Boolean)
+    return []
+  })
+  const [dragSrc, setDragSrc] = useState(null)
+  const usedWords = useMemo(() => new Set(ordered), [ordered])
+
+  function commit(newOrdered) {
+    setOrdered(newOrdered)
+    onChange(newOrdered.length > 0 ? newOrdered.join(',') : null)
+  }
+
+  function handleBankClick(word) {
+    if (disabled || usedWords.has(word)) return
+    commit([...ordered, word])
+  }
+
+  function handleOrderedClick(idx) {
+    if (disabled) return
+    commit(ordered.filter((_, i) => i !== idx))
+  }
+
+  function onDragStartBank(e, word) {
+    setDragSrc({ type: 'bank', word })
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  function onDragStartOrdered(e, idx) {
+    setDragSrc({ type: 'ordered', word: ordered[idx], index: idx })
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  function onDropAt(e, targetIdx) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!dragSrc) return
+    const newOrdered = [...ordered]
+    if (dragSrc.type === 'ordered') {
+      newOrdered.splice(dragSrc.index, 1)
+      const insertIdx = dragSrc.index < targetIdx ? targetIdx - 1 : targetIdx
+      newOrdered.splice(insertIdx, 0, dragSrc.word)
+    } else {
+      newOrdered.splice(targetIdx, 0, dragSrc.word)
+    }
+    setDragSrc(null)
+    commit(newOrdered)
+  }
+
+  function onDropEnd(e) {
+    e.preventDefault()
+    if (!dragSrc || dragSrc.type === 'ordered') { setDragSrc(null); return }
+    commit([...ordered, dragSrc.word])
+    setDragSrc(null)
+  }
+
+  function onDropBank(e) {
+    e.preventDefault()
+    if (!dragSrc || dragSrc.type === 'bank') return
+    commit(ordered.filter((_, i) => i !== dragSrc.index))
+    setDragSrc(null)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div
+        onDragOver={e => e.preventDefault()}
+        onDrop={onDropEnd}
+        className="bg-white rounded-2xl border-2 border-indigo-200 p-5 min-h-16 flex flex-wrap gap-2 items-center"
+      >
+        {ordered.length === 0 ? (
+          <span className="text-gray-300 text-sm select-none">Kéo hoặc bấm từ để ghép thành câu...</span>
+        ) : (
+          ordered.map((word, i) => (
+            <span
+              key={i}
+              draggable={!disabled}
+              onDragStart={e => onDragStartOrdered(e, i)}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => onDropAt(e, i)}
+              onClick={() => handleOrderedClick(i)}
+              className="px-3 py-1.5 rounded-lg border-2 border-indigo-400 bg-indigo-50 text-indigo-800 text-sm font-medium cursor-pointer select-none hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition"
+            >
+              {word}
+            </span>
+          ))
+        )}
+      </div>
+
+      <div onDragOver={e => e.preventDefault()} onDrop={onDropBank}>
+        <p className="text-xs text-gray-400 mb-2">
+          Bấm từ để thêm vào câu · bấm từ đã xếp để xóa · kéo để chèn vào vị trí cụ thể
+        </p>
+        <div className="flex flex-wrap gap-2 min-h-12 p-3 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50">
+          {wordBank.map(opt => {
+            const isUsed = usedWords.has(opt.text)
+            return (
+              <span
+                key={opt.key}
+                draggable={!disabled && !isUsed}
+                onDragStart={e => onDragStartBank(e, opt.text)}
+                onClick={() => handleBankClick(opt.text)}
+                className={`px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition select-none
+                  ${isUsed
+                    ? 'border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed opacity-40'
+                    : 'border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50 cursor-grab'
+                  }`}
+              >
+                {opt.text}
+              </span>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function QuizResult({ questions, answers, onRetry, examMode = false, showScore = true, tnMaxScore = 10 }) {
   let correct = 0
+  const autoQs = questions.filter(q => q.type !== 'essay')
+  const essayQs = questions.filter(q => q.type === 'essay')
+  const hasEssay = essayQs.length > 0
   questions.forEach((q, i) => {
+    if (q.type === 'essay') return
     if (normalizeAnswer(q.type, answers[i], q.correct_answer)) correct++
   })
-  const score = Math.round((correct / questions.length) * 10 * 10) / 10
-  const percent = Math.round((correct / questions.length) * 100)
+  const score = autoQs.length > 0 ? Math.round((correct / autoQs.length) * tnMaxScore * 10) / 10 : 0
+  const percent = autoQs.length > 0 ? Math.round((correct / autoQs.length) * 100) : 0
 
   if (!showScore) {
     return (
@@ -661,30 +1008,49 @@ function QuizResult({ questions, answers, onRetry, examMode = false, showScore =
         <div className={`text-6xl font-bold mb-2 ${percent >= 70 ? 'text-green-600' : 'text-orange-500'}`}>
           {score}
         </div>
-        <div className="text-gray-500 mb-1">điểm</div>
+        <div className="text-gray-500 mb-1">
+          {hasEssay ? `điểm trắc nghiệm / ${tnMaxScore}` : 'điểm'}
+        </div>
         <div className="text-lg font-semibold text-gray-800 mt-3">
-          {correct} / {questions.length} câu đúng
+          {correct} / {autoQs.length} câu {hasEssay ? 'trắc nghiệm' : ''} đúng
         </div>
-        <div className={`text-sm mt-2 ${percent >= 70 ? 'text-green-600' : 'text-orange-500'}`}>
-          {percent >= 90 ? 'Xuất sắc!' : percent >= 70 ? 'Tốt lắm!' : percent >= 50 ? 'Cố gắng thêm nhé!' : 'Cần ôn luyện thêm!'}
-        </div>
+        {hasEssay && (
+          <div className="mt-2 text-sm text-amber-600 bg-amber-50 rounded-lg px-4 py-2 inline-block">
+            ⏳ {essayQs.length} câu tự luận — giáo viên sẽ chấm và cộng điểm sau
+          </div>
+        )}
+        {!hasEssay && (
+          <div className={`text-sm mt-2 ${percent >= 70 ? 'text-green-600' : 'text-orange-500'}`}>
+            {percent >= 90 ? 'Xuất sắc!' : percent >= 70 ? 'Tốt lắm!' : percent >= 50 ? 'Cố gắng thêm nhé!' : 'Cần ôn luyện thêm!'}
+          </div>
+        )}
       </div>
 
       <div className="space-y-3 mb-6">
         {questions.map((q, i) => {
           const ans = answers[i]
+          const isEssay = q.type === 'essay'
           const isOk = normalizeAnswer(q.type, ans, q.correct_answer)
+          const ansText = typeof ans === 'object' ? (ans?.text || '') : (ans || '')
           return (
-            <div key={i} className={`rounded-xl border p-4 text-sm ${isOk ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+            <div key={i} className={`rounded-xl border p-4 text-sm ${
+              isEssay ? 'border-amber-200 bg-amber-50'
+              : isOk ? 'border-green-200 bg-green-50'
+              : 'border-red-200 bg-red-50'
+            }`}>
               <div className="flex items-start gap-2">
-                {isOk
-                  ? <CheckCircle size={16} className="text-green-600 mt-0.5 shrink-0" />
-                  : <XCircle size={16} className="text-red-500 mt-0.5 shrink-0" />}
+                {isEssay
+                  ? <span className="text-amber-500 mt-0.5 shrink-0 text-base">📝</span>
+                  : isOk
+                    ? <CheckCircle size={16} className="text-green-600 mt-0.5 shrink-0" />
+                    : <XCircle size={16} className="text-red-500 mt-0.5 shrink-0" />}
                 <div>
                   <p className="font-medium text-gray-800">{q.question}</p>
-                  {!isOk && (
+                  {isEssay ? (
+                    <p className="text-amber-600 mt-1 text-xs">⏳ Giáo viên sẽ chấm điểm sau</p>
+                  ) : !isOk && (
                     <p className="text-red-600 mt-1">
-                      Bạn chọn: <strong>{ans || '(chưa trả lời)'}</strong> — Đáp án đúng: <strong>{q.correct_answer}</strong>
+                      Bạn chọn: <strong>{ansText || '(chưa trả lời)'}</strong> — Đáp án đúng: <strong>{q.correct_answer}</strong>
                     </p>
                   )}
                 </div>

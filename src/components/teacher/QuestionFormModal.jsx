@@ -11,6 +11,8 @@ const TYPES = [
   { value: 'matching', label: 'Nối đôi' },
   { value: 'ordering', label: 'Sắp xếp' },
   { value: 'drag_word', label: 'Kéo thả từ' },
+  { value: 'word_order', label: 'Sắp xếp từ' },
+  { value: 'essay', label: 'Tự luận' },
 ]
 
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
@@ -51,6 +53,41 @@ export function ImageUpload({ value, onChange, compact = false }) {
   )
 }
 
+// Component upload âm thanh — dùng Cloudinary
+export function AudioUpload({ value, onChange }) {
+  const [uploading, setUploading] = useState(false)
+
+  async function handleFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) { toast.error('File âm thanh tối đa 10MB'); return }
+    setUploading(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('upload_preset', UPLOAD_PRESET)
+    try {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, { method: 'POST', body: fd })
+      const json = await res.json()
+      if (!res.ok || json.error) { toast.error('Tải âm thanh lên thất bại'); return }
+      onChange(json.secure_url)
+    } catch { toast.error('Tải âm thanh lên thất bại') }
+    finally { setUploading(false) }
+  }
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      {value && <audio controls src={value} className="h-8 max-w-48 rounded" />}
+      <label className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border cursor-pointer transition ${uploading ? 'opacity-50 cursor-not-allowed' : 'border-gray-300 hover:bg-gray-50 text-gray-600'}`}>
+        🔊 {uploading ? 'Đang tải...' : value ? 'Đổi audio' : 'Thêm audio'}
+        <input type="file" accept="audio/*" onChange={handleFile} disabled={uploading} className="hidden" />
+      </label>
+      {value && (
+        <button type="button" onClick={() => onChange('')} className="text-xs text-red-400 hover:text-red-600">Xóa</button>
+      )}
+    </div>
+  )
+}
+
 export default function QuestionFormModal({ onClose, onDone }) {
   const { topics } = useTopics()
   const [form, setForm] = useState({
@@ -60,6 +97,7 @@ export default function QuestionFormModal({ onClose, onDone }) {
     topic: '',
     difficulty: 'easy',
     image_url: '',
+    audio_url: '',
     options: [
       { key: 'A', text: '', image_url: '' },
       { key: 'B', text: '', image_url: '' },
@@ -75,6 +113,8 @@ export default function QuestionFormModal({ onClose, onDone }) {
     drag_answers: [''],
     drag_distractors: ['', ''],
     fill_answers: [''],
+    allow_file: false,
+    essay_max_score: 1,
   })
   const [saving, setSaving] = useState(false)
 
@@ -128,6 +168,22 @@ export default function QuestionFormModal({ onClose, onDone }) {
           correct_answer: correctWords.join(','),
         }
       }
+      case 'word_order': {
+        if (!form.correct_answer.trim()) { toast.error('Nhập câu đúng cần sắp xếp'); return null }
+        const correctWords = form.correct_answer.trim().split(/\s+/)
+        if (correctWords.length < 2) { toast.error('Câu phải có ít nhất 2 từ'); return null }
+        const distractors = form.drag_distractors.map(w => w.trim()).filter(Boolean)
+        const allWords = [...correctWords, ...distractors]
+        return {
+          options: allWords.map((text, i) => ({ key: String.fromCharCode(65 + i), text })),
+          correct_answer: form.correct_answer.trim(),
+        }
+      }
+      case 'essay':
+        return {
+          options: [{ allow_file: form.allow_file, max_score: Number(form.essay_max_score) || 1 }],
+          correct_answer: form.correct_answer.trim() || null,
+        }
       default: return null
     }
   }
@@ -144,6 +200,7 @@ export default function QuestionFormModal({ onClose, onDone }) {
       topic: form.topic || null,
       difficulty: form.difficulty,
       image_url: form.image_url || null,
+      audio_url: form.audio_url || null,
       ...specific,
     })
     setSaving(false)
@@ -203,8 +260,9 @@ export default function QuestionFormModal({ onClose, onDone }) {
             <textarea value={form.question} onChange={e => setForm({ ...form, question: e.target.value })}
               rows={3} placeholder={form.type === 'drag_word' ? 'Ví dụ: Chuột là thiết bị ___ dữ liệu' : 'Nhập nội dung câu hỏi...'}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
-            <div className="mt-1.5">
+            <div className="mt-1.5 flex flex-wrap items-center gap-3">
               <ImageUpload value={form.image_url} onChange={v => setForm({ ...form, image_url: v })} />
+              <AudioUpload value={form.audio_url} onChange={v => setForm({ ...form, audio_url: v })} />
             </div>
           </div>
 
@@ -279,6 +337,11 @@ export default function QuestionFormModal({ onClose, onDone }) {
           {/* Fill blank */}
           {form.type === 'fill_blank' && (
             <div>
+              {blankCount === 0 && (
+                <div className="bg-yellow-50 rounded-lg px-3 py-2 text-sm text-yellow-700 mb-3">
+                  Nhập <code className="bg-yellow-100 px-1 rounded">___</code> vào câu hỏi để tạo chỗ trống
+                </div>
+              )}
               {blankCount > 0 ? (
                 <div>
                   <div className="bg-indigo-50 rounded-lg px-3 py-2 text-sm text-indigo-700 mb-3">
@@ -423,6 +486,89 @@ export default function QuestionFormModal({ onClose, onDone }) {
                     <Plus size={14} /> Thêm từ gây nhiễu
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+          {/* Sắp xếp từ thành câu */}
+          {form.type === 'word_order' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Câu đúng cần sắp xếp
+                  <span className="ml-2 text-xs font-normal text-gray-400">App sẽ tự tách thành từng từ</span>
+                </label>
+                <input
+                  value={form.correct_answer}
+                  onChange={e => setForm({ ...form, correct_answer: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Ví dụ: Con mèo ngồi trên bàn"
+                />
+                {form.correct_answer.trim() && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {form.correct_answer.trim().split(/\s+/).map((w, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-xs font-medium border border-indigo-200">{w}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Từ gây nhiễu <span className="text-xs font-normal text-gray-400">(tùy chọn — tăng độ khó)</span></label>
+                <div className="space-y-2">
+                  {form.drag_distractors.map((w, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input value={w} onChange={e => setDistractor(i, e.target.value)}
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder={`Từ gây nhiễu ${i + 1}`} />
+                      {form.drag_distractors.length > 1 && (
+                        <button onClick={() => setForm({ ...form, drag_distractors: form.drag_distractors.filter((_, idx) => idx !== i) })}
+                          className="text-red-400 hover:text-red-600 shrink-0"><Trash2 size={14} /></button>
+                      )}
+                    </div>
+                  ))}
+                  <button onClick={() => setForm({ ...form, drag_distractors: [...form.drag_distractors, ''] })}
+                    className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800">
+                    <Plus size={14} /> Thêm từ gây nhiễu
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tự luận */}
+          {form.type === 'essay' && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 rounded-lg px-3 py-2 text-sm text-blue-700">
+                Câu tự luận — học sinh gõ bài làm và/hoặc nộp file. Giáo viên chấm điểm thủ công.
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gợi ý / Đáp án mẫu <span className="text-xs font-normal text-gray-400">(chỉ giáo viên thấy khi chấm)</span>
+                </label>
+                <textarea
+                  value={form.correct_answer}
+                  onChange={e => setForm({ ...form, correct_answer: e.target.value })}
+                  rows={3}
+                  placeholder="Nhập đáp án mẫu hoặc tiêu chí chấm điểm..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Điểm tối đa <span className="text-xs font-normal text-gray-400">(câu này chiếm bao nhiêu điểm)</span>
+                </label>
+                <input type="number" min={0.5} max={10} step={0.5}
+                  value={form.essay_max_score}
+                  onChange={e => setForm({ ...form, essay_max_score: e.target.value })}
+                  className="w-28 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <button type="button"
+                  onClick={() => setForm({ ...form, allow_file: !form.allow_file })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition shrink-0 ${form.allow_file ? 'bg-indigo-600' : 'bg-gray-300'}`}>
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${form.allow_file ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+                <span className="text-sm text-gray-700">Cho phép học sinh nộp file đính kèm</span>
               </div>
             </div>
           )}
