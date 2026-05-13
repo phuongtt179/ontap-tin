@@ -74,12 +74,12 @@ export default function TopicsPage() {
       </div>
 
       {/* Grade filter tabs */}
-      <div className="flex gap-2 mb-5">
+      <div className="flex flex-wrap gap-2 mb-5">
         {GRADES.map(g => (
           <button
             key={g.value}
             onClick={() => setFilterGrade(g.value)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${
               filterGrade === g.value
                 ? 'bg-indigo-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
