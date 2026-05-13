@@ -309,9 +309,9 @@ function LessonQuiz({ questions, onSubmit }) {
                 : 'border-gray-200 bg-white'
             }`}
           >
-            <p className="text-sm font-medium text-gray-800 mb-3">
+            <div className="text-sm font-medium text-gray-800 mb-3">
               <span className="text-gray-500 mr-1">{idx + 1}.</span> <QuestionText text={q.question} />
-            </p>
+            </div>
             {q.image_url && (
               <img src={q.image_url} alt="" className="mb-3 rounded-lg max-h-40 object-contain border" />
             )}
