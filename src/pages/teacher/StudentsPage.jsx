@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
-import { Upload, Trash2, X, AlertCircle, CheckCircle2, Loader2, Search, UserPlus, Pencil } from 'lucide-react'
+import { Upload, Trash2, X, AlertCircle, CheckCircle2, Loader2, Search, UserPlus, Pencil, Clock, UserCheck } from 'lucide-react'
 
 // Tạo user qua Edge Function (tránh lỗi "Forbidden use of secret API key in browser")
 async function adminCreateUser(email, password, metadata) {
@@ -422,6 +422,8 @@ export default function StudentsPage() {
   const [classes, setClasses] = useState([])
   const [showImport, setShowImport] = useState(false)
   const [editStudent, setEditStudent] = useState(null)
+  const [showPending, setShowPending] = useState(false)
+  const [approvingId, setApprovingId] = useState(null)
 
   useEffect(() => { fetchClasses() }, [])
   useEffect(() => { fetchStudents() }, [filterGrade, filterClass])
@@ -440,6 +442,17 @@ export default function StudentsPage() {
     if (error) toast.error('Lỗi tải danh sách học sinh: ' + error.message)
     setStudents(data || [])
     setLoading(false)
+  }
+
+  async function approveStudent(student) {
+    setApprovingId(student.id)
+    const { error } = await supabase.from('profiles').update({ is_approved: true }).eq('id', student.id)
+    setApprovingId(null)
+    if (error) toast.error('Duyệt thất bại: ' + error.message)
+    else {
+      toast.success(`Đã duyệt tài khoản ${student.full_name}`)
+      fetchStudents()
+    }
   }
 
   async function handleDelete(student) {
@@ -468,7 +481,10 @@ export default function StudentsPage() {
     ? classes.filter(c => c.grade === filterGrade)
     : classes
 
-  const displayed = students.filter(s =>
+  const pendingStudents = students.filter(s => s.is_approved === false)
+  const approvedStudents = students.filter(s => s.is_approved !== false)
+
+  const displayed = approvedStudents.filter(s =>
     !search || s.full_name?.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -480,15 +496,93 @@ export default function StudentsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Quản lý học sinh</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{students.length} học sinh</p>
+          <p className="text-gray-400 text-sm mt-0.5">{approvedStudents.length} học sinh</p>
         </div>
-        <button
-          onClick={() => setShowImport(true)}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-        >
-          <Upload size={16} /> Nhập học sinh
-        </button>
+        <div className="flex items-center gap-2">
+          {pendingStudents.length > 0 && (
+            <button
+              onClick={() => setShowPending(v => !v)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition border
+                ${showPending ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100'}`}
+            >
+              <Clock size={15} />
+              Chờ duyệt
+              <span className="bg-amber-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                {pendingStudents.length}
+              </span>
+            </button>
+          )}
+          <button
+            onClick={() => setShowImport(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+          >
+            <Upload size={16} /> Nhập học sinh
+          </button>
+        </div>
       </div>
+
+      {/* Pending approval section */}
+      {showPending && pendingStudents.length > 0 && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-amber-200 flex items-center gap-2">
+            <Clock size={15} className="text-amber-600" />
+            <span className="text-sm font-semibold text-amber-800">Tài khoản chờ phê duyệt ({pendingStudents.length})</span>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {pendingStudents.map(s => (
+              <div key={s.id} className="px-4 py-3 flex items-center gap-3 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-800 text-sm">{s.full_name}</p>
+                  <p className="text-xs text-gray-500 font-mono mt-0.5">
+                    {s.username || s.id.slice(0, 8)}
+                    {s.grade && <span className="ml-2 text-indigo-600">Khối {s.grade}</span>}
+                  </p>
+                </div>
+                {s.class_name ? (
+                  <span className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium">
+                    {s.class_name}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">
+                    <AlertCircle size={11} /> Chưa chọn lớp
+                  </span>
+                )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => approveStudent(s)}
+                    disabled={approvingId === s.id}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition disabled:opacity-50"
+                  >
+                    {approvingId === s.id
+                      ? <Loader2 size={12} className="animate-spin" />
+                      : <UserCheck size={13} />}
+                    Duyệt
+                  </button>
+                  <button
+                    onClick={() => { setEditStudent(s); setShowPending(false) }}
+                    className="p-1.5 text-gray-400 hover:text-indigo-600 transition"
+                    title="Sửa thông tin / phân lớp"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(s)}
+                    className="p-1.5 text-gray-400 hover:text-red-500 transition"
+                    title="Từ chối / xóa"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {pendingStudents.some(s => !s.class_name) && (
+            <div className="px-4 py-2 bg-orange-50 border-t border-amber-200 text-xs text-orange-700">
+              Học sinh chưa chọn lớp — bấm ✏️ để phân lớp trước hoặc sau khi duyệt.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-5">

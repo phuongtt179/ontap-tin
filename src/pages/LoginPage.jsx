@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 import { BookOpen } from 'lucide-react'
@@ -70,6 +70,13 @@ export default function LoginPage() {
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
         </form>
+
+        <p className="text-center text-sm text-gray-500 mt-6">
+          Học sinh chưa có tài khoản?{' '}
+          <Link to="/register" className="text-indigo-600 font-medium hover:underline">
+            Đăng ký tại đây
+          </Link>
+        </p>
       </div>
     </div>
   )

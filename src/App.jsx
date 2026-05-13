@@ -5,6 +5,7 @@ import { ProtectedRoute } from './components/ui/ProtectedRoute'
 import Layout from './components/ui/Layout'
 
 import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
 import TeacherDashboard from './pages/teacher/TeacherDashboard'
 import QuestionsPage from './pages/teacher/QuestionsPage'
 import ExamsPage from './pages/teacher/ExamsPage'
@@ -39,6 +40,7 @@ export default function App() {
         <Toaster position="top-right" />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/" element={<RootRedirect />} />
 
           {/* Teacher routes */}

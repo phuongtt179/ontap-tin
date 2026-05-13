@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import toast from 'react-hot-toast'
 
 const AuthContext = createContext(null)
 
@@ -30,6 +31,22 @@ export function AuthProvider({ children }) {
       .select('*')
       .eq('id', userId)
       .single()
+
+    if (data?.is_active === false) {
+      await supabase.auth.signOut()
+      setProfile(null)
+      setLoading(false)
+      toast.error('Tài khoản đã bị khóa. Liên hệ giáo viên để được hỗ trợ.')
+      return
+    }
+    if (data?.is_approved === false) {
+      await supabase.auth.signOut()
+      setProfile(null)
+      setLoading(false)
+      toast.error('Tài khoản đang chờ giáo viên phê duyệt. Vui lòng thử lại sau.')
+      return
+    }
+
     setProfile(data)
     setLoading(false)
   }
