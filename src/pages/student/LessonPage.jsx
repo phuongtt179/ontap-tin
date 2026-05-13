@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File } from 'lucide-react'
 import { uploadFile } from '../../lib/cloudinary'
+import QuestionText from '../../components/ui/QuestionText'
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5) }
 
@@ -309,7 +310,7 @@ function LessonQuiz({ questions, onSubmit }) {
             }`}
           >
             <p className="text-sm font-medium text-gray-800 mb-3">
-              <span className="text-gray-500 mr-1">{idx + 1}.</span> {q.question}
+              <span className="text-gray-500 mr-1">{idx + 1}.</span> <QuestionText text={q.question} />
             </p>
             {q.image_url && (
               <img src={q.image_url} alt="" className="mb-3 rounded-lg max-h-40 object-contain border" />
