@@ -8,8 +8,9 @@ export function useGrades() {
   useEffect(() => { fetch() }, [])
 
   async function fetch() {
-    const { data } = await supabase.from('grades').select('value').order('value')
-    setGrades(data?.map(g => g.value) || [])
+    const { data } = await supabase.from('classes').select('grade').order('grade')
+    const unique = [...new Set(data?.map(g => g.grade).filter(Boolean) || [])]
+    setGrades(unique)
     setLoading(false)
   }
 
