@@ -259,8 +259,19 @@ export default function QuestionFormModal({ onClose, onDone }) {
               <span className="text-xs font-normal text-blue-500">Dùng <code className="bg-blue-50 px-1 rounded">```python</code> để chèn code</span>
             </label>
             <textarea value={form.question} onChange={e => setForm({ ...form, question: e.target.value })}
+              onKeyDown={e => {
+                if (e.key === 'Tab') {
+                  e.preventDefault()
+                  const el = e.target
+                  const start = el.selectionStart
+                  const end = el.selectionEnd
+                  const next = form.question.substring(0, start) + '    ' + form.question.substring(end)
+                  setForm({ ...form, question: next })
+                  requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + 4 })
+                }
+              }}
               rows={3} placeholder={form.type === 'drag_word' ? 'Ví dụ: Chuột là thiết bị ___ dữ liệu' : 'Nhập nội dung câu hỏi...'}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-mono" />
             <div className="mt-1.5 flex flex-wrap items-center gap-3">
               <ImageUpload value={form.image_url} onChange={v => setForm({ ...form, image_url: v })} />
               <AudioUpload value={form.audio_url} onChange={v => setForm({ ...form, audio_url: v })} />

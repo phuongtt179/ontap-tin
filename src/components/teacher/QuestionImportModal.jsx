@@ -168,6 +168,17 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
                 <textarea
                   value={rawText}
                   onChange={e => setRawText(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Tab') {
+                      e.preventDefault()
+                      const el = e.target
+                      const start = el.selectionStart
+                      const end = el.selectionEnd
+                      const next = rawText.substring(0, start) + '    ' + rawText.substring(end)
+                      setRawText(next)
+                      requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + 4 })
+                    }
+                  }}
                   rows={14}
                   className="w-full border border-gray-300 rounded-lg p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   placeholder={`Ví dụ:\nCâu 1: Thiết bị nào dùng để nhập dữ liệu?\nA. Màn hình\nB. Bàn phím\nC. Loa\nD. Máy in\nĐáp án: B\n\nCâu 2: Chuột là thiết bị xuất. Đúng hay sai?\nĐáp án: Sai\n\nCâu 3: Điền từ vào chỗ ___ cho đúng\nTừ: bàn phím, chuột, màn hình\nĐáp án: bàn phím\n\nCâu 4: Sắp xếp các bước đúng thứ tự\n1. Bật máy tính\n2. Đăng nhập\n3. Mở phần mềm\n\nCâu 5: Ghép đôi thiết bị với chức năng\nBàn phím | Nhập văn bản\nChuột | Di chuyển con trỏ\n\nCâu 6: Sắp xếp các từ thành câu đúng\nCâu đúng: Bàn phím là thiết bị nhập dữ liệu\n\nCâu 7: [Tự luận] Em hãy nêu tên 3 thiết bị nhập dữ liệu\nGợi ý: Bàn phím, chuột, màn hình`}
