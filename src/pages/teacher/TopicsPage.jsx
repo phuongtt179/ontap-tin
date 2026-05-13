@@ -1,25 +1,24 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
+import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 
-const GRADES = [
-  { value: 'all', label: 'Tất cả khối' },
-  { value: '3', label: 'Khối 3' },
-  { value: '4', label: 'Khối 4' },
-  { value: '5', label: 'Khối 5' },
-]
-
 export default function TopicsPage() {
   const { topics, loading, refetch } = useTopics()
+  const { grades: gradeValues } = useGrades()
+  const GRADES = [{ value: 'all', label: 'Tất cả khối' }, ...gradeValues.map(g => ({ value: g, label: `Khối ${g}` }))]
+
   const [filterGrade, setFilterGrade] = useState('all')
   const [newName, setNewName] = useState('')
-  const [newGrade, setNewGrade] = useState('all')
+  const [newGrade, setNewGrade] = useState('')
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState(null)
   const [editName, setEditName] = useState('')
-  const [editGrade, setEditGrade] = useState('all')
+  const [editGrade, setEditGrade] = useState('')
+
+  useEffect(() => { if (gradeValues.length && !newGrade) setNewGrade(gradeValues[0]) }, [gradeValues])
 
   const displayed = filterGrade === 'all' ? topics : topics.filter(t => t.grade === filterGrade)
 
@@ -107,7 +106,7 @@ export default function TopicsPage() {
             onChange={e => setNewGrade(e.target.value)}
             className="border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            {GRADES.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+            {GRADES.slice(1).map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
           </select>
           <button onClick={handleAdd} className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition">
             <Check size={16} />
@@ -141,7 +140,7 @@ export default function TopicsPage() {
                     onChange={e => setEditGrade(e.target.value)}
                     className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
-                    {GRADES.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+                    {GRADES.slice(1).map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
                   </select>
                   <button onClick={() => handleUpdate(topic.id)} className="text-green-600 hover:text-green-700 p-1">
                     <Check size={16} />
@@ -154,7 +153,7 @@ export default function TopicsPage() {
                 <>
                   <span className="flex-1 text-sm font-medium text-gray-800">{topic.name}</span>
                   <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                    {GRADES.find(g => g.value === topic.grade)?.label}
+                    {topic.grade ? `Khối ${topic.grade}` : '—'}
                   </span>
                   <button onClick={() => startEdit(topic)} className="text-gray-400 hover:text-indigo-600 p-1 transition">
                     <Pencil size={15} />
