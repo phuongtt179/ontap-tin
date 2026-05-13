@@ -251,11 +251,12 @@ export default function QuestionFormModal({ onClose, onDone }) {
 
           {/* Question text + image */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nội dung câu hỏi
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex flex-wrap items-center gap-x-2">
+              <span>Nội dung câu hỏi</span>
               {(form.type === 'drag_word' || form.type === 'fill_blank') && (
-                <span className="ml-2 text-xs font-normal text-gray-400">Dùng <code className="bg-gray-100 px-1 rounded">___</code> để đánh dấu chỗ trống</span>
+                <span className="text-xs font-normal text-gray-400">Dùng <code className="bg-gray-100 px-1 rounded">___</code> để đánh dấu chỗ trống</span>
               )}
+              <span className="text-xs font-normal text-blue-500">Dùng <code className="bg-blue-50 px-1 rounded">```python</code> để chèn code</span>
             </label>
             <textarea value={form.question} onChange={e => setForm({ ...form, question: e.target.value })}
               rows={3} placeholder={form.type === 'drag_word' ? 'Ví dụ: Chuột là thiết bị ___ dữ liệu' : 'Nhập nội dung câu hỏi...'}

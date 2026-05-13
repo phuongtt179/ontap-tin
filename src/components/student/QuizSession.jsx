@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { CheckCircle, XCircle, Clock, ChevronRight, RotateCcw, ArrowUp, ArrowDown, Paperclip } from 'lucide-react'
 import { normalizeAnswer } from '../../utils/normalizeAnswer'
 import toast from 'react-hot-toast'
+import QuestionText from '../ui/QuestionText'
 
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
@@ -278,7 +279,7 @@ export default function QuizSession({
             {q.image_url && (
               <img src={q.image_url} alt="" className="rounded-lg mb-4 max-h-48 w-auto" />
             )}
-            <p className="text-gray-800 font-medium text-base leading-relaxed whitespace-pre-wrap">{q.question}</p>
+            <QuestionText text={q.question} className="text-gray-800 font-medium text-base leading-relaxed" />
           </div>
 
           {/* Khu vực đáp án */}
@@ -1045,7 +1046,7 @@ function QuizResult({ questions, answers, onRetry, examMode = false, showScore =
                     ? <CheckCircle size={16} className="text-green-600 mt-0.5 shrink-0" />
                     : <XCircle size={16} className="text-red-500 mt-0.5 shrink-0" />}
                 <div>
-                  <p className="font-medium text-gray-800">{q.question}</p>
+                  <QuestionText text={q.question} className="font-medium text-gray-800" />
                   {isEssay ? (
                     <p className="text-amber-600 mt-1 text-xs">⏳ Giáo viên sẽ chấm điểm sau</p>
                   ) : !isOk && (

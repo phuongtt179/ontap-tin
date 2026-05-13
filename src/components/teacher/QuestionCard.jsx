@@ -4,6 +4,7 @@ import { useTopics } from '../../hooks/useTopics'
 import { ImageUpload } from './QuestionFormModal'
 import toast from 'react-hot-toast'
 import { Trash2, ChevronDown, ChevronUp, Pencil, X, Loader2 } from 'lucide-react'
+import QuestionText from '../ui/QuestionText'
 
 const TYPE_LABELS = {
   multiple_choice: 'Trắc nghiệm',
@@ -285,7 +286,7 @@ export default function QuestionCard({ question: q, index, onDelete, onUpdate })
         {expanded && (
           <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-2">
             {q.image_url && <img src={q.image_url} alt="" className="rounded-lg max-h-40 border" />}
-            <div className="text-sm font-medium text-gray-700">{q.question}</div>
+            <QuestionText text={q.question} className="text-sm font-medium text-gray-700" />
 
             {q.type === 'multiple_choice' && (
               <div className="grid grid-cols-2 gap-1.5">

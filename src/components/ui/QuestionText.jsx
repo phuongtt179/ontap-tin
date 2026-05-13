@@ -1,0 +1,56 @@
+import ReactMarkdown from 'react-markdown'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+
+export default function QuestionText({ text, className = '' }) {
+  if (!text) return null
+
+  const hasMarkdown = text.includes('```') || text.includes('`')
+
+  if (!hasMarkdown) {
+    return <span className={className}>{text}</span>
+  }
+
+  return (
+    <div className={`prose prose-sm max-w-none ${className}`}>
+      <ReactMarkdown
+        components={{
+          code({ node, inline, className: cls, children, ...props }) {
+            const match = /language-(\w+)/.exec(cls || '')
+            if (!inline && match) {
+              return (
+                <SyntaxHighlighter
+                  style={oneLight}
+                  language={match[1]}
+                  PreTag="div"
+                  customStyle={{
+                    margin: '0.5rem 0',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.85rem',
+                    border: '1px solid #e5e7eb',
+                  }}
+                  {...props}
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+              )
+            }
+            return (
+              <code
+                className="bg-gray-100 text-indigo-700 px-1.5 py-0.5 rounded text-sm font-mono"
+                {...props}
+              >
+                {children}
+              </code>
+            )
+          },
+          p({ children }) {
+            return <p className="mb-1 last:mb-0">{children}</p>
+          },
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  )
+}
