@@ -107,8 +107,12 @@ export default function QuizSession({
   const [answers, setAnswers] = useState({})
   const [selected, setSelected] = useState(null)
   const [confirmed, setConfirmed] = useState(false)
+  const [confirmedSet, setConfirmedSet] = useState(new Set())
   const [showResult, setShowResult] = useState(false)
   const [timeLeft, setTimeLeft] = useState(timeLimit ? timeLimit * 60 : null)
+
+  // practice mode = phải xác nhận từng câu trước khi qua câu tiếp
+  const practiceMode = !examMode && showAnswer
 
   useEffect(() => {
     if (timeLeft === null) return
@@ -136,12 +140,17 @@ export default function QuizSession({
     if (!selected || !showAnswer) return
     setAnswers(prev => ({ ...prev, [current]: selected }))
     setConfirmed(true)
+    setConfirmedSet(prev => new Set([...prev, current]))
   }
 
   function handleNext() {
     if (isLastQuestion) {
       handleFinish()
     } else {
+      // essay trong practice mode: tự thêm vào confirmedSet khi bấm next
+      if (q.type === 'essay' && practiceMode) {
+        setConfirmedSet(prev => new Set([...prev, current]))
+      }
       const nextIndex = current + 1
       setCurrent(nextIndex)
       setSelected(answers[nextIndex] || null)
@@ -150,12 +159,14 @@ export default function QuizSession({
   }
 
   function jumpTo(index) {
+    // practice mode: chỉ cho nhảy về câu đã làm
+    if (practiceMode && !confirmedSet.has(index) && index !== current) return
     if (selected && !confirmed) {
       setAnswers(prev => ({ ...prev, [current]: selected }))
     }
     setCurrent(index)
     setSelected(answers[index] || null)
-    setConfirmed(false)
+    setConfirmed(confirmedSet.has(index))
   }
 
   async function handleFinish() {
@@ -230,12 +241,25 @@ export default function QuizSession({
   const hasEssay = essayIndices.length > 0
 
   function renderNavBtn(i) {
-    const isAnswered = isAnsweredAt(i)
     const isCurrent = i === current
-    let cls = 'w-8 h-8 rounded-full text-xs font-semibold flex items-center justify-center cursor-pointer border-2 transition '
-    if (isCurrent) cls += 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-110'
-    else if (isAnswered) cls += 'bg-red-100 border-red-300 text-red-600'
-    else cls += 'bg-white border-gray-300 text-gray-500 hover:border-indigo-400 hover:text-indigo-600'
+    const isDone = confirmedSet.has(i)
+    const isLocked = practiceMode && !isDone && !isCurrent
+
+    let cls = 'w-8 h-8 rounded-full text-xs font-semibold flex items-center justify-center border-2 transition '
+    if (isCurrent) {
+      cls += 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-110 cursor-pointer'
+    } else if (isLocked) {
+      cls += 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
+    } else if (isDone) {
+      const ans = answers[i]
+      const q_i = questions[i]
+      const ok = q_i.type === 'essay' || normalizeAnswer(q_i.type, ans, q_i.correct_answer)
+      cls += ok
+        ? 'bg-green-100 border-green-400 text-green-700 cursor-pointer'
+        : 'bg-red-100 border-red-300 text-red-600 cursor-pointer'
+    } else {
+      cls += 'bg-white border-gray-300 text-gray-500 hover:border-indigo-400 cursor-pointer'
+    }
     return <button key={i} onClick={() => jumpTo(i)} className={cls}>{i + 1}</button>
   }
 
@@ -410,12 +434,20 @@ export default function QuizSession({
 
           {/* Phản hồi đúng/sai */}
           {confirmed && showAnswer && q.type !== 'essay' && (
-            <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-4 text-sm font-medium max-w-3xl mx-auto
+            <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-2 text-sm font-medium max-w-3xl mx-auto
               ${isCorrect ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
               {isCorrect
                 ? <><CheckCircle size={18} /> Chính xác!</>
                 : <><XCircle size={18} /> Sai rồi! Đáp án đúng: <strong>{q.correct_answer}</strong></>
               }
+            </div>
+          )}
+
+          {/* Gợi ý khi sai */}
+          {confirmed && showAnswer && !isCorrect && q.hint && q.type !== 'essay' && (
+            <div className="flex items-start gap-2 px-4 py-3 rounded-xl mb-4 text-sm max-w-3xl mx-auto bg-amber-50 border border-amber-200 text-amber-800">
+              <span className="text-base shrink-0">💡</span>
+              <span><strong>Gợi ý:</strong> {q.hint}</span>
             </div>
           )}
 

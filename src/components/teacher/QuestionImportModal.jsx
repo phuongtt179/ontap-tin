@@ -102,6 +102,7 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
         options: q.type === 'essay' ? [{ allow_file: false, max_score: 1 }] : q.options,
         match_options: q.match_options?.length ? q.match_options : null,
         correct_answer: q.type === 'essay' ? (q.correct_answer || null) : q.correct_answer,
+        hint: q.hint || null,
         image_url: q.image_url || null,
         audio_url: null,
         grade: meta.grade,
@@ -385,6 +386,19 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
                         rows={2}
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400 resize-none"
                         placeholder="Nhập đáp án mẫu (không bắt buộc, giáo viên sẽ chấm)"
+                      />
+                    </div>
+                  )}
+
+                  {/* Hint */}
+                  {q.type !== 'essay' && (
+                    <div>
+                      <label className="text-xs text-amber-600 block mb-1">Gợi ý khi sai (tùy chọn)</label>
+                      <input
+                        value={q.hint || ''}
+                        onChange={e => updateQuestion(i, 'hint', e.target.value)}
+                        className="border border-amber-200 bg-amber-50 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400 w-full"
+                        placeholder="Nhập gợi ý cho học sinh khi trả lời sai..."
                       />
                     </div>
                   )}

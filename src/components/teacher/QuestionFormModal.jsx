@@ -115,6 +115,7 @@ export default function QuestionFormModal({ onClose, onDone }) {
     fill_answers: [''],
     allow_file: false,
     essay_max_score: 1,
+    hint: '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -201,6 +202,7 @@ export default function QuestionFormModal({ onClose, onDone }) {
       difficulty: form.difficulty,
       image_url: form.image_url || null,
       audio_url: form.audio_url || null,
+      hint: form.hint.trim() || null,
       ...specific,
     })
     setSaving(false)
@@ -584,6 +586,21 @@ export default function QuestionFormModal({ onClose, onDone }) {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Gợi ý khi sai */}
+        <div className="px-6 pb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Gợi ý khi trả lời sai
+            <span className="ml-2 text-xs font-normal text-gray-400">(tùy chọn — hiển thị cho học sinh khi sai)</span>
+          </label>
+          <textarea
+            value={form.hint}
+            onChange={e => setForm({ ...form, hint: e.target.value })}
+            rows={2}
+            placeholder="Ví dụ: Gợi ý: thiết bị nhập là thiết bị dùng để đưa dữ liệu vào máy..."
+            className="w-full border border-amber-200 bg-amber-50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+          />
         </div>
 
         <div className="flex justify-end gap-3 px-6 py-4 border-t shrink-0">

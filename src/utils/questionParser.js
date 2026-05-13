@@ -83,10 +83,21 @@ export function parseQuestions(rawText) {
       continue
     }
 
-    // Detect essay hint: "Gợi ý: ..."
-    const hintMatch = line.match(/^(?:Gợi ý|Đáp án mẫu|Mẫu)[:\s]+(.+)$/i)
-    if (hintMatch && current?.type === 'essay') {
-      current.correct_answer = hintMatch[1].trim()
+    // Detect hint for any question type: "Gợi ý: ..."
+    const hintMatch = line.match(/^(?:Gợi ý|Hint)[:\s]+(.+)$/i)
+    if (hintMatch && current) {
+      if (current.type === 'essay') {
+        current.correct_answer = hintMatch[1].trim()
+      } else {
+        current.hint = hintMatch[1].trim()
+      }
+      continue
+    }
+
+    // Detect essay sample answer: "Đáp án mẫu: ..."
+    const sampleMatch = line.match(/^(?:Đáp án mẫu|Mẫu)[:\s]+(.+)$/i)
+    if (sampleMatch && current?.type === 'essay') {
+      current.correct_answer = sampleMatch[1].trim()
       continue
     }
 
