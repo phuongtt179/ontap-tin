@@ -1,6 +1,15 @@
 /**
  * Parse text copied from Word into structured questions.
- * Supports: multiple_choice, true_false, fill_blank, drag_word, ordering, matching
+ * Supports: multiple_choice, true_false, fill_blank, drag_word, ordering, matching, word_order, essay
+ *
+ * word_order format:
+ *   Câu 1: Sắp xếp các từ thành câu đúng
+ *   Câu đúng: Bàn phím là thiết bị nhập dữ liệu
+ *   Đáp án: Bàn phím là thiết bị nhập dữ liệu
+ *
+ * essay format:
+ *   Câu 1: [Tự luận] Em hãy nêu tên 3 thiết bị nhập dữ liệu
+ *   Gợi ý: Bàn phím, chuột, màn hình
  */
 
 export function parseQuestions(rawText) {
@@ -15,10 +24,12 @@ export function parseQuestions(rawText) {
     const questionMatch = line.match(/^(?:Câu\s*)?(\d+)[.):]\s*(.+)$/i)
     if (questionMatch) {
       if (current) questions.push(finalizeQuestion(current))
+      const qText = questionMatch[2]
+      const isEssay = /^\[tự luận\]/i.test(qText)
       current = {
         order: parseInt(questionMatch[1]),
-        question: questionMatch[2],
-        type: 'fill_blank',
+        question: isEssay ? qText.replace(/^\[tự luận\]\s*/i, '') : qText,
+        type: isEssay ? 'essay' : 'fill_blank',
         options: [],
         match_options: [],
         correct_answer: null,
@@ -61,6 +72,21 @@ export function parseQuestions(rawText) {
       current.options.push({ key: String.fromCharCode(65 + idx), text: matchPairMatch[1].trim() })
       current.match_options.push({ key: String(idx + 1), text: matchPairMatch[2].trim() })
       current.type = 'matching'
+      continue
+    }
+
+    // Detect word_order sentence: "Câu đúng: ..."
+    const wordOrderMatch = line.match(/^(?:Câu đúng|Câu hoàn chỉnh)[:\s]+(.+)$/i)
+    if (wordOrderMatch && current) {
+      current.correct_answer = wordOrderMatch[1].trim()
+      current.type = 'word_order'
+      continue
+    }
+
+    // Detect essay hint: "Gợi ý: ..."
+    const hintMatch = line.match(/^(?:Gợi ý|Đáp án mẫu|Mẫu)[:\s]+(.+)$/i)
+    if (hintMatch && current?.type === 'essay') {
+      current.correct_answer = hintMatch[1].trim()
       continue
     }
 
@@ -107,6 +133,17 @@ function finalizeQuestion(q) {
   // matching: set correct_answer as A-1,B-2,... if not set
   if (q.type === 'matching' && !q.correct_answer) {
     q.correct_answer = q.options.map((o, i) => `${o.key}-${i + 1}`).join(',')
+  }
+
+  // word_order: build word chips from correct_answer sentence
+  if (q.type === 'word_order' && q.correct_answer && q.options.length === 0) {
+    const words = q.correct_answer.split(' ').filter(Boolean)
+    q.options = words.map((text, idx) => ({ key: String.fromCharCode(65 + idx), text }))
+  }
+
+  // essay: options stores config; correct_answer is sample answer (nullable)
+  if (q.type === 'essay') {
+    q.options = [{ allow_file: false, max_score: 1 }]
   }
 
   // drag_word: correct_answer should be set via "Đáp án:" line

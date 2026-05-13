@@ -12,6 +12,8 @@ const QUESTION_TYPES = {
   drag_word: 'Kéo thả từ',
   ordering: 'Sắp xếp',
   matching: 'Ghép đôi',
+  word_order: 'Sắp xếp từ',
+  essay: 'Tự luận',
 }
 
 export default function QuestionImportModal({ onClose, onSaved, grades, topics }) {
@@ -97,10 +99,11 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
       const rows = parsed.map(q => ({
         question: q.question,
         type: q.type,
-        options: q.options,
+        options: q.type === 'essay' ? [{ allow_file: false, max_score: 1 }] : q.options,
         match_options: q.match_options?.length ? q.match_options : null,
-        correct_answer: q.correct_answer,
-        image_url: q.image_url,
+        correct_answer: q.type === 'essay' ? (q.correct_answer || null) : q.correct_answer,
+        image_url: q.image_url || null,
+        audio_url: null,
         grade: meta.grade,
         topic: meta.topic,
         difficulty: meta.difficulty,
@@ -167,7 +170,7 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
                   onChange={e => setRawText(e.target.value)}
                   rows={14}
                   className="w-full border border-gray-300 rounded-lg p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                  placeholder={`Ví dụ:\nCâu 1: Thiết bị nào dùng để nhập dữ liệu?\nA. Màn hình\nB. Bàn phím\nC. Loa\nD. Máy in\nĐáp án: B\n\nCâu 2: Chuột là thiết bị xuất. Đúng hay sai?\nĐáp án: Sai\n\nCâu 3: Điền từ vào chỗ ___ cho đúng\nTừ: bàn phím, chuột, màn hình\nĐáp án: bàn phím\n\nCâu 4: Sắp xếp các bước đúng thứ tự\n1. Bật máy tính\n2. Đăng nhập\n3. Mở phần mềm\n\nCâu 5: Ghép đôi thiết bị với chức năng\nBàn phím | Nhập văn bản\nChuột | Di chuyển con trỏ`}
+                  placeholder={`Ví dụ:\nCâu 1: Thiết bị nào dùng để nhập dữ liệu?\nA. Màn hình\nB. Bàn phím\nC. Loa\nD. Máy in\nĐáp án: B\n\nCâu 2: Chuột là thiết bị xuất. Đúng hay sai?\nĐáp án: Sai\n\nCâu 3: Điền từ vào chỗ ___ cho đúng\nTừ: bàn phím, chuột, màn hình\nĐáp án: bàn phím\n\nCâu 4: Sắp xếp các bước đúng thứ tự\n1. Bật máy tính\n2. Đăng nhập\n3. Mở phần mềm\n\nCâu 5: Ghép đôi thiết bị với chức năng\nBàn phím | Nhập văn bản\nChuột | Di chuyển con trỏ\n\nCâu 6: Sắp xếp các từ thành câu đúng\nCâu đúng: Bàn phím là thiết bị nhập dữ liệu\n\nCâu 7: [Tự luận] Em hãy nêu tên 3 thiết bị nhập dữ liệu\nGợi ý: Bàn phím, chuột, màn hình`}
                 />
               </div>
             </div>
@@ -326,6 +329,52 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
                           />
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Word Order */}
+                  {q.type === 'word_order' && (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">Câu đúng (đáp án)</label>
+                        <input
+                          value={q.correct_answer || ''}
+                          onChange={e => {
+                            const sentence = e.target.value
+                            const words = sentence.split(' ').filter(Boolean)
+                            setParsed(prev => prev.map((item, idx) => idx !== i ? item : {
+                              ...item,
+                              correct_answer: sentence,
+                              options: words.map((text, wi) => ({ key: String.fromCharCode(65 + wi), text }))
+                            }))
+                          }}
+                          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400 w-full"
+                          placeholder="Ví dụ: Bàn phím là thiết bị nhập dữ liệu"
+                        />
+                      </div>
+                      {q.options.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {q.options.map((opt, oi) => (
+                            <span key={oi} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full border border-indigo-200">
+                              {opt.text}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Essay */}
+                  {q.type === 'essay' && (
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">Gợi ý / Đáp án mẫu (tùy chọn)</label>
+                      <textarea
+                        value={q.correct_answer || ''}
+                        onChange={e => updateQuestion(i, 'correct_answer', e.target.value)}
+                        rows={2}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400 resize-none"
+                        placeholder="Nhập đáp án mẫu (không bắt buộc, giáo viên sẽ chấm)"
+                      />
                     </div>
                   )}
 
