@@ -7,8 +7,10 @@ import QuestionCard from '../../components/teacher/QuestionCard'
 import QuestionFormModal from '../../components/teacher/QuestionFormModal'
 import toast from 'react-hot-toast'
 import { Upload, Plus } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 export default function QuestionsPage() {
+  const { canDelete } = useAuth()
   const { topics } = useTopics()
   const { grades: GRADES } = useGrades()
   const [questions, setQuestions] = useState([])
@@ -101,7 +103,7 @@ export default function QuestionsPage() {
       ) : (
         <div className="space-y-3">
           {questions.map((q, i) => (
-            <QuestionCard key={q.id} question={q} index={i + 1} onDelete={() => handleDelete(q.id)} onUpdate={fetchQuestions} />
+            <QuestionCard key={q.id} question={q} index={i + 1} onDelete={canDelete ? () => handleDelete(q.id) : undefined} onUpdate={fetchQuestions} />
           ))}
         </div>
       )}

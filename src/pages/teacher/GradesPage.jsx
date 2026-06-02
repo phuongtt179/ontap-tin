@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { Users, School, ChevronRight, Plus, Trash2, Loader2, Pencil, Check, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useAuth } from '../../context/AuthContext'
 
 const COLOR_SCHEMES = [
   { color: 'border-blue-200 bg-blue-50', text: 'text-blue-700', btn: 'bg-blue-600 hover:bg-blue-700' },
@@ -14,6 +15,7 @@ const COLOR_SCHEMES = [
 ]
 
 export default function GradesPage() {
+  const { canDelete } = useAuth()
   const navigate = useNavigate()
   const [grades, setGrades] = useState([])
   const [stats, setStats] = useState({})
@@ -153,13 +155,15 @@ export default function GradesPage() {
                   >
                     <Pencil size={14} />
                   </button>
-                  <button
-                    onClick={() => handleDelete(g)}
-                    className="p-1.5 text-gray-300 hover:text-red-500 transition rounded-lg hover:bg-white/60"
-                    title="Xóa khối"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDelete(g)}
+                      className="p-1.5 text-gray-300 hover:text-red-500 transition rounded-lg hover:bg-white/60"
+                      title="Xóa khối"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
 
                 {editGrade === g ? (

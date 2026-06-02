@@ -67,8 +67,11 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
   }
 
+  const isTeacher = profile?.role === 'teacher' || profile?.role === 'assistant'
+  const canDelete = profile?.role === 'teacher'
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, isTeacher, canDelete }}>
       {children}
     </AuthContext.Provider>
   )

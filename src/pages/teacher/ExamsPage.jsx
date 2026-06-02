@@ -7,6 +7,7 @@ import {
   Plus, Pencil, Trash2, BarChart2, Clock, X, Loader2, Check,
   ToggleLeft, ToggleRight, Eye, RefreshCw,
 } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 const TYPE_LABELS = { multiple_choice: 'Trắc nghiệm', true_false: 'Đúng/Sai', fill_blank: 'Điền từ', matching: 'Nối đôi', ordering: 'Sắp xếp', drag_word: 'Kéo thả từ' }
 
@@ -493,6 +494,7 @@ function ExamResultsModal({ exam, onClose }) {
 
 /* ── ExamsPage ────────────────────────────────────────────── */
 export default function ExamsPage() {
+  const { canDelete } = useAuth()
   const navigate = useNavigate()
   const [exams, setExams] = useState([])
   const [loading, setLoading] = useState(true)
@@ -570,9 +572,11 @@ export default function ExamsPage() {
                 <button onClick={() => setEditExam(exam)} className="p-2 text-gray-400 hover:text-indigo-600 transition">
                   <Pencil size={14} />
                 </button>
-                <button onClick={() => handleDelete(exam.id, exam.title)} className="p-2 text-red-400 hover:text-red-600 transition">
-                  <Trash2 size={14} />
-                </button>
+                {canDelete && (
+                  <button onClick={() => handleDelete(exam.id, exam.title)} className="p-2 text-red-400 hover:text-red-600 transition">
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
             </div>
           ))}

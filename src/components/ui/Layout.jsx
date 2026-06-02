@@ -4,10 +4,9 @@ import { useAuth } from '../../context/AuthContext'
 import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked } from 'lucide-react'
 
 export default function Layout({ children }) {
-  const { profile, signOut } = useAuth()
+  const { profile, signOut, isTeacher } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const isTeacher = profile?.role === 'teacher'
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   async function handleSignOut() {
@@ -27,6 +26,7 @@ export default function Layout({ children }) {
         { to: '/teacher/grades', icon: <GraduationCap size={18} />, label: 'Khối' },
         { to: '/teacher/classes', icon: <School size={18} />, label: 'Lớp' },
         { to: '/teacher/students', icon: <Users size={18} />, label: 'Học sinh' },
+        ...(profile?.role === 'teacher' ? [{ to: '/teacher/assistants', icon: <Users size={18} />, label: 'Trợ giảng' }] : []),
       ]
     : [
         { to: '/student', icon: <LayoutDashboard size={18} />, label: 'Trang chủ' },
@@ -66,7 +66,7 @@ export default function Layout({ children }) {
       <div className="px-3 py-4 border-t border-indigo-600">
         <div className="text-xs text-indigo-300 mb-1 px-3">{profile?.full_name}</div>
         <div className="text-xs text-indigo-400 mb-3 px-3">
-          {isTeacher ? 'Giáo viên' : `Học sinh lớp ${profile?.grade}`}
+          {profile?.role === 'teacher' ? 'Giáo viên' : profile?.role === 'assistant' ? 'Trợ giảng' : `Học sinh lớp ${profile?.grade}`}
         </div>
         <button
           onClick={handleSignOut}

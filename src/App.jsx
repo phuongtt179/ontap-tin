@@ -17,6 +17,7 @@ import ExamStatsPage from './pages/teacher/ExamStatsPage'
 import ExamResultsPage from './pages/teacher/ExamResultsPage'
 import LessonsPage from './pages/teacher/LessonsPage'
 import LessonSubmissionsPage from './pages/teacher/LessonSubmissionsPage'
+import AssistantsPage from './pages/teacher/AssistantsPage'
 import StudentDashboard from './pages/student/StudentDashboard'
 import PracticePage from './pages/student/PracticePage'
 import HistoryPage from './pages/student/HistoryPage'
@@ -28,9 +29,8 @@ function RootRedirect() {
   const { profile, loading } = useAuth()
   if (loading) return null
   if (!profile) return <Navigate to="/login" replace />
-  return profile.role === 'teacher'
-    ? <Navigate to="/teacher" replace />
-    : <Navigate to="/student" replace />
+  if (profile.role === 'teacher' || profile.role === 'assistant') return <Navigate to="/teacher" replace />
+  return <Navigate to="/student" replace />
 }
 
 export default function App() {
@@ -97,6 +97,11 @@ export default function App() {
           <Route path="/teacher/lessons/:id/submissions" element={
             <ProtectedRoute role="teacher">
               <Layout><LessonSubmissionsPage /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/teacher/assistants" element={
+            <ProtectedRoute role="teacher">
+              <Layout><AssistantsPage /></Layout>
             </ProtectedRoute>
           } />
 

@@ -275,10 +275,12 @@ export default function QuestionCard({ question: q, index, onDelete, onUpdate })
               className="text-gray-400 hover:text-indigo-600 p-1 transition">
               <Pencil size={14} />
             </button>
-            <button onClick={e => { e.stopPropagation(); onDelete() }}
-              className="text-red-400 hover:text-red-600 p-1">
-              <Trash2 size={14} />
-            </button>
+            {onDelete && (
+              <button onClick={e => { e.stopPropagation(); onDelete() }}
+                className="text-red-400 hover:text-red-600 p-1">
+                <Trash2 size={14} />
+              </button>
+            )}
             {expanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
           </div>
         </div>

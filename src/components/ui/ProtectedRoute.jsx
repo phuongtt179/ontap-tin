@@ -13,7 +13,10 @@ export function ProtectedRoute({ children, role }) {
   }
 
   if (!user) return <Navigate to="/login" replace />
-  if (role && profile?.role !== role) return <Navigate to="/" replace />
+  const allowed = role === 'teacher'
+    ? ['teacher', 'assistant'].includes(profile?.role)
+    : profile?.role === role
+  if (role && !allowed) return <Navigate to="/" replace />
 
   return children
 }

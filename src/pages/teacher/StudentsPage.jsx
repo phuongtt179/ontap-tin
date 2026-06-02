@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
 import { Upload, Trash2, X, AlertCircle, CheckCircle2, Loader2, Search, UserPlus, Pencil, Clock, UserCheck } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 // Tạo user qua Edge Function (tránh lỗi "Forbidden use of secret API key in browser")
 async function adminCreateUser(email, password, metadata) {
@@ -412,6 +413,7 @@ function StudentEditModal({ student, classes, gradeValues, onClose, onDone }) {
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
 export default function StudentsPage() {
+  const { canDelete } = useAuth()
   const [searchParams] = useSearchParams()
   const { grades: gradeValues } = useGrades()
   const [students, setStudents] = useState([])
@@ -565,13 +567,15 @@ export default function StudentsPage() {
                   >
                     <Pencil size={14} />
                   </button>
-                  <button
-                    onClick={() => handleDelete(s)}
-                    className="p-1.5 text-gray-400 hover:text-red-500 transition"
-                    title="Từ chối / xóa"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDelete(s)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 transition"
+                      title="Từ chối / xóa"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -668,13 +672,15 @@ export default function StudentsPage() {
                       >
                         <Pencil size={15} />
                       </button>
-                      <button
-                        onClick={() => handleDelete(s)}
-                        className="text-gray-300 hover:text-red-500 transition p-1"
-                        title="Xóa học sinh"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDelete(s)}
+                          className="text-gray-300 hover:text-red-500 transition p-1"
+                          title="Xóa học sinh"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

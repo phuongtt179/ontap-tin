@@ -8,6 +8,7 @@ import {
   Plus, Pencil, Trash2, FileText, X, Loader2, Check,
   ToggleLeft, ToggleRight, RefreshCw, PlayCircle, BookOpen, ClipboardList,
 } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 const TYPE_LABELS = {
@@ -405,6 +406,7 @@ function LessonFormModal({ lesson, onClose, onDone }) {
 
 /* ── LessonsPage ───────────────────────────────────────────── */
 export default function LessonsPage() {
+  const { canDelete } = useAuth()
   const navigate = useNavigate()
   const { grades: GRADES } = useGrades()
   const { topics: ALL_TOPICS } = useTopics()
@@ -618,13 +620,15 @@ export default function LessonsPage() {
                   >
                     <Pencil size={14} />
                   </button>
-                  <button
-                    onClick={() => handleDelete(lesson.id, lesson.title)}
-                    className="p-1.5 text-red-400 hover:text-red-600 transition"
-                    title="Xóa bài học"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDelete(lesson.id, lesson.title)}
+                      className="p-1.5 text-red-400 hover:text-red-600 transition"
+                      title="Xóa bài học"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

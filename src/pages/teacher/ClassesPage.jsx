@@ -4,8 +4,10 @@ import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, Check, X, Users } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 export default function ClassesPage() {
+  const { canDelete } = useAuth()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { grades: gradeValues } = useGrades()
@@ -202,9 +204,11 @@ export default function ClassesPage() {
                   <button onClick={() => startEdit(cls)} className="text-gray-400 hover:text-indigo-600 p-1 transition">
                     <Pencil size={15} />
                   </button>
-                  <button onClick={() => handleDelete(cls.id, cls.name)} className="text-gray-400 hover:text-red-500 p-1 transition">
-                    <Trash2 size={15} />
-                  </button>
+                  {canDelete && (
+                    <button onClick={() => handleDelete(cls.id, cls.name)} className="text-gray-400 hover:text-red-500 p-1 transition">
+                      <Trash2 size={15} />
+                    </button>
+                  )}
                 </>
               )}
             </div>

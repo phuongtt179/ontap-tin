@@ -4,8 +4,10 @@ import { useTopics } from '../../hooks/useTopics'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 export default function TopicsPage() {
+  const { canDelete } = useAuth()
   const { topics, loading, refetch } = useTopics()
   const { grades: gradeValues } = useGrades()
   const GRADES = [{ value: 'all', label: 'Tất cả khối' }, ...gradeValues.map(g => ({ value: g, label: `Khối ${g}` }))]
@@ -158,9 +160,11 @@ export default function TopicsPage() {
                   <button onClick={() => startEdit(topic)} className="text-gray-400 hover:text-indigo-600 p-1 transition">
                     <Pencil size={15} />
                   </button>
-                  <button onClick={() => handleDelete(topic.id, topic.name)} className="text-gray-400 hover:text-red-500 p-1 transition">
-                    <Trash2 size={15} />
-                  </button>
+                  {canDelete && (
+                    <button onClick={() => handleDelete(topic.id, topic.name)} className="text-gray-400 hover:text-red-500 p-1 transition">
+                      <Trash2 size={15} />
+                    </button>
+                  )}
                 </>
               )}
             </div>
