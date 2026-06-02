@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
-import { UserPlus, Trash2, Loader2, Eye, EyeOff } from 'lucide-react'
+import { UserPlus, Trash2, Loader2, Eye, EyeOff, Pencil, Check, X } from 'lucide-react'
 
 async function adminCreateUser(email, password, metadata) {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -38,6 +38,24 @@ async function adminDeleteUser(userId) {
   }
 }
 
+async function adminUpdateUser(userId, updates) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const res = await fetch(`${supabaseUrl}/functions/v1/update-user`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${anonKey}`,
+      'apikey': anonKey,
+    },
+    body: JSON.stringify({ userId, ...updates }),
+  })
+  if (!res.ok) {
+    const data = await res.json()
+    throw new Error(data.error || 'Lỗi cập nhật mật khẩu')
+  }
+}
+
 export default function AssistantsPage() {
   const [assistants, setAssistants] = useState([])
   const [loading, setLoading] = useState(true)
@@ -45,6 +63,11 @@ export default function AssistantsPage() {
   const [saving, setSaving] = useState(false)
   const [showPass, setShowPass] = useState(false)
   const [form, setForm] = useState({ full_name: '', email: '', password: '' })
+
+  const [editId, setEditId] = useState(null)
+  const [editForm, setEditForm] = useState({ full_name: '', password: '' })
+  const [editSaving, setEditSaving] = useState(false)
+  const [showEditPass, setShowEditPass] = useState(false)
 
   useEffect(() => { fetchAssistants() }, [])
 
@@ -57,6 +80,50 @@ export default function AssistantsPage() {
       .order('created_at', { ascending: false })
     setAssistants(data || [])
     setLoading(false)
+  }
+
+  function startEdit(a) {
+    setEditId(a.id)
+    setEditForm({ full_name: a.full_name, password: '' })
+    setShowEditPass(false)
+    setShowForm(false)
+  }
+
+  function cancelEdit() {
+    setEditId(null)
+    setEditForm({ full_name: '', password: '' })
+  }
+
+  async function handleUpdate(e) {
+    e.preventDefault()
+    if (!editForm.full_name.trim()) {
+      toast.error('Họ tên không được để trống')
+      return
+    }
+    if (editForm.password && editForm.password.length < 6) {
+      toast.error('Mật khẩu ít nhất 6 ký tự')
+      return
+    }
+    setEditSaving(true)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: editForm.full_name.trim() })
+        .eq('id', editId)
+      if (error) throw new Error(error.message)
+
+      if (editForm.password) {
+        await adminUpdateUser(editId, { password: editForm.password })
+      }
+
+      toast.success('Đã cập nhật')
+      cancelEdit()
+      fetchAssistants()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   async function handleCreate(e) {
@@ -105,7 +172,7 @@ export default function AssistantsPage() {
           <p className="text-gray-400 text-sm mt-0.5">{assistants.length} tài khoản</p>
         </div>
         <button
-          onClick={() => setShowForm(v => !v)}
+          onClick={() => { setShowForm(v => !v); cancelEdit() }}
           className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition"
         >
           <UserPlus size={16} />
@@ -146,28 +213,19 @@ export default function AssistantsPage() {
                 className="w-full border rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 placeholder="Ít nhất 6 ký tự"
               />
-              <button
-                type="button"
-                onClick={() => setShowPass(v => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
+              <button type="button" onClick={() => setShowPass(v => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                 {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
-            >
+            <button type="button" onClick={() => setShowForm(false)}
+              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">
               Hủy
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
-            >
+            <button type="submit" disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
               {saving && <Loader2 size={14} className="animate-spin" />}
               Tạo tài khoản
             </button>
@@ -186,20 +244,66 @@ export default function AssistantsPage() {
       ) : (
         <div className="space-y-2">
           {assistants.map(a => (
-            <div key={a.id} className="bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center justify-between">
-              <div>
-                <div className="font-medium text-gray-800 text-sm">{a.full_name}</div>
-                <div className="text-xs text-gray-400 mt-0.5">
-                  Tạo lúc {new Date(a.created_at).toLocaleDateString('vi-VN')}
+            <div key={a.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              {editId === a.id ? (
+                <form onSubmit={handleUpdate} className="p-4 space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Họ tên</label>
+                    <input
+                      type="text"
+                      value={editForm.full_name}
+                      onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Mật khẩu mới <span className="text-gray-400">(để trống nếu không đổi)</span></label>
+                    <div className="relative">
+                      <input
+                        type={showEditPass ? 'text' : 'password'}
+                        value={editForm.password}
+                        onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))}
+                        className="w-full border rounded-lg px-3 py-1.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        placeholder="Ít nhất 6 ký tự"
+                      />
+                      <button type="button" onClick={() => setShowEditPass(v => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showEditPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button type="button" onClick={cancelEdit}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition">
+                      <X size={14} /> Hủy
+                    </button>
+                    <button type="submit" disabled={editSaving}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+                      {editSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                      Lưu
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-gray-800 text-sm">{a.full_name}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      Tạo lúc {new Date(a.created_at).toLocaleDateString('vi-VN')}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => startEdit(a)}
+                      className="p-1.5 text-gray-300 hover:text-indigo-500 transition" title="Sửa">
+                      <Pencil size={15} />
+                    </button>
+                    <button onClick={() => handleDelete(a)}
+                      className="p-1.5 text-gray-300 hover:text-red-500 transition" title="Xóa tài khoản">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <button
-                onClick={() => handleDelete(a)}
-                className="p-1.5 text-gray-300 hover:text-red-500 transition"
-                title="Xóa tài khoản"
-              >
-                <Trash2 size={15} />
-              </button>
+              )}
             </div>
           ))}
         </div>
