@@ -16,10 +16,16 @@ export function AuthProvider({ children }) {
       else setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
-      if (session?.user) { setLoading(true); fetchProfile(session.user.id) }
-      else { setProfile(null); setLoading(false) }
+      if (session?.user) {
+        // Chỉ show loading spinner khi đăng nhập lần đầu, không show khi token tự refresh
+        if (event === 'SIGNED_IN') setLoading(true)
+        fetchProfile(session.user.id)
+      } else {
+        setProfile(null)
+        setLoading(false)
+      }
     })
 
     return () => subscription.unsubscribe()
