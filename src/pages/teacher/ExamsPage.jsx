@@ -13,6 +13,7 @@ const TYPE_LABELS = { multiple_choice: 'Trắc nghiệm', true_false: 'Đúng/Sa
 
 /* ── ExamFormModal ─────────────────────────────────────────── */
 function ExamFormModal({ exam, onClose, onDone }) {
+  const { user } = useAuth()
   const { grades: GRADES } = useGrades()
   const isEdit = !!exam
   const [step, setStep] = useState(1)
@@ -101,7 +102,7 @@ function ExamFormModal({ exam, onClose, onDone }) {
     }
     const { error } = isEdit
       ? await supabase.from('exams').update(payload).eq('id', exam.id)
-      : await supabase.from('exams').insert(payload)
+      : await supabase.from('exams').insert({ ...payload, created_by: user.id })
     setSaving(false)
     if (error) toast.error('Lưu thất bại: ' + error.message)
     else { toast.success(isEdit ? 'Đã cập nhật' : 'Đã tạo đề thi'); onDone() }

@@ -7,7 +7,7 @@ import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 export default function TopicsPage() {
-  const { canDelete } = useAuth()
+  const { canDelete, user } = useAuth()
   const { topics, loading, refetch } = useTopics()
   const { grades: gradeValues } = useGrades()
   const GRADES = [{ value: 'all', label: 'Tất cả khối' }, ...gradeValues.map(g => ({ value: g, label: `Khối ${g}` }))]
@@ -26,7 +26,7 @@ export default function TopicsPage() {
 
   async function handleAdd() {
     if (!newName.trim()) return
-    const { error } = await supabase.from('topics').insert({ name: newName.trim(), grade: newGrade })
+    const { error } = await supabase.from('topics').insert({ name: newName.trim(), grade: newGrade, created_by: user.id })
     if (error) {
       toast.error(error.message.includes('unique') ? 'Chủ đề đã tồn tại' : 'Thêm thất bại')
     } else {

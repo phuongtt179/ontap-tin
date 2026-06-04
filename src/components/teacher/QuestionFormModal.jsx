@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
+import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
 import { X, Plus, Trash2, Loader2, Image } from 'lucide-react'
 
@@ -89,6 +90,7 @@ export function AudioUpload({ value, onChange }) {
 }
 
 export default function QuestionFormModal({ onClose, onDone }) {
+  const { user } = useAuth()
   const { topics } = useTopics()
   const [form, setForm] = useState({
     type: 'multiple_choice',
@@ -203,6 +205,7 @@ export default function QuestionFormModal({ onClose, onDone }) {
       image_url: form.image_url || null,
       audio_url: form.audio_url || null,
       hint: form.hint.trim() || null,
+      created_by: user.id,
       ...specific,
     })
     setSaving(false)

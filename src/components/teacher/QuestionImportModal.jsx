@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { parseQuestions } from '../../utils/questionParser'
 import { supabase } from '../../lib/supabase'
 import { uploadImage } from '../../lib/cloudinary'
+import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
 import { X, ChevronRight, Save, ImagePlus, Trash2 } from 'lucide-react'
 
@@ -17,6 +18,7 @@ const QUESTION_TYPES = {
 }
 
 export default function QuestionImportModal({ onClose, onSaved, grades, topics }) {
+  const { user } = useAuth()
   const [step, setStep] = useState(1) // 1: paste, 2: preview & edit
   const [rawText, setRawText] = useState('')
   const [parsed, setParsed] = useState([])
@@ -108,6 +110,7 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
         grade: meta.grade,
         topic: meta.topic,
         difficulty: meta.difficulty,
+        created_by: user.id,
       }))
       const { error } = await supabase.from('questions').insert(rows)
       if (error) throw error

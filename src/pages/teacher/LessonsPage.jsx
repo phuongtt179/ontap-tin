@@ -27,6 +27,7 @@ function parseTasks(instructions) {
 
 /* ── LessonFormModal ───────────────────────────────────────── */
 function LessonFormModal({ lesson, onClose, onDone }) {
+  const { user } = useAuth()
   const { grades: GRADES } = useGrades()
   const { topics: ALL_TOPICS } = useTopics()
   const isEdit = !!lesson
@@ -132,7 +133,7 @@ function LessonFormModal({ lesson, onClose, onDone }) {
     }
     const { error } = isEdit
       ? await supabase.from('lessons').update(payload).eq('id', lesson.id)
-      : await supabase.from('lessons').insert(payload)
+      : await supabase.from('lessons').insert({ ...payload, created_by: user.id })
     setSaving(false)
     if (error) toast.error('Lưu thất bại: ' + error.message)
     else { toast.success(isEdit ? 'Đã cập nhật bài học' : 'Đã tạo bài học'); onDone() }
