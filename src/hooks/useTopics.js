@@ -8,8 +8,11 @@ export function useTopics() {
   useEffect(() => { fetch() }, [])
 
   async function fetch() {
-    const { data } = await supabase.from('topics').select('*').order('name')
-    setTopics(data || [])
+    const { data } = await supabase.from('topics').select('*')
+    const sorted = (data || []).sort((a, b) =>
+      a.name.localeCompare(b.name, 'vi', { numeric: true })
+    )
+    setTopics(sorted)
     setLoading(false)
   }
 
