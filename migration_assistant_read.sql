@@ -1,8 +1,18 @@
 -- ============================================================
 -- Migration: Thêm role 'assistant' vào RLS SELECT policies
--- Trợ giảng cần đọc được lesson_submissions và lesson_progress
+-- Trợ giảng cần đọc profiles, lesson_submissions, lesson_progress
 -- để vào trang chấm bài hoạt động đúng như giáo viên.
 -- ============================================================
+
+-- ── profiles: read ──
+-- Policy gốc chỉ cho role = 'teacher', thiếu 'assistant'
+-- Trợ giảng cần đọc profiles để lấy danh sách học sinh theo khối
+DROP POLICY IF EXISTS "profiles: read" ON public.profiles;
+CREATE POLICY "profiles: read" ON public.profiles
+  FOR SELECT TO authenticated USING (
+    auth.uid() = id
+    OR EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role IN ('teacher', 'assistant'))
+  );
 
 -- ── lesson_submissions: read ──
 -- Policy gốc chỉ cho role = 'teacher', thiếu 'assistant'
