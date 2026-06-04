@@ -5,10 +5,11 @@ import { useGrades } from '../../hooks/useGrades'
 import { useTopics } from '../../hooks/useTopics'
 import toast from 'react-hot-toast'
 import {
-  Plus, Pencil, Trash2, FileText, X, Loader2, Check,
+  Plus, Pencil, Trash2, FileText, X, Loader2, Check, Upload,
   ToggleLeft, ToggleRight, RefreshCw, PlayCircle, BookOpen, ClipboardList,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { uploadFile } from '../../lib/cloudinary'
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 const TYPE_LABELS = {
@@ -38,6 +39,7 @@ function LessonFormModal({ lesson, onClose, onDone }) {
     topic: lesson?.topic || '',
     description: lesson?.description || '',
     video_url: lesson?.video_url || '',
+    pptx_url: lesson?.pptx_url || '',
     order: lesson?.order ?? 0,
     has_practice: lesson?.has_practice ?? false,
     practice_tasks: parseTasks(lesson?.practice_instructions),
@@ -50,6 +52,23 @@ function LessonFormModal({ lesson, onClose, onDone }) {
   const [randomCount, setRandomCount] = useState(10)
   const [saving, setSaving] = useState(false)
   const [loadingQ, setLoadingQ] = useState(false)
+  const [pptxUploading, setPptxUploading] = useState(false)
+
+  async function handlePptxUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPptxUploading(true)
+    try {
+      const url = await uploadFile(file)
+      setForm(f => ({ ...f, pptx_url: url }))
+      toast.success('Đã tải lên file PPTX')
+    } catch (err) {
+      toast.error('Tải file thất bại: ' + err.message)
+    } finally {
+      setPptxUploading(false)
+      e.target.value = ''
+    }
+  }
 
   // Sync grade default when GRADES loads
   useEffect(() => {
@@ -122,6 +141,7 @@ function LessonFormModal({ lesson, onClose, onDone }) {
       topic: form.topic || null,
       description: form.description.trim() || null,
       video_url: form.video_url.trim() || null,
+      pptx_url: form.pptx_url || null,
       order: form.order || 0,
       has_practice: form.has_practice,
       practice_type: null,
@@ -230,6 +250,32 @@ function LessonFormModal({ lesson, onClose, onDone }) {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="https://youtube.com/watch?v=..."
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">File bài giảng PPTX <span className="text-gray-400 font-normal">(tuỳ chọn)</span></label>
+                {form.pptx_url ? (
+                  <div className="flex items-center gap-3 border border-orange-200 rounded-lg px-3 py-2.5 bg-orange-50">
+                    <FileText size={18} className="text-orange-500 shrink-0" />
+                    <span className="flex-1 text-sm text-gray-700 truncate">
+                      {decodeURIComponent(form.pptx_url.split('/').pop().split('?')[0])}
+                    </span>
+                    <button type="button" onClick={() => setForm(f => ({ ...f, pptx_url: '' }))}
+                      className="text-gray-400 hover:text-red-500 transition shrink-0">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className={`flex items-center gap-2 border-2 border-dashed rounded-lg px-3 py-2.5 transition
+                    ${pptxUploading ? 'border-orange-200 bg-orange-50 cursor-wait' : 'border-gray-300 hover:border-orange-400 hover:bg-orange-50 cursor-pointer'}`}>
+                    {pptxUploading
+                      ? <><Loader2 size={15} className="text-orange-400 animate-spin shrink-0" /><span className="text-sm text-orange-500">Đang tải lên...</span></>
+                      : <><Upload size={15} className="text-gray-400 shrink-0" /><span className="text-sm text-gray-500">Bấm để tải lên .pptx · .ppt</span></>
+                    }
+                    <input type="file" className="hidden" accept=".pptx,.ppt"
+                      onChange={handlePptxUpload} disabled={pptxUploading} />
+                  </label>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -593,6 +639,9 @@ export default function LessonsPage() {
                     <span>{lesson.question_ids?.length || 0} câu hỏi</span>
                     {lesson.video_url && (
                       <span className="flex items-center gap-0.5 text-blue-500"><PlayCircle size={11} /> Video</span>
+                    )}
+                    {lesson.pptx_url && (
+                      <span className="flex items-center gap-0.5 text-orange-500"><FileText size={11} /> PPTX</span>
                     )}
                     {lesson.has_practice && (
                       <span className="flex items-center gap-0.5 text-orange-500"><ClipboardList size={11} /> Thực hành</span>

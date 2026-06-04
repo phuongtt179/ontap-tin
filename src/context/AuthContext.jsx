@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
@@ -8,6 +8,10 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Tracks whether user has ever completed an auth check — prevents unnecessary
+  // setLoading(true) when Supabase fires SIGNED_IN during token refresh or tab focus,
+  // which would unmount ProtectedRoute children and reset all local state.
+  const isAuthenticatedRef = useRef(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -19,10 +23,12 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) {
-        // Chỉ show loading spinner khi đăng nhập lần đầu, không show khi token tự refresh
-        if (event === 'SIGNED_IN') setLoading(true)
+        // Only show loading on genuine first sign-in, not on token refresh.
+        // Supabase v2 fires SIGNED_IN for both cases; the ref distinguishes them.
+        if (event === 'SIGNED_IN' && !isAuthenticatedRef.current) setLoading(true)
         fetchProfile(session.user.id)
       } else {
+        isAuthenticatedRef.current = false
         setProfile(null)
         setLoading(false)
       }
@@ -39,6 +45,7 @@ export function AuthProvider({ children }) {
       .maybeSingle()
 
     if (!data) {
+      isAuthenticatedRef.current = false
       await supabase.auth.signOut()
       setProfile(null)
       setLoading(false)
@@ -46,6 +53,7 @@ export function AuthProvider({ children }) {
     }
 
     if (data?.is_active === false) {
+      isAuthenticatedRef.current = false
       await supabase.auth.signOut()
       setProfile(null)
       setLoading(false)
@@ -53,6 +61,7 @@ export function AuthProvider({ children }) {
       return
     }
     if (data?.is_approved === false) {
+      isAuthenticatedRef.current = false
       await supabase.auth.signOut()
       setProfile(null)
       setLoading(false)
@@ -60,6 +69,7 @@ export function AuthProvider({ children }) {
       return
     }
 
+    isAuthenticatedRef.current = true
     setProfile(data)
     setLoading(false)
   }

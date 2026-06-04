@@ -223,9 +223,10 @@ function checkAnswer(type, ans, correct) {
 
 function calcCompleted(prog, les) {
   const videoOk = !les.video_url || prog.video_watched
+  const pptxOk = !les.pptx_url || prog.pptx_viewed
   const quizOk = !(les.question_ids?.length > 0) || prog.quiz_passed
   const practiceOk = !les.has_practice || prog.practice_submitted
-  return videoOk && quizOk && practiceOk
+  return videoOk && pptxOk && quizOk && practiceOk
 }
 
 /* ── FileIcon ──────────────────────────────────────────────── */
@@ -241,8 +242,9 @@ function FileIcon({ url, size = 20 }) {
 
 /* ── SubmittedFile ──────────────────────────────────────────── */
 function SubmittedFile({ url }) {
-  const ext = (url || '').split('.').pop().toLowerCase()
+  const ext = (url || '').split('.').pop().toLowerCase().split('?')[0]
   const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
+  const isOffice = ['doc', 'docx', 'ppt', 'pptx'].includes(ext)
   const fileName = decodeURIComponent(url.split('/').pop().split('?')[0])
 
   return (
@@ -258,6 +260,14 @@ function SubmittedFile({ url }) {
           Tải xuống
         </a>
       </div>
+      {isOffice && (
+        <div className="border-t border-gray-200 bg-gray-100 overflow-hidden">
+          <iframe
+            src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`}
+            width="100%" height="480" frameBorder="0" title="Xem file" className="w-full block"
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -495,6 +505,7 @@ export default function LessonPage() {
   const [loading, setLoading] = useState(true)
   const [quizActive, setQuizActive] = useState(false)
   const [videoMarking, setVideoMarking] = useState(false)
+  const [pptxMarking, setPptxMarking] = useState(false)
 
   useEffect(() => {
     if (user) loadAll()
@@ -556,6 +567,14 @@ export default function LessonPage() {
     else toast.success('Đã đánh dấu xem video')
   }
 
+  async function handleMarkPptxViewed() {
+    setPptxMarking(true)
+    const { error } = await upsertProgress({ pptx_viewed: true })
+    setPptxMarking(false)
+    if (error) toast.error('Có lỗi xảy ra')
+    else toast.success('Đã đánh dấu xem bài giảng')
+  }
+
   async function handleQuizSubmit({ correct, total, passed }) {
     await upsertProgress({ quiz_correct: correct, quiz_total: total, quiz_passed: passed })
     if (passed) toast.success('Chúc mừng! Bạn đã đạt bài tập')
@@ -607,6 +626,7 @@ export default function LessonPage() {
   if (!lesson) return null
 
   const hasVideo = !!lesson.video_url
+  const hasPptx = !!lesson.pptx_url
   const hasQuiz = questions.length > 0
   const hasPractice = lesson.has_practice
   const embedUrl = getEmbedUrl(lesson.video_url)
@@ -614,10 +634,11 @@ export default function LessonPage() {
   const submittedCount = taskSubmissions.filter(Boolean).length
 
   const videoOk = !hasVideo || progress?.video_watched
+  const pptxOk = !hasPptx || progress?.pptx_viewed
   const quizOk = !hasQuiz || progress?.quiz_passed
   const practiceOk = !hasPractice || progress?.practice_submitted
-  const totalSteps = [hasVideo, hasQuiz, hasPractice].filter(Boolean).length
-  const doneSteps = [videoOk && hasVideo, quizOk && hasQuiz, practiceOk && hasPractice].filter(Boolean).length
+  const totalSteps = [hasVideo, hasPptx, hasQuiz, hasPractice].filter(Boolean).length
+  const doneSteps = [videoOk && hasVideo, pptxOk && hasPptx, quizOk && hasQuiz, practiceOk && hasPractice].filter(Boolean).length
 
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
@@ -655,6 +676,12 @@ export default function LessonPage() {
                 <span>Video {videoOk ? '✓' : '○'}</span>
               </div>
             )}
+            {hasPptx && (
+              <div className={`flex items-center gap-1.5 text-xs font-medium ${pptxOk ? 'text-green-600' : 'text-gray-400'}`}>
+                <FileText size={13} />
+                <span>Bài giảng {pptxOk ? '✓' : '○'}</span>
+              </div>
+            )}
             {hasQuiz && (
               <div className={`flex items-center gap-1.5 text-xs font-medium ${quizOk ? 'text-green-600' : 'text-gray-400'}`}>
                 <BookOpen size={13} />
@@ -672,7 +699,7 @@ export default function LessonPage() {
       )}
 
       <div className="space-y-6">
-        {/* Section 1 - Video */}
+        {/* Section - Video */}
         {hasVideo && (
           <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
@@ -715,7 +742,41 @@ export default function LessonPage() {
           </section>
         )}
 
-        {/* Section 2 - Quiz */}
+        {/* Section - PPTX bài giảng */}
+        {hasPptx && (
+          <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+              <FileText size={16} className="text-orange-500" />
+              <h2 className="font-semibold text-gray-800 text-sm">Bài giảng (PowerPoint)</h2>
+            </div>
+            <div className="p-4">
+              <div className="w-full rounded-lg overflow-hidden border border-gray-200 mb-3" style={{ aspectRatio: '16/9' }}>
+                <iframe
+                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(lesson.pptx_url)}`}
+                  width="100%" height="100%" frameBorder="0"
+                  title="Bài giảng PPTX" className="w-full h-full block"
+                  allowFullScreen
+                />
+              </div>
+              {pptxOk ? (
+                <span className="inline-flex items-center gap-1.5 text-sm text-green-600 font-medium bg-green-50 px-3 py-1.5 rounded-lg">
+                  <CheckCircle size={15} /> Đã xem ✓
+                </span>
+              ) : (
+                <button
+                  onClick={handleMarkPptxViewed}
+                  disabled={pptxMarking}
+                  className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                >
+                  {pptxMarking ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={15} />}
+                  Đánh dấu đã xem bài giảng
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Section - Quiz */}
         {hasQuiz && (
           <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
@@ -759,7 +820,7 @@ export default function LessonPage() {
           </section>
         )}
 
-        {/* Section 3 - Practice submission */}
+        {/* Section - Practice submission */}
         {hasPractice && (
           <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
