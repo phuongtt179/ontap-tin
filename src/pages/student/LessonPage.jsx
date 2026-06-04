@@ -502,6 +502,7 @@ export default function LessonPage() {
   const [taskFiles, setTaskFiles] = useState([])               // File|null per task
   const [taskNotes, setTaskNotes] = useState([])               // string per task
   const [taskSubmitting, setTaskSubmitting] = useState(null)   // task index being submitted
+  const [resubmitTask, setResubmitTask] = useState(null)       // task index in resubmit mode
   const [loading, setLoading] = useState(true)
   const [quizActive, setQuizActive] = useState(false)
   const [videoMarking, setVideoMarking] = useState(false)
@@ -579,6 +580,32 @@ export default function LessonPage() {
     await upsertProgress({ quiz_correct: correct, quiz_total: total, quiz_passed: passed })
     if (passed) toast.success('Chúc mừng! Bạn đã đạt bài tập')
     else toast('Chưa đạt, hãy thử lại nhé!', { icon: '📖' })
+  }
+
+  async function handleTaskResubmit(taskIdx) {
+    const file = taskFiles[taskIdx]
+    const note = taskNotes[taskIdx] || ''
+    const existingSub = taskSubmissions[taskIdx]
+    setTaskSubmitting(taskIdx)
+    try {
+      let fileUrl = existingSub?.file_url ?? null
+      if (file) fileUrl = await uploadFile(file)
+      const { data: updated, error } = await supabase
+        .from('lesson_submissions')
+        .update({ file_url: fileUrl, text_content: note.trim() || null, submitted_at: new Date().toISOString() })
+        .eq('id', existingSub.id)
+        .select().single()
+      if (error) throw error
+      const newSubs = [...taskSubmissions]; newSubs[taskIdx] = updated; setTaskSubmissions(newSubs)
+      setResubmitTask(null)
+      const nf = [...taskFiles]; nf[taskIdx] = null; setTaskFiles(nf)
+      const nn = [...taskNotes]; nn[taskIdx] = ''; setTaskNotes(nn)
+      toast.success(`Đã cập nhật bài ${taskIdx + 1}`)
+    } catch (err) {
+      toast.error('Nộp lại thất bại: ' + err.message)
+    } finally {
+      setTaskSubmitting(null)
+    }
   }
 
   async function handleTaskSubmit(taskIdx) {
@@ -835,12 +862,16 @@ export default function LessonPage() {
                 const note = taskNotes[i] || ''
                 const isSubmitting = taskSubmitting === i
                 return (
-                  <div key={i} className={`rounded-xl border p-4 space-y-3 ${sub ? 'border-green-200 bg-green-50/40' : 'border-gray-200'}`}>
+                  <div key={i} className={`rounded-xl border p-4 space-y-3 ${
+                    resubmitTask === i ? 'border-orange-200 bg-orange-50/30'
+                    : sub ? 'border-green-200 bg-green-50/40'
+                    : 'border-gray-200'
+                  }`}>
                     {/* Task header */}
                     <div className="flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-700 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
                       <span className="text-sm font-semibold text-gray-700">Bài {i + 1}</span>
-                      {sub && <CheckCircle size={14} className="text-green-500 ml-auto" />}
+                      {sub && resubmitTask !== i && <CheckCircle size={14} className="text-green-500 ml-auto" />}
                     </div>
 
                     {/* Instructions */}
@@ -851,7 +882,7 @@ export default function LessonPage() {
                       </div>
                     )}
 
-                    {sub ? (
+                    {sub && resubmitTask !== i ? (
                       /* ── Đã nộp ── */
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -860,6 +891,17 @@ export default function LessonPage() {
                           </span>
                           {sub.score != null && (
                             <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">Điểm: {sub.score}</span>
+                          )}
+                          {!sub.reviewed_at && (
+                            <button
+                              onClick={() => {
+                                const nn = [...taskNotes]; nn[i] = sub.text_content || ''; setTaskNotes(nn)
+                                setResubmitTask(i)
+                              }}
+                              className="ml-auto text-xs text-orange-600 hover:text-orange-800 font-medium hover:underline"
+                            >
+                              Nộp lại
+                            </button>
                           )}
                         </div>
                         {sub.file_url && <SubmittedFile url={sub.file_url} />}
@@ -876,8 +918,23 @@ export default function LessonPage() {
                         )}
                       </div>
                     ) : (
-                      /* ── Form nộp ── */
+                      /* ── Form nộp / nộp lại ── */
                       <div className="space-y-3">
+                        {resubmitTask === i && (
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-orange-600 font-medium">Nộp lại · file cũ sẽ được thay thế</p>
+                            <button
+                              onClick={() => {
+                                setResubmitTask(null)
+                                const nf = [...taskFiles]; nf[i] = null; setTaskFiles(nf)
+                                const nn = [...taskNotes]; nn[i] = ''; setTaskNotes(nn)
+                              }}
+                              className="text-xs text-gray-400 hover:text-gray-600"
+                            >
+                              Hủy
+                            </button>
+                          </div>
+                        )}
                         <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl px-4 py-5 cursor-pointer transition
                           ${file ? 'border-orange-400 bg-orange-50' : 'border-gray-300 hover:border-orange-400 hover:bg-orange-50'}`}>
                           {file ? (
@@ -889,7 +946,9 @@ export default function LessonPage() {
                           ) : (
                             <>
                               <Upload size={22} className="text-gray-300" />
-                              <span className="text-sm text-gray-500">Bấm để chọn file</span>
+                              <span className="text-sm text-gray-500">
+                                {resubmitTask === i ? 'Chọn file mới (bỏ trống để giữ file cũ)' : 'Bấm để chọn file'}
+                              </span>
                               <span className="text-xs text-gray-400">.pptx · .docx · .sb3</span>
                             </>
                           )}
@@ -907,12 +966,12 @@ export default function LessonPage() {
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                         />
                         <button
-                          onClick={() => handleTaskSubmit(i)}
-                          disabled={isSubmitting || (!file && !note.trim())}
+                          onClick={() => resubmitTask === i ? handleTaskResubmit(i) : handleTaskSubmit(i)}
+                          disabled={isSubmitting || (resubmitTask !== i && !file && !note.trim())}
                           className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
                         >
                           {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                          {isSubmitting ? 'Đang nộp...' : `Nộp bài ${i + 1}`}
+                          {isSubmitting ? 'Đang nộp...' : resubmitTask === i ? `Cập nhật bài ${i + 1}` : `Nộp bài ${i + 1}`}
                         </button>
                       </div>
                     )}
