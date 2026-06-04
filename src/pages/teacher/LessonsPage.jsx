@@ -459,8 +459,8 @@ export default function LessonsPage() {
   const { topics: ALL_TOPICS } = useTopics()
   const [lessons, setLessons] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selectedGrade, setSelectedGrade] = useState('')
-  const [selectedTopic, setSelectedTopic] = useState(null)
+  const [selectedGrade, setSelectedGrade] = useState(() => sessionStorage.getItem('lessons_grade') || '')
+  const [selectedTopic, setSelectedTopic] = useState(() => sessionStorage.getItem('lessons_topic') || null)
   const [showCreate, setShowCreate] = useState(false)
   const [editLesson, setEditLesson] = useState(null)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
@@ -471,6 +471,15 @@ export default function LessonsPage() {
   useEffect(() => {
     if (GRADES.length > 0 && !selectedGrade) setSelectedGrade(GRADES[0])
   }, [GRADES])
+
+  useEffect(() => {
+    if (selectedGrade) sessionStorage.setItem('lessons_grade', selectedGrade)
+  }, [selectedGrade])
+
+  useEffect(() => {
+    if (selectedTopic) sessionStorage.setItem('lessons_topic', selectedTopic)
+    else sessionStorage.removeItem('lessons_topic')
+  }, [selectedTopic])
 
   async function fetchLessons() {
     setLoading(true)
@@ -489,9 +498,12 @@ export default function LessonsPage() {
     if (!topicList.includes(key)) topicList.push(key)
   })
 
-  // Auto-select first topic when grade/data changes
+  // Auto-select first topic — giữ topic đã lưu nếu còn hợp lệ với grade hiện tại
   useEffect(() => {
-    setSelectedTopic(topicList[0] || null)
+    if (loading) return
+    const saved = sessionStorage.getItem('lessons_topic')
+    if (saved && topicList.includes(saved)) setSelectedTopic(saved)
+    else setSelectedTopic(topicList[0] || null)
   }, [selectedGrade, loading])
 
   const grouped = {}
