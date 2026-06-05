@@ -509,9 +509,12 @@ export default function StudentsPage() {
   const [enrollStudent, setEnrollStudent] = useState(null)
   const [showPending, setShowPending] = useState(false)
   const [approvingId, setApprovingId] = useState(null)
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   useEffect(() => { fetchClasses() }, [])
   useEffect(() => { fetchStudents() }, [filterGrade, filterClass])
+  useEffect(() => { setSelectedIds(new Set()) }, [filterGrade, filterClass, search])
 
   async function fetchClasses() {
     const { data } = await supabase.from('classes').select('name, grade').order('grade').order('name')
@@ -584,6 +587,32 @@ export default function StudentsPage() {
       toast.success('Đã xóa học sinh')
       fetchStudents()
     }
+  }
+
+  async function handleBulkDelete() {
+    const targets = displayed.filter(s => selectedIds.has(s.id))
+    if (!targets.length) return
+    const msg = filterGrade
+      ? `Xóa ${targets.length} học sinh đã chọn trong khoá "${filterGrade}"?`
+      : `Xóa ${targets.length} học sinh đã chọn?`
+    if (!confirm(msg)) return
+    setBulkDeleting(true)
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    let ok = 0, fail = 0
+    for (const s of targets) {
+      const res = await fetch(`${supabaseUrl}/functions/v1/delete-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anonKey}`, 'apikey': anonKey },
+        body: JSON.stringify({ userId: s.id }),
+      })
+      if (res.ok) ok++; else fail++
+    }
+    setBulkDeleting(false)
+    setSelectedIds(new Set())
+    if (ok) toast.success(`Đã xóa ${ok} học sinh`)
+    if (fail) toast.error(`${fail} tài khoản xóa thất bại`)
+    fetchStudents()
   }
 
   const filteredClasses = filterGrade
@@ -734,7 +763,68 @@ export default function StudentsPage() {
             <X size={14} /> Xóa bộ lọc
           </button>
         )}
+        {canDelete && displayed.length > 0 && (
+          <button
+            onClick={() => setSelectedIds(
+              selectedIds.size === displayed.length
+                ? new Set()
+                : new Set(displayed.map(s => s.id))
+            )}
+            className="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-1 ml-auto"
+          >
+            {selectedIds.size === displayed.length && displayed.length > 0 ? 'Bỏ chọn tất cả' : `Chọn tất cả (${displayed.length})`}
+          </button>
+        )}
       </div>
+
+      {/* Bulk action bar */}
+      {canDelete && selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <span className="text-sm font-medium text-red-700">Đã chọn {selectedIds.size} học sinh</span>
+          <button
+            onClick={handleBulkDelete}
+            disabled={bulkDeleting}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-1.5 rounded-lg transition disabled:opacity-50 ml-auto"
+          >
+            {bulkDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+            {bulkDeleting ? 'Đang xóa...' : `Xóa ${selectedIds.size} học sinh`}
+          </button>
+          <button onClick={() => setSelectedIds(new Set())} className="text-xs text-red-400 hover:text-red-600">
+            Hủy
+          </button>
+        </div>
+      )}
+      {/* Delete-all-in-grade shortcut */}
+      {canDelete && selectedIds.size === 0 && filterGrade && displayed.length > 0 && (
+        <div className="flex items-center justify-end mb-4">
+          <button
+            onClick={async () => {
+              if (!confirm(`Xóa toàn bộ ${displayed.length} học sinh trong khoá "${filterGrade}"? Hành động này không thể hoàn tác.`)) return
+              setBulkDeleting(true)
+              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+              const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+              let ok = 0, fail = 0
+              for (const s of displayed) {
+                const res = await fetch(`${supabaseUrl}/functions/v1/delete-user`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anonKey}`, 'apikey': anonKey },
+                  body: JSON.stringify({ userId: s.id }),
+                })
+                if (res.ok) ok++; else fail++
+              }
+              setBulkDeleting(false)
+              if (ok) toast.success(`Đã xóa ${ok} học sinh trong khoá "${filterGrade}"`)
+              if (fail) toast.error(`${fail} tài khoản xóa thất bại`)
+              fetchStudents()
+            }}
+            disabled={bulkDeleting}
+            className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+          >
+            {bulkDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+            Xóa toàn bộ {displayed.length} học sinh trong khoá "{filterGrade}"
+          </button>
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (
@@ -751,6 +841,17 @@ export default function StudentsPage() {
           <table className="w-full text-sm min-w-[560px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                {canDelete && (
+                  <th className="px-4 py-3 w-10">
+                    <input type="checkbox"
+                      checked={selectedIds.size === displayed.length && displayed.length > 0}
+                      onChange={() => setSelectedIds(
+                        selectedIds.size === displayed.length ? new Set() : new Set(displayed.map(s => s.id))
+                      )}
+                      className="rounded border-gray-300 text-indigo-600 cursor-pointer"
+                    />
+                  </th>
+                )}
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 w-10">#</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Họ và tên</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Email đăng nhập</th>
@@ -760,7 +861,20 @@ export default function StudentsPage() {
             </thead>
             <tbody>
               {displayed.map((s, i) => (
-                <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50 transition">
+                <tr key={s.id} className={`border-t border-gray-100 hover:bg-gray-50 transition ${selectedIds.has(s.id) ? 'bg-red-50' : ''}`}>
+                  {canDelete && (
+                    <td className="px-4 py-3">
+                      <input type="checkbox"
+                        checked={selectedIds.has(s.id)}
+                        onChange={() => setSelectedIds(prev => {
+                          const next = new Set(prev)
+                          if (next.has(s.id)) next.delete(s.id); else next.add(s.id)
+                          return next
+                        })}
+                        className="rounded border-gray-300 text-indigo-600 cursor-pointer"
+                      />
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-gray-400">{i + 1}</td>
                   <td className="px-4 py-3 font-medium text-gray-800">{s.full_name}</td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-500">
