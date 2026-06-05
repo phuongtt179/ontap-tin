@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useEnrollments } from '../../hooks/useEnrollments'
-import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig } from 'lucide-react'
+import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen } from 'lucide-react'
 
 export default function Layout({ children }) {
   const { profile, user, signOut, isTeacher } = useAuth()
@@ -28,6 +28,7 @@ export default function Layout({ children }) {
         { to: '/teacher/grades', icon: <GraduationCap size={18} />, label: 'Khoá học' },
         { to: '/teacher/classes', icon: <School size={18} />, label: 'Lớp' },
         { to: '/teacher/students', icon: <Users size={18} />, label: 'Học sinh' },
+        { to: '/teacher/notes', icon: <NotebookPen size={18} />, label: 'Ghi chú' },
         ...(profile?.role === 'teacher' ? [{ to: '/teacher/assistants', icon: <Users size={18} />, label: 'Trợ giảng' }] : []),
       ]
     : [
@@ -37,6 +38,7 @@ export default function Layout({ children }) {
         { to: '/student/exams', icon: <ClipboardList size={18} />, label: 'Đề thi' },
         { to: '/student/practice', icon: <PenSquare size={18} />, label: 'Luyện tập' },
         { to: '/student/history', icon: <BarChart2 size={18} />, label: 'Kết quả' },
+        { to: '/student/notes', icon: <NotebookPen size={18} />, label: 'Ghi chú' },
       ]
 
   function NavLinks({ onLinkClick }) {

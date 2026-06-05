@@ -18,6 +18,7 @@ import ExamResultsPage from './pages/teacher/ExamResultsPage'
 import LessonsPage from './pages/teacher/LessonsPage'
 import LessonSubmissionsPage from './pages/teacher/LessonSubmissionsPage'
 import AssistantsPage from './pages/teacher/AssistantsPage'
+import StudentNotesPage from './pages/teacher/StudentNotesPage'
 import StudentDashboard from './pages/student/StudentDashboard'
 import PracticePage from './pages/student/PracticePage'
 import HistoryPage from './pages/student/HistoryPage'
@@ -25,6 +26,7 @@ import StudentExamsPage from './pages/student/ExamsPage'
 import LearnPage from './pages/student/LearnPage'
 import LessonPage from './pages/student/LessonPage'
 import JoinCoursePage from './pages/student/JoinCoursePage'
+import NotesPage from './pages/student/NotesPage'
 
 function RootRedirect() {
   const { profile, loading } = useAuth()
@@ -105,6 +107,11 @@ export default function App() {
               <Layout><AssistantsPage /></Layout>
             </ProtectedRoute>
           } />
+          <Route path="/teacher/notes" element={
+            <ProtectedRoute role="teacher">
+              <Layout><StudentNotesPage /></Layout>
+            </ProtectedRoute>
+          } />
 
           {/* Student routes */}
           <Route path="/student" element={
@@ -140,6 +147,11 @@ export default function App() {
           <Route path="/student/courses" element={
             <ProtectedRoute role="student">
               <Layout><JoinCoursePage /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/student/notes" element={
+            <ProtectedRoute role="student">
+              <Layout><NotesPage /></Layout>
             </ProtectedRoute>
           } />
         </Routes>
