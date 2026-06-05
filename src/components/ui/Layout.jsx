@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useEnrollments } from '../../hooks/useEnrollments'
 import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig } from 'lucide-react'
 
 export default function Layout({ children }) {
-  const { profile, signOut, isTeacher } = useAuth()
+  const { profile, user, signOut, isTeacher } = useAuth()
+  const { enrollments } = useEnrollments(!isTeacher ? user?.id : null)
   const navigate = useNavigate()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -67,7 +69,11 @@ export default function Layout({ children }) {
       <div className="px-3 py-4 border-t border-indigo-600">
         <div className="text-xs text-indigo-300 mb-1 px-3">{profile?.full_name}</div>
         <div className="text-xs text-indigo-400 mb-3 px-3">
-          {profile?.role === 'teacher' ? 'Giáo viên' : profile?.role === 'assistant' ? 'Trợ giảng' : 'Học sinh'}
+          {profile?.role === 'teacher' ? 'Giáo viên'
+            : profile?.role === 'assistant' ? 'Trợ giảng'
+            : enrollments.length > 0
+              ? enrollments.map(e => e.class_name || e.grade).join(' · ')
+              : 'Học sinh'}
         </div>
         <button
           onClick={handleSignOut}

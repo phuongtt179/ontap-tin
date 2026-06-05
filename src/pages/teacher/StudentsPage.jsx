@@ -34,18 +34,17 @@ function parseStudents(text) {
     .map((line, index) => {
       // Tách bằng dấu phẩy hoặc tab
       const parts = line.split(/[,\t]/).map(p => p.trim())
-      if (parts.length < 5) {
-        return { _raw: line, _line: index + 1, _errors: [`Dòng ${index + 1}: cần đủ 5 cột (tên, đăng nhập, mật khẩu, khối, lớp)`] }
+      if (parts.length < 4) {
+        return { _raw: line, _line: index + 1, _errors: [`Dòng ${index + 1}: cần đủ 4 cột (tên, đăng nhập, mật khẩu, khoá học)`] }
       }
-      const [full_name, username, password, grade, class_name] = parts
+      const [full_name, username, password, grade, class_name = ''] = parts
       const errors = []
       if (!full_name) errors.push('Thiếu họ tên')
       if (!username) errors.push('Thiếu tên đăng nhập')
       else if (!/^[a-zA-Z0-9_.]+$/.test(username)) errors.push('Tên đăng nhập chỉ gồm a-z, 0-9, _ .')
       if (!password) errors.push('Thiếu mật khẩu')
       else if (password.length < 6) errors.push('Mật khẩu ít nhất 6 ký tự')
-      if (!grade) errors.push('Thiếu khối')
-      if (!class_name) errors.push('Thiếu tên lớp')
+      if (!grade) errors.push('Thiếu khoá học')
       return { full_name, username, password, grade, class_name, _raw: line, _line: index + 1, _errors: errors }
     })
 }
@@ -140,7 +139,7 @@ function StudentImportModal({ onClose, onDone }) {
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div>
             <h2 className="text-lg font-bold text-gray-800">Nhập học sinh hàng loạt</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Mỗi dòng: <span className="font-mono bg-gray-100 px-1 rounded">họ tên, tên đăng nhập, mật khẩu, khối, lớp</span></p>
+            <p className="text-xs text-gray-400 mt-0.5">Mỗi dòng: <span className="font-mono bg-gray-100 px-1 rounded">họ tên, tên đăng nhập, mật khẩu, khoá học, ca học (tuỳ chọn)</span></p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
             <X size={20} />
@@ -155,9 +154,9 @@ function StudentImportModal({ onClose, onDone }) {
             <div className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
                 <p className="font-semibold mb-1">Định dạng nhập liệu:</p>
-                <p className="font-mono text-xs">Nguyễn Văn An, nguyenvanan, matkhau123, 3, 3A</p>
-                <p className="font-mono text-xs">Trần Thị Bình, tranthib, matkhau456, 4, 4B</p>
-                <p className="mt-2 text-xs text-blue-600">Tên đăng nhập: chỉ dùng a-z, 0-9, dấu _ và . (không dấu tiếng Việt)</p>
+                <p className="font-mono text-xs">Nguyễn Văn An, nguyenvanan, matkhau123, Kĩ Năng 1, Ca 1</p>
+                <p className="font-mono text-xs">Trần Thị Bình, tranthib, matkhau456, Lập Trình D1</p>
+                <p className="mt-2 text-xs text-blue-600">Tên đăng nhập: chỉ dùng a-z, 0-9, dấu _ và . · Cột ca học có thể bỏ trống</p>
               </div>
               <textarea
                 autoFocus
@@ -209,7 +208,7 @@ function StudentImportModal({ onClose, onDone }) {
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Tên đăng nhập</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Mật khẩu</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Khoá học</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Lớp</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Ca học</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Trạng thái</th>
                     </tr>
                   </thead>
@@ -298,7 +297,7 @@ function StudentImportModal({ onClose, onDone }) {
                     <tr>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Họ tên</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Email đăng nhập</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Lớp</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Ca học</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Kết quả</th>
                     </tr>
                   </thead>
@@ -426,6 +425,74 @@ function StudentEditModal({ student, classes, gradeValues, onClose, onDone }) {
   )
 }
 
+// ─── Enroll Student Modal ───────────────────────────────────────────────────
+function EnrollStudentModal({ student, classes, gradeValues, onClose, onDone }) {
+  const [grade, setGrade] = useState('')
+  const [className, setClassName] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const filteredClasses = grade ? classes.filter(c => c.grade === grade) : []
+  const alreadyEnrolled = new Set((student.enrollments || []).map(e => e.grade))
+
+  async function handleSave() {
+    if (!grade) { toast.error('Chọn khoá học'); return }
+    setSaving(true)
+    const { error } = await supabase.from('student_enrollments').upsert({
+      user_id: student.id,
+      grade,
+      class_name: className || null,
+      is_approved: true,
+    }, { onConflict: 'user_id,grade' })
+    setSaving(false)
+    if (error) toast.error('Thêm thất bại: ' + error.message)
+    else { toast.success(`Đã thêm ${student.full_name} vào ${grade}`); onDone() }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <h2 className="text-base font-bold text-gray-800">Thêm vào khoá học</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-gray-600">Học sinh: <strong>{student.full_name}</strong></p>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Khoá học</label>
+            <select value={grade} onChange={e => { setGrade(e.target.value); setClassName('') }}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">-- Chọn khoá học --</option>
+              {gradeValues.map(g => (
+                <option key={g} value={g} disabled={alreadyEnrolled.has(g)}>
+                  {g}{alreadyEnrolled.has(g) ? ' (đã tham gia)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          {grade && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ca học <span className="text-gray-400 font-normal">(tuỳ chọn)</span></label>
+              <select value={className} onChange={e => setClassName(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">-- Không chọn ca --</option>
+                {filteredClasses.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Hủy</button>
+          <button onClick={handleSave} disabled={saving || !grade}
+            className="flex items-center gap-2 px-5 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 transition">
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
+            Thêm vào khoá
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Page ──────────────────────────────────────────────────────────────
 export default function StudentsPage() {
   const { canDelete } = useAuth()
@@ -439,6 +506,7 @@ export default function StudentsPage() {
   const [classes, setClasses] = useState([])
   const [showImport, setShowImport] = useState(false)
   const [editStudent, setEditStudent] = useState(null)
+  const [enrollStudent, setEnrollStudent] = useState(null)
   const [showPending, setShowPending] = useState(false)
   const [approvingId, setApprovingId] = useState(null)
 
@@ -686,9 +754,8 @@ export default function StudentsPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 w-10">#</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Họ và tên</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Email đăng nhập</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Khoá học</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Lớp</th>
-                <th className="px-4 py-3 w-20" />
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Khoá học / Ca</th>
+                <th className="px-4 py-3 w-24" />
               </tr>
             </thead>
             <tbody>
@@ -703,11 +770,27 @@ export default function StudentsPage() {
                     }
                   </td>
                   <td className="px-4 py-3">
-                    {s.grade && <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${gradeColors[s.grade]}`}>{s.grade}</span>}
+                    <div className="flex flex-wrap gap-1">
+                      {(s.enrollments || []).length > 0
+                        ? (s.enrollments || []).map(e => (
+                            <span key={e.id} className={`text-xs px-2 py-0.5 rounded-full font-medium ${gradeColors[e.grade] || 'bg-gray-100 text-gray-600'}`}>
+                              {e.class_name || e.grade}
+                              {!e.is_approved && <span className="ml-1 opacity-60">(chờ)</span>}
+                            </span>
+                          ))
+                        : <span className="text-gray-300 text-xs">—</span>
+                      }
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{s.class_name || <span className="text-gray-300">—</span>}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEnrollStudent(s)}
+                        className="text-gray-300 hover:text-green-600 transition p-1"
+                        title="Thêm vào khoá học"
+                      >
+                        <UserPlus size={15} />
+                      </button>
                       <button
                         onClick={() => setEditStudent(s)}
                         className="text-gray-300 hover:text-indigo-500 transition p-1"
@@ -746,6 +829,15 @@ export default function StudentsPage() {
           gradeValues={gradeValues}
           onClose={() => setEditStudent(null)}
           onDone={() => { setEditStudent(null); fetchStudents() }}
+        />
+      )}
+      {enrollStudent && (
+        <EnrollStudentModal
+          student={enrollStudent}
+          classes={classes}
+          gradeValues={gradeValues}
+          onClose={() => setEnrollStudent(null)}
+          onDone={() => { setEnrollStudent(null); fetchStudents() }}
         />
       )}
     </div>

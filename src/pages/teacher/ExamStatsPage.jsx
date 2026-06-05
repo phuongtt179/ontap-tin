@@ -139,13 +139,19 @@ export default function ExamStatsPage() {
   const [loading, setLoading] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState(null)
 
+  // Auto-chọn khoá học đầu tiên khi danh sách load
+  useEffect(() => {
+    if (GRADES.length > 0 && !filterGrade) setFilterGrade(GRADES[0])
+  }, [GRADES])
+
   useEffect(() => {
     setFilterClass('')
+    if (!filterGrade) return
     supabase.from('classes').select('name').eq('grade', filterGrade).order('name')
       .then(({ data }) => setClasses(data?.map(c => c.name) || []))
   }, [filterGrade])
 
-  useEffect(() => { fetchData() }, [filterGrade, filterClass])
+  useEffect(() => { if (filterGrade) fetchData() }, [filterGrade, filterClass])
 
   async function fetchData() {
     setLoading(true)
