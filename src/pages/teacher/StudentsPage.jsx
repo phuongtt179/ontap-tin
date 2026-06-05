@@ -34,17 +34,16 @@ function parseStudents(text) {
     .map((line, index) => {
       // Tách bằng dấu phẩy hoặc tab
       const parts = line.split(/[,\t]/).map(p => p.trim())
-      if (parts.length < 4) {
-        return { _raw: line, _line: index + 1, _errors: [`Dòng ${index + 1}: cần đủ 4 cột (tên, đăng nhập, mật khẩu, khoá học)`] }
+      if (parts.length < 3) {
+        return { _raw: line, _line: index + 1, _errors: [`Dòng ${index + 1}: cần ít nhất 3 cột (tên, đăng nhập, mật khẩu)`] }
       }
-      const [full_name, username, password, grade, class_name = ''] = parts
+      const [full_name, username, password, grade = '', class_name = ''] = parts
       const errors = []
       if (!full_name) errors.push('Thiếu họ tên')
       if (!username) errors.push('Thiếu tên đăng nhập')
       else if (!/^[a-zA-Z0-9_.]+$/.test(username)) errors.push('Tên đăng nhập chỉ gồm a-z, 0-9, _ .')
       if (!password) errors.push('Thiếu mật khẩu')
       else if (password.length < 6) errors.push('Mật khẩu ít nhất 6 ký tự')
-      if (!grade) errors.push('Thiếu khoá học')
       return { full_name, username, password, grade, class_name, _raw: line, _line: index + 1, _errors: errors }
     })
 }
@@ -107,13 +106,15 @@ function StudentImportModal({ onClose, onDone }) {
           await supabase.from('profiles')
             .update({ username: row.username, is_approved: true })
             .eq('id', authUser.id)
-          // Tạo enrollment (tự động duyệt vì giáo viên tạo)
-          await supabase.from('student_enrollments').upsert({
-            user_id: authUser.id,
-            grade: row.grade,
-            class_name: row.class_name || null,
-            is_approved: true,
-          }, { onConflict: 'user_id,grade' })
+          // Tạo enrollment nếu có khoá học
+          if (row.grade) {
+            await supabase.from('student_enrollments').upsert({
+              user_id: authUser.id,
+              grade: row.grade,
+              class_name: row.class_name || null,
+              is_approved: true,
+            }, { onConflict: 'user_id,grade' })
+          }
         }
 
         res.push({ ...row, _ok: true, email })
@@ -139,7 +140,7 @@ function StudentImportModal({ onClose, onDone }) {
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div>
             <h2 className="text-lg font-bold text-gray-800">Nhập học sinh hàng loạt</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Mỗi dòng: <span className="font-mono bg-gray-100 px-1 rounded">họ tên, tên đăng nhập, mật khẩu, khoá học, ca học (tuỳ chọn)</span></p>
+            <p className="text-xs text-gray-400 mt-0.5">Mỗi dòng: <span className="font-mono bg-gray-100 px-1 rounded">họ tên, tên đăng nhập, mật khẩu, khoá học (tuỳ chọn), ca học (tuỳ chọn)</span></p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
             <X size={20} />
@@ -156,7 +157,8 @@ function StudentImportModal({ onClose, onDone }) {
                 <p className="font-semibold mb-1">Định dạng nhập liệu:</p>
                 <p className="font-mono text-xs">Nguyễn Văn An, nguyenvanan, matkhau123, Kĩ Năng 1, Ca 1</p>
                 <p className="font-mono text-xs">Trần Thị Bình, tranthib, matkhau456, Lập Trình D1</p>
-                <p className="mt-2 text-xs text-blue-600">Tên đăng nhập: chỉ dùng a-z, 0-9, dấu _ và . · Cột ca học có thể bỏ trống</p>
+                <p className="font-mono text-xs">Lê Văn Cường, levancuong, matkhau789</p>
+                <p className="mt-2 text-xs text-blue-600">Tên đăng nhập: chỉ dùng a-z, 0-9, dấu _ và . · Khoá học và ca học có thể bỏ trống — học sinh tự chọn sau khi đăng nhập</p>
               </div>
               <textarea
                 autoFocus
