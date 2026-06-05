@@ -11,7 +11,7 @@ export default function ClassesPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { grades: gradeValues } = useGrades()
-  const GRADES = [{ value: '', label: 'Tất cả khối' }, ...gradeValues.map(g => ({ value: g, label: `Khối ${g}` }))]
+  const GRADES = [{ value: '', label: 'Tất cả khoá' }, ...gradeValues.map(g => ({ value: g, label: g }))]
   const [classes, setClasses] = useState([])
   const [studentCounts, setStudentCounts] = useState({})
   const [loading, setLoading] = useState(true)
@@ -192,7 +192,7 @@ export default function ClassesPage() {
                 <>
                   <span className="flex-1 text-sm font-semibold text-gray-800">{cls.name}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${gradeColors[cls.grade]}`}>
-                    Khối {cls.grade}
+                    {cls.grade}
                   </span>
                   <button
                     onClick={() => navigate(`/teacher/students?class=${cls.name}`)}

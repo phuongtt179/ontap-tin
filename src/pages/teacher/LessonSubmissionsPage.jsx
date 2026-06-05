@@ -133,7 +133,7 @@ export default function LessonSubmissionsPage() {
       </button>
 
       <h1 className="text-xl font-bold text-gray-800 mb-1">{lesson?.title}</h1>
-      <p className="text-sm text-gray-500 mb-5">Khối {lesson?.grade} · Tiến độ học sinh</p>
+      <p className="text-sm text-gray-500 mb-5">{lesson?.grade} · Tiến độ học sinh</p>
 
       {/* Filters */}
       <div className="flex gap-3 mb-5 flex-wrap items-center">
@@ -186,7 +186,7 @@ export default function LessonSubmissionsPage() {
           <div className="bg-indigo-600 text-white rounded-xl px-5 py-4 mb-5">
             <p className="font-semibold text-base">{selected.student.full_name}</p>
             <p className="text-indigo-200 text-sm mt-0.5">
-              {selected.student.class_name ? `Lớp ${selected.student.class_name}` : `Khối ${selected.student.grade}`}
+              {selected.student.class_name ? `Lớp ${selected.student.class_name}` : selected.student.grade}
               {' · '}{selected.submissions.length}/{taskCount} bài đã nộp
             </p>
           </div>
@@ -327,7 +327,7 @@ export default function LessonSubmissionsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-gray-800 text-sm">{student.full_name}</span>
-                      <span className="text-xs text-gray-400">{student.class_name || `Khối ${student.grade}`}</span>
+                      <span className="text-xs text-gray-400">{student.class_name || student.grade}</span>
                     </div>
 
                     {/* Progress bar */}

@@ -141,11 +141,11 @@ function ExamFormModal({ exam, onClose, onDone }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Khối</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Khoá học</label>
                 <select value={form.grade}
                   onChange={e => setForm({ ...form, grade: e.target.value, class_names: [] })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  {GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}
+                  {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
 
@@ -555,7 +555,7 @@ export default function ExamsPage() {
                   </span>
                 </div>
                 <div className="flex gap-3 mt-1 text-xs text-gray-400 flex-wrap">
-                  <span>Khối {exam.grade}</span>
+                  <span>{exam.grade}</span>
                   {exam.class_names?.length > 0 && <span>· Lớp {exam.class_names.join(', ')}</span>}
                   <span>· {exam.question_ids?.length || 0} câu</span>
                   <span>· {exam.time_limit ? `${exam.time_limit} phút` : 'Không giới hạn giờ'}</span>

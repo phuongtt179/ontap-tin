@@ -76,8 +76,8 @@ export default function QuestionsPage() {
           onChange={e => handleGradeChange(e.target.value)}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          <option value="">Tất cả khối</option>
-          {GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}
+          <option value="">Tất cả khoá</option>
+          {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
         </select>
         <select
           value={filterTopic}

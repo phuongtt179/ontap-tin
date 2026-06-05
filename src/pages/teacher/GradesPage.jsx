@@ -48,12 +48,12 @@ export default function GradesPage() {
   async function handleAdd() {
     const val = newValue.trim()
     if (!val) return
-    if (grades.includes(val)) { toast.error(`Khối ${val} đã tồn tại`); return }
+    if (grades.includes(val)) { toast.error(`Khoá học "${val}" đã tồn tại`); return }
     setSaving(true)
     const { error } = await supabase.from('grades').insert({ value: val })
     setSaving(false)
     if (error) toast.error('Thêm thất bại: ' + error.message)
-    else { toast.success(`Đã thêm Khối ${val}`); setNewValue(''); setAdding(false); fetchAll() }
+    else { toast.success(`Đã thêm khoá học "${val}"`); setNewValue(''); setAdding(false); fetchAll() }
   }
 
   async function handleRename(oldValue) {
@@ -81,10 +81,10 @@ export default function GradesPage() {
   async function handleDelete(value) {
     const s = stats[value] || {}
     if (s.classes > 0 || s.students > 0) {
-      toast.error(`Khối ${value} còn ${s.classes} lớp và ${s.students} học sinh, không thể xóa`)
+      toast.error(`Khoá học "${value}" còn ${s.classes} ca và ${s.students} học sinh, không thể xóa`)
       return
     }
-    if (!confirm(`Xóa Khối ${value}?`)) return
+    if (!confirm(`Xóa khoá học "${value}"?`)) return
     const { error } = await supabase.from('grades').delete().eq('value', value)
     if (error) toast.error('Xóa thất bại')
     else { toast.success('Đã xóa'); fetchAll() }
@@ -94,26 +94,26 @@ export default function GradesPage() {
     <div className="p-4 md:p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Quản lý khối</h1>
-          <p className="text-gray-400 text-sm mt-0.5">Tổng quan số lớp và học sinh theo khối</p>
+          <h1 className="text-2xl font-bold text-gray-800">Quản lý khoá học</h1>
+          <p className="text-gray-400 text-sm mt-0.5">Tổng quan số ca học và học sinh theo khoá</p>
         </div>
         <button
           onClick={() => setAdding(true)}
           className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
         >
-          <Plus size={16} /> Thêm khối
+          <Plus size={16} /> Thêm khoá học
         </button>
       </div>
 
       {adding && (
         <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6 flex items-end gap-3 max-w-sm">
           <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Số khối</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Tên khoá học</label>
             <input
               value={newValue}
               onChange={e => setNewValue(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') { setAdding(false); setNewValue('') } }}
-              placeholder="Ví dụ: 1, 2, 6..."
+              placeholder="Ví dụ: Kĩ Năng 1, Lập Trình D1..."
               autoFocus
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
@@ -138,7 +138,7 @@ export default function GradesPage() {
         </div>
       ) : grades.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
-          Chưa có khối nào. Bấm "Thêm khối" để bắt đầu.
+          Chưa có khoá học nào. Bấm "Thêm khoá học" để bắt đầu.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -183,7 +183,7 @@ export default function GradesPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className={`text-4xl font-black mb-5 ${scheme.text}`}>Khối {g}</div>
+                  <div className={`text-2xl font-black mb-5 ${scheme.text}`}>{g}</div>
                 )}
 
                 <div className="space-y-3 mb-5">
@@ -191,7 +191,7 @@ export default function GradesPage() {
                     <School size={18} className="text-gray-400" />
                     <div>
                       <div className="text-2xl font-bold text-gray-800">{s.classes}</div>
-                      <div className="text-xs text-gray-500">lớp học</div>
+                      <div className="text-xs text-gray-500">ca học</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 shadow-sm">
@@ -208,7 +208,7 @@ export default function GradesPage() {
                     onClick={() => navigate(`/teacher/classes?grade=${g}`)}
                     className={`flex-1 flex items-center justify-center gap-1 text-white text-sm py-2 rounded-lg transition ${scheme.btn}`}
                   >
-                    Xem lớp <ChevronRight size={14} />
+                    Xem ca <ChevronRight size={14} />
                   </button>
                   <button
                     onClick={() => navigate(`/teacher/students?grade=${g}`)}

@@ -10,7 +10,7 @@ export default function TopicsPage() {
   const { canDelete, user } = useAuth()
   const { topics, loading, refetch } = useTopics()
   const { grades: gradeValues } = useGrades()
-  const GRADES = [{ value: 'all', label: 'Tất cả khối' }, ...gradeValues.map(g => ({ value: g, label: `Khối ${g}` }))]
+  const GRADES = [{ value: 'all', label: 'Tất cả khoá' }, ...gradeValues.map(g => ({ value: g, label: g }))]
 
   const [filterGrade, setFilterGrade] = useState('all')
   const [newName, setNewName] = useState('')
@@ -155,7 +155,7 @@ export default function TopicsPage() {
                 <>
                   <span className="flex-1 text-sm font-medium text-gray-800">{topic.name}</span>
                   <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                    {topic.grade ? `Khối ${topic.grade}` : '—'}
+                    {topic.grade || '—'}
                   </span>
                   <button onClick={() => startEdit(topic)} className="text-gray-400 hover:text-indigo-600 p-1 transition">
                     <Pencil size={15} />

@@ -23,7 +23,7 @@ export default function Layout({ children }) {
         { to: '/teacher/exam-stats', icon: <TableProperties size={18} />, label: 'Thống kê' },
         { to: '/teacher/lessons', icon: <BookMarked size={18} />, label: 'Bài học' },
         null,
-        { to: '/teacher/grades', icon: <GraduationCap size={18} />, label: 'Khối' },
+        { to: '/teacher/grades', icon: <GraduationCap size={18} />, label: 'Khoá học' },
         { to: '/teacher/classes', icon: <School size={18} />, label: 'Lớp' },
         { to: '/teacher/students', icon: <Users size={18} />, label: 'Học sinh' },
         ...(profile?.role === 'teacher' ? [{ to: '/teacher/assistants', icon: <Users size={18} />, label: 'Trợ giảng' }] : []),

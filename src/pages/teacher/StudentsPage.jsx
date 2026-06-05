@@ -208,7 +208,7 @@ function StudentImportModal({ onClose, onDone }) {
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Họ tên</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Tên đăng nhập</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Mật khẩu</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Khối</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Khoá học</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Lớp</th>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Trạng thái</th>
                     </tr>
@@ -385,14 +385,14 @@ function StudentEditModal({ student, classes, gradeValues, onClose, onDone }) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Khối</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Khoá học</label>
             <select
               value={form.grade}
               onChange={e => setForm({ ...form, grade: e.target.value, class_name: '' })}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">-- Chọn khối --</option>
-              {gradeValues.map(g => <option key={g} value={g}>Khối {g}</option>)}
+              {gradeValues.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
           </div>
           <div>
@@ -580,7 +580,7 @@ export default function StudentsPage() {
                   <p className="font-medium text-gray-800 text-sm">{s.full_name}</p>
                   <p className="text-xs text-gray-500 font-mono mt-0.5">
                     {s.username || s.id.slice(0, 8)}
-                    {s.grade && <span className="ml-2 text-indigo-600">Khối {s.grade}</span>}
+                    {s.grade && <span className="ml-2 text-indigo-600">{s.grade}</span>}
                   </p>
                 </div>
                 {s.class_name ? (
@@ -647,8 +647,8 @@ export default function StudentsPage() {
           onChange={e => { setFilterGrade(e.target.value); setFilterClass('') }}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          <option value="">Tất cả khối</option>
-          {gradeValues.map(g => <option key={g} value={g}>Khối {g}</option>)}
+          <option value="">Tất cả khoá</option>
+          {gradeValues.map(g => <option key={g} value={g}>{g}</option>)}
         </select>
         <select
           value={filterClass}
@@ -703,7 +703,7 @@ export default function StudentsPage() {
                     }
                   </td>
                   <td className="px-4 py-3">
-                    {s.grade && <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${gradeColors[s.grade]}`}>Khối {s.grade}</span>}
+                    {s.grade && <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${gradeColors[s.grade]}`}>{s.grade}</span>}
                   </td>
                   <td className="px-4 py-3 text-gray-600">{s.class_name || <span className="text-gray-300">—</span>}</td>
                   <td className="px-4 py-3">

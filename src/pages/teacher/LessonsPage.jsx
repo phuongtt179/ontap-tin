@@ -209,13 +209,13 @@ function LessonFormModal({ lesson, onClose, onDone }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Khối</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Khoá học</label>
                   <select
                     value={form.grade}
                     onChange={e => setForm({ ...form, grade: e.target.value, topic: '' })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
-                    {GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}
+                    {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
                 <div>
