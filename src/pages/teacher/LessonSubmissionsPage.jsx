@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
-import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users, FileText, FileImage, File, ExternalLink } from 'lucide-react'
+import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users, FileText, FileImage, File, ExternalLink, Code } from 'lucide-react'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 function parseTasks(instructions) {
   if (!instructions) return [{ instructions: '' }]
@@ -11,6 +13,43 @@ function parseTasks(instructions) {
     if (Array.isArray(arr) && arr.length > 0) return arr
   } catch {}
   return [{ instructions }]
+}
+
+function CodeViewer({ url, ext }) {
+  const [content, setContent] = useState(null)
+  const [shown, setShown] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  async function toggle() {
+    if (shown) { setShown(false); return }
+    if (content !== null) { setShown(true); return }
+    setLoading(true)
+    try {
+      const res = await fetch(url)
+      setContent(await res.text())
+    } catch {
+      setContent('(Không thể tải nội dung file)')
+    }
+    setLoading(false)
+    setShown(true)
+  }
+
+  return (
+    <div className="space-y-2">
+      <button onClick={toggle} disabled={loading}
+        className="text-xs text-indigo-600 hover:underline disabled:opacity-50">
+        {loading ? 'Đang tải...' : shown ? 'Ẩn nội dung' : 'Xem nội dung'}
+      </button>
+      {shown && content !== null && (
+        ext === 'py'
+          ? <SyntaxHighlighter language="python" style={oneLight}
+              customStyle={{ borderRadius: '8px', fontSize: '12px', margin: 0 }}>
+              {content}
+            </SyntaxHighlighter>
+          : <pre className="bg-gray-50 border rounded-lg p-3 text-xs text-gray-700 whitespace-pre-wrap overflow-auto max-h-64">{content}</pre>
+      )}
+    </div>
+  )
 }
 
 export default function LessonSubmissionsPage() {
@@ -210,6 +249,7 @@ export default function LessonSubmissionsPage() {
                     const isPpt = ['ppt', 'pptx'].includes(ext)
                     const isSb3 = ext === 'sb3'
                     const isOffice = isWord || isPpt
+                    const isCode = ext === 'py' || ext === 'txt'
                     const fileName = url ? decodeURIComponent(url.split('/').pop().split('?')[0]) : ''
                     return (
                       <div className="space-y-2">
@@ -222,6 +262,8 @@ export default function LessonSubmissionsPage() {
                                 : isWord ? <FileText size={18} className="text-blue-600 shrink-0" />
                                 : isPpt ? <FileText size={18} className="text-orange-500 shrink-0" />
                                 : isSb3 ? <File size={18} className="text-yellow-500 shrink-0" />
+                                : ext === 'py' ? <Code size={18} className="text-green-600 shrink-0" />
+                                : ext === 'txt' ? <FileText size={18} className="text-gray-500 shrink-0" />
                                 : <File size={18} className="text-gray-400 shrink-0" />}
                               <span className="flex-1 text-sm text-gray-700 truncate">{fileName}</span>
                               <a href={url} target="_blank" rel="noopener noreferrer"
@@ -229,6 +271,11 @@ export default function LessonSubmissionsPage() {
                                 <ExternalLink size={12} /> Tải xuống
                               </a>
                             </div>
+                            {isCode && (
+                              <div className="border-t border-gray-200 px-4 py-3">
+                                <CodeViewer url={url} ext={ext} />
+                              </div>
+                            )}
                           </div>
                         )}
                         {isOffice && url && (

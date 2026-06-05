@@ -3,9 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
-import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File } from 'lucide-react'
+import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code } from 'lucide-react'
 import { uploadFile } from '../../lib/cloudinary'
 import QuestionText from '../../components/ui/QuestionText'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5) }
 
@@ -237,7 +239,46 @@ function FileIcon({ url, size = 20 }) {
   if (ext === 'pptx' || ext === 'ppt') return <FileText size={size} className="text-orange-500" />
   if (ext === 'sb3') return <File size={size} className="text-yellow-500" />
   if (ext === 'pdf') return <FileText size={size} className="text-red-500" />
+  if (ext === 'py') return <Code size={size} className="text-green-600" />
+  if (ext === 'txt') return <FileText size={size} className="text-gray-500" />
   return <File size={size} className="text-gray-400" />
+}
+
+function CodeViewer({ url, ext }) {
+  const [content, setContent] = useState(null)
+  const [shown, setShown] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  async function toggle() {
+    if (shown) { setShown(false); return }
+    if (content !== null) { setShown(true); return }
+    setLoading(true)
+    try {
+      const res = await fetch(url)
+      setContent(await res.text())
+    } catch {
+      setContent('(Không thể tải nội dung file)')
+    }
+    setLoading(false)
+    setShown(true)
+  }
+
+  return (
+    <div className="space-y-2">
+      <button onClick={toggle} disabled={loading}
+        className="text-xs text-indigo-600 hover:underline disabled:opacity-50">
+        {loading ? 'Đang tải...' : shown ? 'Ẩn nội dung' : 'Xem nội dung'}
+      </button>
+      {shown && content !== null && (
+        ext === 'py'
+          ? <SyntaxHighlighter language="python" style={oneLight}
+              customStyle={{ borderRadius: '8px', fontSize: '12px', margin: 0 }}>
+              {content}
+            </SyntaxHighlighter>
+          : <pre className="bg-gray-50 border rounded-lg p-3 text-xs text-gray-700 whitespace-pre-wrap overflow-auto max-h-64">{content}</pre>
+      )}
+    </div>
+  )
 }
 
 /* ── SubmittedFile ──────────────────────────────────────────── */
@@ -245,6 +286,7 @@ function SubmittedFile({ url }) {
   const ext = (url || '').split('.').pop().toLowerCase().split('?')[0]
   const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
   const isOffice = ['doc', 'docx', 'ppt', 'pptx'].includes(ext)
+  const isCode = ext === 'py' || ext === 'txt'
   const fileName = decodeURIComponent(url.split('/').pop().split('?')[0])
 
   return (
@@ -266,6 +308,11 @@ function SubmittedFile({ url }) {
             src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`}
             width="100%" height="480" frameBorder="0" title="Xem file" className="w-full block"
           />
+        </div>
+      )}
+      {isCode && (
+        <div className="border-t border-gray-200 px-4 py-3">
+          <CodeViewer url={url} ext={ext} />
         </div>
       )}
     </div>
@@ -949,10 +996,10 @@ export default function LessonPage() {
                               <span className="text-sm text-gray-500">
                                 {resubmitTask === i ? 'Chọn file mới (bỏ trống để giữ file cũ)' : 'Bấm để chọn file'}
                               </span>
-                              <span className="text-xs text-gray-400">.pptx · .docx · .sb3</span>
+                              <span className="text-xs text-gray-400">.pptx · .docx · .sb3 · .py · .txt</span>
                             </>
                           )}
-                          <input type="file" className="hidden" accept=".pptx,.docx,.sb3"
+                          <input type="file" className="hidden" accept=".pptx,.docx,.sb3,.py,.txt"
                             onChange={e => {
                               if (!e.target.files?.[0]) return
                               const next = [...taskFiles]; next[i] = e.target.files[0]; setTaskFiles(next)
