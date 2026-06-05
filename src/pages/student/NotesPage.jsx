@@ -13,19 +13,26 @@ const COLORS = [
   { key: 'white',   bg: 'bg-white',       border: 'border-gray-300',    ring: 'ring-gray-400',    label: 'Trắng' },
 ]
 
-function colorOf(key) {
-  return COLORS.find(c => c.key === key) || COLORS[0]
-}
+function colorOf(key) { return COLORS.find(c => c.key === key) || COLORS[0] }
 
 // ── NoteModal ────────────────────────────────────────────────
-function NoteModal({ note, topics, onClose, onSave }) {
+function NoteModal({ note, enrollments, topicsByGrade, onClose, onSave }) {
   const [form, setForm] = useState({
-    title: note?.title || '',
+    title:   note?.title   || '',
     content: note?.content || '',
-    color: note?.color || 'yellow',
-    topic: note?.topic || '',
+    color:   note?.color   || 'yellow',
+    grade:   note?.grade   || (enrollments.length === 1 ? enrollments[0].grade : ''),
+    topic:   note?.topic   || '',
   })
   const [saving, setSaving] = useState(false)
+
+  // Khi đổi khoá → reset topic nếu không thuộc khoá mới
+  function handleGradeChange(g) {
+    const validTopics = topicsByGrade[g] || []
+    setForm(f => ({ ...f, grade: g, topic: validTopics.includes(f.topic) ? f.topic : '' }))
+  }
+
+  const availableTopics = form.grade ? (topicsByGrade[form.grade] || []) : []
 
   async function handleSave() {
     if (!form.content.trim()) { toast.error('Nội dung không được trống'); return }
@@ -45,37 +52,38 @@ function NoteModal({ note, topics, onClose, onSave }) {
           {/* Tiêu đề */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu đề <span className="text-gray-400 font-normal">(tuỳ chọn)</span></label>
-            <input
-              value={form.title}
-              onChange={e => setForm({ ...form, title: e.target.value })}
+            <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
               placeholder="Nhập tiêu đề..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           {/* Nội dung */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung</label>
-            <textarea
-              autoFocus={!note}
-              value={form.content}
+            <textarea autoFocus={!note} value={form.content}
               onChange={e => setForm({ ...form, content: e.target.value })}
-              placeholder="Ghi chú của bạn..."
-              rows={6}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-            />
+              placeholder="Ghi chú của bạn..." rows={5}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
           </div>
-          {/* Chủ đề */}
-          {topics.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề <span className="text-gray-400 font-normal">(tuỳ chọn)</span></label>
-              <select
-                value={form.topic}
-                onChange={e => setForm({ ...form, topic: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">-- Không gắn chủ đề --</option>
-                {topics.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+          {/* Khoá học + Chủ đề — 2 cột */}
+          {enrollments.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Khoá học <span className="text-gray-400 font-normal">(tuỳ chọn)</span></label>
+                <select value={form.grade} onChange={e => handleGradeChange(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">-- Không gắn --</option>
+                  {enrollments.map(e => <option key={e.grade} value={e.grade}>{e.grade}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề <span className="text-gray-400 font-normal">(tuỳ chọn)</span></label>
+                <select value={form.topic} onChange={e => setForm({ ...form, topic: e.target.value })}
+                  disabled={!form.grade || availableTopics.length === 0}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
+                  <option value="">-- Không gắn --</option>
+                  {availableTopics.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
             </div>
           )}
           {/* Màu */}
@@ -83,23 +91,16 @@ function NoteModal({ note, topics, onClose, onSave }) {
             <label className="block text-sm font-medium text-gray-700 mb-2">Màu thẻ</label>
             <div className="flex gap-2 flex-wrap">
               {COLORS.map(c => (
-                <button
-                  key={c.key}
-                  onClick={() => setForm({ ...form, color: c.key })}
-                  title={c.label}
-                  className={`w-8 h-8 rounded-full border-2 transition ${c.bg} ${form.color === c.key ? `ring-2 ring-offset-1 ${c.ring} border-transparent` : c.border}`}
-                />
+                <button key={c.key} onClick={() => setForm({ ...form, color: c.key })} title={c.label}
+                  className={`w-8 h-8 rounded-full border-2 transition ${c.bg} ${form.color === c.key ? `ring-2 ring-offset-1 ${c.ring} border-transparent` : c.border}`} />
               ))}
             </div>
           </div>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Hủy</button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !form.content.trim()}
-            className="flex items-center gap-2 px-5 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 transition"
-          >
+          <button onClick={handleSave} disabled={saving || !form.content.trim()}
+            className="flex items-center gap-2 px-5 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 transition">
             {saving ? <Loader2 size={14} className="animate-spin" /> : null}
             Lưu
           </button>
@@ -114,18 +115,19 @@ function NoteCard({ note, onEdit, onDelete, onTogglePin }) {
   const c = colorOf(note.color)
   return (
     <div className={`rounded-xl border p-4 flex flex-col gap-2 relative group ${c.bg} ${c.border}`}>
-      {/* Pin badge */}
       {note.is_pinned && (
         <span className="absolute top-2 right-2 text-orange-500"><Pin size={14} /></span>
       )}
-      {/* Title */}
       {note.title && (
         <p className="font-semibold text-gray-800 text-sm pr-5 leading-snug">{note.title}</p>
       )}
-      {/* Content */}
       <p className="text-sm text-gray-700 whitespace-pre-wrap line-clamp-6 flex-1">{note.content}</p>
-      {/* Topic + date */}
-      <div className="flex items-center gap-2 flex-wrap mt-1">
+      <div className="flex items-center gap-1.5 flex-wrap mt-1">
+        {note.grade && (
+          <span className="text-xs bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">
+            {note.grade}
+          </span>
+        )}
         {note.topic && (
           <span className="text-xs bg-white/60 border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
             {note.topic}
@@ -135,7 +137,6 @@ function NoteCard({ note, onEdit, onDelete, onTogglePin }) {
           {new Date(note.updated_at).toLocaleDateString('vi-VN')}
         </span>
       </div>
-      {/* Actions — hiện khi hover */}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition border-t border-black/10 pt-2 mt-1">
         <button onClick={() => onTogglePin(note)} title={note.is_pinned ? 'Bỏ ghim' : 'Ghim'}
           className="p-1.5 rounded-lg hover:bg-black/10 text-gray-500 hover:text-orange-500 transition">
@@ -158,52 +159,58 @@ function NoteCard({ note, onEdit, onDelete, onTogglePin }) {
 export default function NotesPage() {
   const { user, profile } = useAuth()
   const [notes, setNotes] = useState([])
-  const [topics, setTopics] = useState([])
+  const [enrollments, setEnrollments] = useState([])   // [{ grade, class_name }]
+  const [topicsByGrade, setTopicsByGrade] = useState({}) // { grade: [topicName] }
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [filterGrade, setFilterGrade] = useState('')
   const [filterTopic, setFilterTopic] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editNote, setEditNote] = useState(null)
 
-  useEffect(() => { loadNotes(); loadTopics() }, [])
+  useEffect(() => { loadNotes(); loadEnrollmentsAndTopics() }, [])
 
   async function loadNotes() {
     setLoading(true)
     const { data } = await supabase
-      .from('student_notes')
-      .select('*')
-      .eq('user_id', user.id)
+      .from('student_notes').select('*').eq('user_id', user.id)
       .order('is_pinned', { ascending: false })
       .order('updated_at', { ascending: false })
     setNotes(data || [])
     setLoading(false)
   }
 
-  async function loadTopics() {
-    const enrollments = await supabase
-      .from('student_enrollments').select('grade').eq('user_id', user.id).eq('is_approved', true)
-    const grades = (enrollments.data || []).map(e => e.grade)
+  async function loadEnrollmentsAndTopics() {
+    const { data: enrollData } = await supabase
+      .from('student_enrollments').select('grade, class_name')
+      .eq('user_id', user.id).eq('is_approved', true)
+    const enr = (enrollData || []).sort((a, b) => a.grade.localeCompare(b.grade, 'vi', { numeric: true }))
+    setEnrollments(enr)
+
+    const grades = enr.map(e => e.grade)
     if (!grades.length) return
-    const { data } = await supabase.from('topics').select('name').in('grade', grades)
-    setTopics((data || []).map(t => t.name).sort((a, b) => a.localeCompare(b, 'vi', { numeric: true })))
+    const { data: topicData } = await supabase.from('topics').select('name, grade').in('grade', grades)
+    const map = {}
+    ;(topicData || []).forEach(t => {
+      if (!map[t.grade]) map[t.grade] = []
+      map[t.grade].push(t.name)
+    })
+    Object.keys(map).forEach(g => map[g].sort((a, b) => a.localeCompare(b, 'vi', { numeric: true })))
+    setTopicsByGrade(map)
   }
 
   async function handleSave(form) {
     if (editNote) {
       const { error } = await supabase.from('student_notes')
-        .update({ ...form, updated_at: new Date().toISOString() })
-        .eq('id', editNote.id)
+        .update({ ...form, updated_at: new Date().toISOString() }).eq('id', editNote.id)
       if (error) { toast.error('Lưu thất bại'); return }
       toast.success('Đã cập nhật')
     } else {
-      const { error } = await supabase.from('student_notes')
-        .insert({ ...form, user_id: user.id })
+      const { error } = await supabase.from('student_notes').insert({ ...form, user_id: user.id })
       if (error) { toast.error('Lưu thất bại'); return }
       toast.success('Đã thêm ghi chú')
     }
-    setShowModal(false)
-    setEditNote(null)
-    loadNotes()
+    setShowModal(false); setEditNote(null); loadNotes()
   }
 
   async function handleDelete(note) {
@@ -214,22 +221,27 @@ export default function NotesPage() {
   }
 
   async function handleTogglePin(note) {
-    const { error } = await supabase.from('student_notes')
-      .update({ is_pinned: !note.is_pinned, updated_at: new Date().toISOString() })
-      .eq('id', note.id)
-    if (error) return
+    await supabase.from('student_notes')
+      .update({ is_pinned: !note.is_pinned, updated_at: new Date().toISOString() }).eq('id', note.id)
     loadNotes()
   }
 
+  // Topics available cho filter ngoài trang (theo khoá đang lọc)
+  const filterTopicOptions = filterGrade
+    ? (topicsByGrade[filterGrade] || [])
+    : Object.values(topicsByGrade).flat().filter((v, i, a) => a.indexOf(v) === i)
+        .sort((a, b) => a.localeCompare(b, 'vi', { numeric: true }))
+
   const displayed = useMemo(() => {
     let list = notes
+    if (filterGrade) list = list.filter(n => n.grade === filterGrade)
     if (filterTopic) list = list.filter(n => n.topic === filterTopic)
     if (search) list = list.filter(n =>
       n.title?.toLowerCase().includes(search.toLowerCase()) ||
       n.content.toLowerCase().includes(search.toLowerCase())
     )
     return list
-  }, [notes, search, filterTopic])
+  }, [notes, search, filterGrade, filterTopic])
 
   const pinnedCount = notes.filter(n => n.is_pinned).length
 
@@ -252,10 +264,8 @@ export default function NotesPage() {
           <h1 className="text-2xl font-bold text-gray-800">Sổ ghi chú</h1>
           <p className="text-gray-400 text-sm mt-0.5">{notes.length} ghi chú{pinnedCount > 0 ? ` · ${pinnedCount} đã ghim` : ''}</p>
         </div>
-        <button
-          onClick={() => { setEditNote(null); setShowModal(true) }}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-        >
+        <button onClick={() => { setEditNote(null); setShowModal(true) }}
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
           <Plus size={16} /> Thêm ghi chú
         </button>
       </div>
@@ -264,25 +274,26 @@ export default function NotesPage() {
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Tìm ghi chú..."
-            className="pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-44"
-          />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm ghi chú..."
+            className="pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-44" />
         </div>
-        {topics.length > 0 && (
-          <select
-            value={filterTopic}
-            onChange={e => setFilterTopic(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Tất cả chủ đề</option>
-            {topics.map(t => <option key={t} value={t}>{t}</option>)}
+        {enrollments.length > 1 && (
+          <select value={filterGrade}
+            onChange={e => { setFilterGrade(e.target.value); setFilterTopic('') }}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">Tất cả khoá</option>
+            {enrollments.map(e => <option key={e.grade} value={e.grade}>{e.grade}</option>)}
           </select>
         )}
-        {(search || filterTopic) && (
-          <button onClick={() => { setSearch(''); setFilterTopic('') }}
+        {filterTopicOptions.length > 0 && (
+          <select value={filterTopic} onChange={e => setFilterTopic(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">Tất cả chủ đề</option>
+            {filterTopicOptions.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        )}
+        {(search || filterGrade || filterTopic) && (
+          <button onClick={() => { setSearch(''); setFilterGrade(''); setFilterTopic('') }}
             className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
             <X size={14} /> Xóa bộ lọc
           </button>
@@ -303,9 +314,7 @@ export default function NotesPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {displayed.map(note => (
-            <NoteCard
-              key={note.id}
-              note={note}
+            <NoteCard key={note.id} note={note}
               onEdit={n => { setEditNote(n); setShowModal(true) }}
               onDelete={handleDelete}
               onTogglePin={handleTogglePin}
@@ -317,7 +326,8 @@ export default function NotesPage() {
       {showModal && (
         <NoteModal
           note={editNote}
-          topics={topics}
+          enrollments={enrollments}
+          topicsByGrade={topicsByGrade}
           onClose={() => { setShowModal(false); setEditNote(null) }}
           onSave={handleSave}
         />
