@@ -80,14 +80,25 @@ export default function GradesPage() {
 
   async function handleDelete(value) {
     const s = stats[value] || {}
-    if (s.classes > 0 || s.students > 0) {
-      toast.error(`Khoá học "${value}" còn ${s.classes} ca và ${s.students} học sinh, không thể xóa`)
-      return
-    }
-    if (!confirm(`Xóa khoá học "${value}"?`)) return
+    const msg = [
+      `Xóa khoá học "${value}"?`,
+      s.classes > 0 ? `• ${s.classes} ca học sẽ bị xóa` : '',
+      s.students > 0 ? `• ${s.students} học sinh sẽ bị xóa khỏi khoá này (tài khoản vẫn giữ)` : '',
+    ].filter(Boolean).join('\n')
+    if (!confirm(msg)) return
+    // Xóa ca học, enrollment, bài học/câu hỏi/đề thi liên quan, rồi mới xóa grade
     const { error } = await supabase.from('grades').delete().eq('value', value)
-    if (error) toast.error('Xóa thất bại')
-    else { toast.success('Đã xóa'); fetchAll() }
+    if (error) {
+      toast.error('Xóa thất bại: ' + error.message)
+    } else {
+      // Xóa cascading data (classes và enrollments không có FK → xóa thủ công)
+      await Promise.all([
+        supabase.from('classes').delete().eq('grade', value),
+        supabase.from('student_enrollments').delete().eq('grade', value),
+      ])
+      toast.success(`Đã xóa khoá học "${value}"`)
+      fetchAll()
+    }
   }
 
   return (
