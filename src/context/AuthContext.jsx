@@ -65,7 +65,7 @@ export function AuthProvider({ children }) {
       await supabase.auth.signOut()
       setProfile(null)
       setLoading(false)
-      toast.error('Tài khoản đang chờ giáo viên phê duyệt. Vui lòng thử lại sau.')
+      toast.error('Tài khoản đã bị khóa. Liên hệ giáo viên để được hỗ trợ.')
       return
     }
 

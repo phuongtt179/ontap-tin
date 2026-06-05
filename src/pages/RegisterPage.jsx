@@ -38,12 +38,12 @@ export default function RegisterPage() {
             full_name: form.full_name.trim(),
             role: 'student',
             username: form.username.toLowerCase(),
-            is_approved: false,
+            is_approved: true,
           },
         },
       })
       if (error) throw error
-      toast.success('Đăng ký thành công! Liên hệ giáo viên để được thêm vào khoá học.')
+      toast.success('Đăng ký thành công! Đăng nhập và liên hệ giáo viên để tham gia khoá học.')
       setTimeout(() => navigate('/login'), 3000)
     } catch (err) {
       const msg = err.message?.includes('already')

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked } from 'lucide-react'
+import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig } from 'lucide-react'
 
 export default function Layout({ children }) {
   const { profile, signOut, isTeacher } = useAuth()
@@ -30,6 +30,7 @@ export default function Layout({ children }) {
       ]
     : [
         { to: '/student', icon: <LayoutDashboard size={18} />, label: 'Trang chủ' },
+        { to: '/student/courses', icon: <LibraryBig size={18} />, label: 'Khoá học' },
         { to: '/student/learn', icon: <BookMarked size={18} />, label: 'Học tập' },
         { to: '/student/exams', icon: <ClipboardList size={18} />, label: 'Đề thi' },
         { to: '/student/practice', icon: <PenSquare size={18} />, label: 'Luyện tập' },
@@ -66,7 +67,7 @@ export default function Layout({ children }) {
       <div className="px-3 py-4 border-t border-indigo-600">
         <div className="text-xs text-indigo-300 mb-1 px-3">{profile?.full_name}</div>
         <div className="text-xs text-indigo-400 mb-3 px-3">
-          {profile?.role === 'teacher' ? 'Giáo viên' : profile?.role === 'assistant' ? 'Trợ giảng' : `Học sinh lớp ${profile?.grade}`}
+          {profile?.role === 'teacher' ? 'Giáo viên' : profile?.role === 'assistant' ? 'Trợ giảng' : 'Học sinh'}
         </div>
         <button
           onClick={handleSignOut}

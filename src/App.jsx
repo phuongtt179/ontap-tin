@@ -24,6 +24,7 @@ import HistoryPage from './pages/student/HistoryPage'
 import StudentExamsPage from './pages/student/ExamsPage'
 import LearnPage from './pages/student/LearnPage'
 import LessonPage from './pages/student/LessonPage'
+import JoinCoursePage from './pages/student/JoinCoursePage'
 
 function RootRedirect() {
   const { profile, loading } = useAuth()
@@ -134,6 +135,11 @@ export default function App() {
           <Route path="/student/learn/:id" element={
             <ProtectedRoute role="student">
               <Layout><LessonPage /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/student/courses" element={
+            <ProtectedRoute role="student">
+              <Layout><JoinCoursePage /></Layout>
             </ProtectedRoute>
           } />
         </Routes>
