@@ -99,8 +99,20 @@ export default function LearnPage() {
 
   if (topics.length === 0 && lessons.length === 0) {
     return (
-      <div className="p-4 md:p-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Học tập</h1>
+      <div className="p-4 md:p-8 max-w-lg">
+        <h1 className="text-2xl font-bold text-gray-800 mb-3">Học tập</h1>
+        {grades.length > 1 && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {grades.map(g => (
+              <button key={g} onClick={() => setSelectedGrade(g)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
+                  selectedGrade === g
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}>{g}</button>
+            ))}
+          </div>
+        )}
         <div className="text-center py-16 text-gray-400">
           <BookOpen size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-lg">Chưa có bài học nào</p>
