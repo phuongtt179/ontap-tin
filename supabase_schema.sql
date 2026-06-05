@@ -25,14 +25,13 @@ create table if not exists public.profiles (
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, full_name, role, grade, class_name, username)
+  insert into public.profiles (id, full_name, role, username, is_approved)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', 'Người dùng'),
     coalesce(new.raw_user_meta_data->>'role', 'student'),
-    new.raw_user_meta_data->>'grade',
-    new.raw_user_meta_data->>'class_name',
-    new.raw_user_meta_data->>'username'
+    new.raw_user_meta_data->>'username',
+    coalesce((new.raw_user_meta_data->>'is_approved')::boolean, true)
   );
   return new;
 end;
