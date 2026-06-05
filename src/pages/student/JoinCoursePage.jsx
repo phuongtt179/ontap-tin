@@ -17,11 +17,11 @@ export default function JoinCoursePage() {
   async function loadAll() {
     setLoading(true)
     const [{ data: gradeData }, { data: classData }, { data: enrollData }] = await Promise.all([
-      supabase.from('grades').select('*').order('name'),
+      supabase.from('grades').select('value').order('value'),
       supabase.from('classes').select('*').order('grade').order('name'),
       supabase.from('student_enrollments').select('*').eq('user_id', user.id),
     ])
-    setGrades(gradeData || [])
+    setGrades(gradeData?.map(g => g.value) || [])
     setClasses(classData || [])
     setEnrollments(enrollData || [])
     setLoading(false)
@@ -75,16 +75,16 @@ export default function JoinCoursePage() {
       ) : (
         <div className="space-y-4">
           {grades.map(grade => {
-            const gradeClasses = classes.filter(c => c.grade === grade.name)
-            const enrollment = enrollMap[grade.name]
+            const gradeClasses = classes.filter(c => c.grade === grade)
+            const enrollment = enrollMap[grade]
 
             return (
-              <div key={grade.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div key={grade} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                 {/* Course header */}
                 <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <BookOpen size={16} className="text-indigo-500" />
-                    <span className="font-semibold text-gray-800 text-sm">{grade.name}</span>
+                    <span className="font-semibold text-gray-800 text-sm">{grade}</span>
                   </div>
                   {enrollment && (
                     <span className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
@@ -128,7 +128,7 @@ export default function JoinCoursePage() {
                         {gradeClasses.map(cls => (
                           <button
                             key={cls.id}
-                            onClick={() => handleJoin(grade.name, cls.name)}
+                            onClick={() => handleJoin(grade, cls.name)}
                             disabled={!!joining}
                             className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-sm font-medium transition disabled:opacity-50"
                           >
@@ -143,11 +143,11 @@ export default function JoinCoursePage() {
                   ) : (
                     /* No classes — join course directly */
                     <button
-                      onClick={() => handleJoin(grade.name, null)}
+                      onClick={() => handleJoin(grade, null)}
                       disabled={!!joining}
                       className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
                     >
-                      {joining === grade.name
+                      {joining === grade
                         ? <Loader2 size={13} className="animate-spin" />
                         : <BookOpen size={14} />}
                       Đăng ký tham gia
