@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useGrades } from '../../hooks/useGrades'
 import { X, Loader2, Eye, ChevronRight } from 'lucide-react'
-
-const GRADES = ['3', '4', '5']
 
 /* ── StudentDetailModal ─────────────────────────────────── */
 function StudentDetailModal({ student, exams, sessions, onClose }) {
@@ -130,7 +129,8 @@ function StudentDetailModal({ student, exams, sessions, onClose }) {
 
 /* ── ExamStatsPage ──────────────────────────────────────── */
 export default function ExamStatsPage() {
-  const [filterGrade, setFilterGrade] = useState('3')
+  const { grades: GRADES } = useGrades()
+  const [filterGrade, setFilterGrade] = useState('')
   const [filterClass, setFilterClass] = useState('')
   const [classes, setClasses] = useState([])
   const [exams, setExams] = useState([])
@@ -194,7 +194,8 @@ export default function ExamStatsPage() {
           onChange={e => setFilterGrade(e.target.value)}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          {GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}
+          <option value="">-- Chọn khoá học --</option>
+          {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
         </select>
         <select
           value={filterClass}
@@ -217,7 +218,7 @@ export default function ExamStatsPage() {
         </div>
       ) : exams.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
-          Không có đề thi nào cho khối {filterGrade}{filterClass ? ` lớp ${filterClass}` : ''}
+          Không có đề thi nào cho {filterGrade || 'khoá học này'}{filterClass ? ` · ${filterClass}` : ''}
         </div>
       ) : students.length === 0 ? (
         <div className="text-center py-16 text-gray-400">Không có học sinh nào</div>

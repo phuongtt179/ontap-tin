@@ -122,7 +122,7 @@ function AssistantContentPanel({ assistant, onBack }) {
             <div key={row.id} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-4 py-2.5">
               <div>
                 <div className="text-sm text-gray-800">{row[nameKey]}</div>
-                {row.grade && <span className="text-xs text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded mt-0.5 inline-block">Khối {row.grade}</span>}
+                {row.grade && <span className="text-xs text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded mt-0.5 inline-block">{row.grade}</span>}
               </div>
               <div className="text-xs text-gray-400 shrink-0 ml-3">
                 {new Date(row.created_at).toLocaleDateString('vi-VN')}

@@ -30,16 +30,16 @@ export default function GradesPage() {
 
   async function fetchAll() {
     setLoading(true)
-    const [gradeRes, classRes, studentRes] = await Promise.all([
+    const [gradeRes, classRes, enrollRes] = await Promise.all([
       supabase.from('grades').select('value').order('value'),
       supabase.from('classes').select('grade'),
-      supabase.from('profiles').select('grade').eq('role', 'student'),
+      supabase.from('student_enrollments').select('grade').eq('is_approved', true),
     ])
     const gradeList = gradeRes.data?.map(g => g.value) || []
     const s = {}
     gradeList.forEach(v => { s[v] = { classes: 0, students: 0 } })
     classRes.data?.forEach(c => { if (s[c.grade]) s[c.grade].classes++ })
-    studentRes.data?.forEach(p => { if (s[p.grade]) s[p.grade].students++ })
+    enrollRes.data?.forEach(e => { if (s[e.grade]) s[e.grade].students++ })
     setGrades(gradeList)
     setStats(s)
     setLoading(false)
@@ -64,10 +64,10 @@ export default function GradesPage() {
     // Update grades table
     const { error } = await supabase.from('grades').update({ value: val }).eq('value', oldValue)
     if (error) { toast.error('Đổi tên thất bại: ' + error.message); setSaving(false); return }
-    // Cascade update classes, profiles, questions, exams, lessons
+    // Cascade update tất cả bảng liên quan
     await Promise.all([
       supabase.from('classes').update({ grade: val }).eq('grade', oldValue),
-      supabase.from('profiles').update({ grade: val }).eq('grade', oldValue),
+      supabase.from('student_enrollments').update({ grade: val }).eq('grade', oldValue),
       supabase.from('questions').update({ grade: val }).eq('grade', oldValue),
       supabase.from('exams').update({ grade: val }).eq('grade', oldValue),
       supabase.from('lessons').update({ grade: val }).eq('grade', oldValue),

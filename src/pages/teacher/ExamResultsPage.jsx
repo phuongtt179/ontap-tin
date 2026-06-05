@@ -101,7 +101,7 @@ export default function ExamResultsPage() {
         </button>
         <h1 className="text-xl font-bold text-gray-800">{exam.title}</h1>
         <p className="text-gray-500 text-sm mt-0.5">
-          Khối {exam.grade}{exam.class_names?.length > 0 ? ` · Lớp ${exam.class_names.join(', ')}` : ''} · {exam.question_ids?.length} câu
+          {exam.grade}{exam.class_names?.length > 0 ? ` · ${exam.class_names.join(', ')}` : ''} · {exam.question_ids?.length} câu
         </p>
       </div>
 

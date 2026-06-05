@@ -39,7 +39,7 @@ export default function TeacherDashboard() {
       if (!map[s.user_id]) {
         map[s.user_id] = {
           full_name: p?.full_name || '—',
-          class_name: p?.class_name || (p?.grade ? `Khối ${p.grade}` : '—'),
+          class_name: p?.class_name || p?.grade || '—',
           scores: [],
         }
       }
