@@ -57,7 +57,7 @@ function ExamFormModal({ exam, onClose, onDone }) {
       setQuestions(data || [])
       setLoadingQ(false)
     })
-    supabase.from('topics').select('name').or(`grade.eq.${form.grade},grade.eq.all`).order('name')
+    supabase.from('topics').select('name').in('grade', [form.grade, 'all']).order('name')
       .then(({ data }) => setTopics(data?.map(t => t.name) || []))
   }, [step, form.grade, filterTopic, filterDiff])
 

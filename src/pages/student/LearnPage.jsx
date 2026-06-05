@@ -38,7 +38,7 @@ export default function LearnPage() {
     const [{ data: topicsData }, { data: lessonsData }, { data: progressData }] = await Promise.all([
       supabase.from('topics')
         .select('*')
-        .or(`grade.eq.${selectedGrade},grade.eq.all`)
+        .in('grade', [selectedGrade, 'all'])
         .order('name'),
       supabase.from('lessons')
         .select('*')
