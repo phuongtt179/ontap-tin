@@ -38,8 +38,7 @@ export default function LearnPage() {
     const [{ data: topicsData }, { data: lessonsData }, { data: progressData }] = await Promise.all([
       supabase.from('topics')
         .select('*')
-        .in('grade', [selectedGrade, 'all'])
-        .order('name'),
+        .in('grade', [selectedGrade, 'all']),
       supabase.from('lessons')
         .select('*')
         .eq('is_published', true)
@@ -52,7 +51,7 @@ export default function LearnPage() {
 
     const list = lessonsData || []
     setLessons(list)
-    setTopics(topicsData || [])
+    setTopics((topicsData || []).sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true })))
 
     const map = {}
     ;(progressData || []).forEach(p => { map[p.lesson_id] = p })
