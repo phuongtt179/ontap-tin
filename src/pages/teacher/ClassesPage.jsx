@@ -35,15 +35,15 @@ export default function ClassesPage() {
 
     setClasses(data || [])
 
-    // Đếm học sinh theo lớp
+    // Đếm học sinh theo lớp (dùng student_enrollments)
     if (data?.length) {
-      const { data: students } = await supabase
-        .from('profiles')
+      const { data: enrollments } = await supabase
+        .from('student_enrollments')
         .select('class_name')
-        .eq('role', 'student')
+        .eq('is_approved', true)
         .in('class_name', data.map(c => c.name))
       const counts = {}
-      students?.forEach(s => { counts[s.class_name] = (counts[s.class_name] || 0) + 1 })
+      enrollments?.forEach(e => { counts[e.class_name] = (counts[e.class_name] || 0) + 1 })
       setStudentCounts(counts)
     } else {
       setStudentCounts({})

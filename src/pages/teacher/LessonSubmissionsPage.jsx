@@ -41,13 +41,19 @@ export default function LessonSubmissionsPage() {
     if (!lessonData) { toast.error('Không tìm thấy bài học'); navigate(-1); return }
     setLesson(lessonData)
 
-    // Fetch students in lesson's grade
-    const { data: studentData } = await supabase
-      .from('profiles')
-      .select('id, full_name, class_name, grade')
-      .eq('role', 'student')
+    // Fetch students enrolled in lesson's grade (via student_enrollments)
+    const { data: enrollData } = await supabase
+      .from('student_enrollments')
+      .select('user_id, class_name, grade, profiles(id, full_name)')
       .eq('grade', lessonData.grade)
-      .order('class_name').order('full_name')
+      .eq('is_approved', true)
+
+    const studentData = (enrollData || []).map(e => ({
+      id: e.profiles?.id || e.user_id,
+      full_name: e.profiles?.full_name || '',
+      class_name: e.class_name,
+      grade: e.grade,
+    })).sort((a, b) => (a.class_name || '').localeCompare(b.class_name || '') || a.full_name.localeCompare(b.full_name))
 
     const allStudents = studentData || []
     setStudents(allStudents)

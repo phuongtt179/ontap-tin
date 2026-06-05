@@ -103,12 +103,18 @@ function StudentImportModal({ onClose, onDone }) {
           username: row.username,
         })
 
-        // Fallback: cập nhật profile nếu trigger chưa set đủ
         if (authUser?.id) {
-          await supabase
-            .from('profiles')
-            .update({ class_name: row.class_name, username: row.username })
+          // Cập nhật profile
+          await supabase.from('profiles')
+            .update({ username: row.username, is_approved: true })
             .eq('id', authUser.id)
+          // Tạo enrollment (tự động duyệt vì giáo viên tạo)
+          await supabase.from('student_enrollments').upsert({
+            user_id: authUser.id,
+            grade: row.grade,
+            class_name: row.class_name || null,
+            is_approved: true,
+          }, { onConflict: 'user_id,grade' })
         }
 
         res.push({ ...row, _ok: true, email })
@@ -332,10 +338,11 @@ function StudentImportModal({ onClose, onDone }) {
 
 // ─── Edit Modal ─────────────────────────────────────────────────────────────
 function StudentEditModal({ student, classes, gradeValues, onClose, onDone }) {
+  const firstEnroll = student.enrollments?.[0] || {}
   const [form, setForm] = useState({
     full_name: student.full_name || '',
-    grade: student.grade || '',
-    class_name: student.class_name || '',
+    grade: firstEnroll.grade || student.grade || '',
+    class_name: firstEnroll.class_name || student.class_name || '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -343,13 +350,21 @@ function StudentEditModal({ student, classes, gradeValues, onClose, onDone }) {
 
   async function handleSave() {
     setSaving(true)
-    const { error } = await supabase.from('profiles').update({
-      full_name: form.full_name,
-      grade: form.grade,
-      class_name: form.class_name,
-    }).eq('id', student.id)
+    const ops = [
+      supabase.from('profiles').update({ full_name: form.full_name }).eq('id', student.id),
+    ]
+    if (form.grade) {
+      ops.push(
+        supabase.from('student_enrollments').upsert({
+          user_id: student.id, grade: form.grade,
+          class_name: form.class_name || null, is_approved: true,
+        }, { onConflict: 'user_id,grade' })
+      )
+    }
+    const results = await Promise.all(ops)
     setSaving(false)
-    if (error) toast.error('Lưu thất bại: ' + error.message)
+    const err = results.find(r => r.error)?.error
+    if (err) toast.error('Lưu thất bại: ' + err.message)
     else { toast.success('Đã cập nhật'); onDone() }
   }
 
@@ -437,24 +452,48 @@ export default function StudentsPage() {
 
   async function fetchStudents() {
     setLoading(true)
-    let q = supabase.from('profiles').select('*').eq('role', 'student').order('class_name').order('full_name')
-    if (filterGrade) q = q.eq('grade', filterGrade)
-    if (filterClass) q = q.eq('class_name', filterClass)
-    const { data, error } = await q
-    if (error) toast.error('Lỗi tải danh sách học sinh: ' + error.message)
-    setStudents(data || [])
+    const { data: profileData, error } = await supabase
+      .from('profiles').select('*').eq('role', 'student').order('full_name')
+    if (error) { toast.error('Lỗi tải danh sách học sinh: ' + error.message); setLoading(false); return }
+
+    const ids = (profileData || []).map(s => s.id)
+    const { data: enrollData } = ids.length
+      ? await supabase.from('student_enrollments').select('*').in('user_id', ids)
+      : { data: [] }
+
+    const enrollMap = {}
+    ;(enrollData || []).forEach(e => {
+      if (!enrollMap[e.user_id]) enrollMap[e.user_id] = []
+      enrollMap[e.user_id].push(e)
+    })
+
+    let merged = (profileData || []).map(s => ({
+      ...s,
+      enrollments: (enrollMap[s.id] || []).sort((a, b) => a.grade.localeCompare(b.grade)),
+      // compat: dùng enrollment đầu tiên làm grade/class hiển thị
+      grade: enrollMap[s.id]?.[0]?.grade || s.grade || '',
+      class_name: enrollMap[s.id]?.[0]?.class_name || s.class_name || '',
+    }))
+
+    if (filterGrade) merged = merged.filter(s => s.enrollments.some(e => e.grade === filterGrade))
+    if (filterClass) merged = merged.filter(s => s.enrollments.some(e => e.class_name === filterClass))
+
+    merged.sort((a, b) => (a.class_name || '').localeCompare(b.class_name || '') || a.full_name.localeCompare(b.full_name))
+    setStudents(merged)
     setLoading(false)
   }
 
   async function approveStudent(student) {
     setApprovingId(student.id)
-    const { error } = await supabase.from('profiles').update({ is_approved: true }).eq('id', student.id)
+    // Duyệt tất cả enrollment đang chờ + duyệt tài khoản
+    await Promise.all([
+      supabase.from('student_enrollments').update({ is_approved: true })
+        .eq('user_id', student.id).eq('is_approved', false),
+      supabase.from('profiles').update({ is_approved: true }).eq('id', student.id),
+    ])
     setApprovingId(null)
-    if (error) toast.error('Duyệt thất bại: ' + error.message)
-    else {
-      toast.success(`Đã duyệt tài khoản ${student.full_name}`)
-      fetchStudents()
-    }
+    toast.success(`Đã duyệt ${student.full_name}`)
+    fetchStudents()
   }
 
   async function handleDelete(student) {
@@ -483,8 +522,12 @@ export default function StudentsPage() {
     ? classes.filter(c => c.grade === filterGrade)
     : classes
 
-  const pendingStudents = students.filter(s => s.is_approved === false)
-  const approvedStudents = students.filter(s => s.is_approved !== false)
+  const pendingStudents = students.filter(s =>
+    s.is_approved === false || s.enrollments?.some(e => !e.is_approved)
+  )
+  const approvedStudents = students.filter(s =>
+    s.is_approved !== false && s.enrollments?.every(e => e.is_approved)
+  )
 
   const displayed = approvedStudents.filter(s =>
     !search || s.full_name?.toLowerCase().includes(search.toLowerCase())

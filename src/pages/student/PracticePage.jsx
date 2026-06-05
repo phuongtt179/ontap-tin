@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useTopics } from '../../hooks/useTopics'
+import { useSelectedGrade } from '../../hooks/useEnrollments'
 import QuizSession from '../../components/student/QuizSession'
 import toast from 'react-hot-toast'
 
 export default function PracticePage() {
-  const { profile } = useAuth()
+  const { user } = useAuth()
   const { topics } = useTopics()
+  const { grades, selectedGrade, setSelectedGrade } = useSelectedGrade(user?.id)
   const [config, setConfig] = useState({
     topics: [],
     count: 10,
@@ -16,7 +18,7 @@ export default function PracticePage() {
   const [questions, setQuestions] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const gradeTopics = topics.filter(t => t.grade === profile?.grade || t.grade === 'all')
+  const gradeTopics = topics.filter(t => t.grade === selectedGrade || t.grade === 'all')
 
   function toggleTopic(name) {
     setConfig(c => ({
@@ -29,7 +31,7 @@ export default function PracticePage() {
 
   async function startPractice() {
     setLoading(true)
-    let query = supabase.from('questions').select('*').eq('grade', profile?.grade)
+    let query = supabase.from('questions').select('*').eq('grade', selectedGrade)
     if (config.topics.length > 0) query = query.in('topic', config.topics)
     if (config.difficulty) query = query.eq('difficulty', config.difficulty)
 
@@ -58,7 +60,15 @@ export default function PracticePage() {
   return (
     <div className="p-4 md:p-8 max-w-lg">
       <h1 className="text-2xl font-bold text-gray-800 mb-2">Luyện tập</h1>
-      <p className="text-gray-500 mb-8">Khối {profile?.grade} — Chọn chủ đề và số câu để bắt đầu</p>
+      <div className="flex items-center gap-2 mb-6 flex-wrap">
+        <span className="text-gray-500 text-sm">Khoá học:</span>
+        {grades.map(g => (
+          <button key={g} onClick={() => { setSelectedGrade(g); setConfig(c => ({ ...c, topics: [] })) }}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition ${
+              selectedGrade === g ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}>{g}</button>
+        ))}
+      </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
         {/* Topic multi-select */}

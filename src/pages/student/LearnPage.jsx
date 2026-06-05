@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { useSelectedGrade } from '../../hooks/useEnrollments'
 import { BookOpen, CheckCircle, PlayCircle, Clock, FileText, ChevronRight } from 'lucide-react'
 
 function getProgress(lesson, progress) {
@@ -18,30 +19,31 @@ function getProgress(lesson, progress) {
 
 export default function LearnPage() {
   const navigate = useNavigate()
-  const { profile, user } = useAuth()
+  const { user } = useAuth()
+  const { grades, selectedGrade, setSelectedGrade, loading: enrollLoading } = useSelectedGrade(user?.id)
   const [lessons, setLessons] = useState([])
   const [topics, setTopics] = useState([])
   const [progressMap, setProgressMap] = useState({})
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [selectedTopic, setSelectedTopic] = useState(null)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const touchStartX = { current: 0 }
 
   useEffect(() => {
-    if (profile && user) loadData()
-  }, [profile?.id, user?.id])
+    if (selectedGrade && user) { setSelectedTopic(null); loadData() }
+  }, [selectedGrade, user?.id])
 
   async function loadData() {
     setLoading(true)
     const [{ data: topicsData }, { data: lessonsData }, { data: progressData }] = await Promise.all([
       supabase.from('topics')
         .select('*')
-        .or(`grade.eq.${profile.grade},grade.eq.all`)
+        .or(`grade.eq.${selectedGrade},grade.eq.all`)
         .order('name'),
       supabase.from('lessons')
         .select('*')
         .eq('is_published', true)
-        .eq('grade', profile.grade)
+        .eq('grade', selectedGrade)
         .order('order', { ascending: true }),
       supabase.from('lesson_progress')
         .select('*')
@@ -77,10 +79,20 @@ export default function LearnPage() {
     if (!topicList.includes(key)) topicList.push(key)
   })
 
-  if (loading) {
+  if (enrollLoading || loading) {
     return (
       <div className="flex justify-center py-16">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+      </div>
+    )
+  }
+
+  if (grades.length === 0) {
+    return (
+      <div className="p-4 md:p-8 text-center py-16 text-gray-400">
+        <BookOpen size={40} className="mx-auto mb-3 opacity-30" />
+        <p className="text-lg font-medium">Bạn chưa tham gia khoá học nào</p>
+        <p className="text-sm mt-1">Liên hệ giáo viên để được thêm vào khoá học</p>
       </div>
     )
   }
@@ -92,7 +104,7 @@ export default function LearnPage() {
         <div className="text-center py-16 text-gray-400">
           <BookOpen size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-lg">Chưa có bài học nào</p>
-          <p className="text-sm mt-1">Giáo viên chưa xuất bản bài học cho khối bạn</p>
+          <p className="text-sm mt-1">Giáo viên chưa xuất bản bài học cho khoá này</p>
         </div>
       </div>
     )
@@ -153,15 +165,25 @@ export default function LearnPage() {
         ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         md:w-72 shrink-0 md:overflow-y-auto
       `}>
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <div>
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between gap-2">
+          <div className="flex-1 min-w-0">
             <h1 className="text-base font-bold text-gray-800">Học tập</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Khối {profile?.grade}</p>
+            {grades.length > 1 ? (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {grades.map(g => (
+                  <button key={g} onClick={() => setSelectedGrade(g)}
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition ${
+                      selectedGrade === g ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >{g}</button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 mt-0.5">{selectedGrade}</p>
+            )}
           </div>
-          <button
-            className="md:hidden text-gray-400 hover:text-gray-600 p-1"
-            onClick={() => setMobileSidebarOpen(false)}
-          >✕</button>
+          <button className="md:hidden text-gray-400 hover:text-gray-600 p-1 shrink-0"
+            onClick={() => setMobileSidebarOpen(false)}>✕</button>
         </div>
         <div className="flex-1 overflow-y-auto">
           <TopicList onSelect={() => setMobileSidebarOpen(false)} />
