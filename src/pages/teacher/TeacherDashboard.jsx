@@ -27,19 +27,23 @@ export default function TeacherDashboard() {
   async function buildRanking(sessions) {
     if (!sessions?.length) return []
     const userIds = [...new Set(sessions.map(s => s.user_id))]
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, grade, class_name')
-      .in('id', userIds)
+    const [{ data: profiles }, { data: enrollments }] = await Promise.all([
+      supabase.from('profiles').select('id, full_name').in('id', userIds),
+      supabase.from('student_enrollments').select('user_id, class_name, grade')
+        .in('user_id', userIds).eq('is_approved', true),
+    ])
     const pm = {}
     profiles?.forEach(p => { pm[p.id] = p })
+    const em = {}
+    enrollments?.forEach(e => { if (!em[e.user_id]) em[e.user_id] = e })
     const map = {}
     sessions.forEach(s => {
       const p = pm[s.user_id]
+      const e = em[s.user_id]
       if (!map[s.user_id]) {
         map[s.user_id] = {
           full_name: p?.full_name || '—',
-          class_name: p?.class_name || p?.grade || '—',
+          class_name: e?.class_name || e?.grade || '—',
           scores: [],
         }
       }

@@ -155,11 +155,21 @@ export default function ExamStatsPage() {
 
   async function fetchData() {
     setLoading(true)
-    const [examRes, studentRes] = await Promise.all([
+    // Lấy danh sách học sinh qua student_enrollments
+    let enrollQ = supabase.from('student_enrollments')
+      .select('user_id, class_name').eq('grade', filterGrade).eq('is_approved', true)
+    if (filterClass) enrollQ = enrollQ.eq('class_name', filterClass)
+    const { data: enrollData } = await enrollQ
+
+    const enrolledIds = (enrollData || []).map(e => e.user_id)
+    const enrollMap = {}
+    ;(enrollData || []).forEach(e => { enrollMap[e.user_id] = e.class_name || '' })
+
+    const [examRes, profileRes] = await Promise.all([
       supabase.from('exams').select('id, title, question_ids, class_name').eq('grade', filterGrade).order('created_at'),
-      filterClass
-        ? supabase.from('profiles').select('id, full_name, class_name').eq('role', 'student').eq('grade', filterGrade).eq('class_name', filterClass).order('full_name')
-        : supabase.from('profiles').select('id, full_name, class_name').eq('role', 'student').eq('grade', filterGrade).order('class_name').order('full_name'),
+      enrolledIds.length > 0
+        ? supabase.from('profiles').select('id, full_name').in('id', enrolledIds).order('full_name')
+        : Promise.resolve({ data: [] }),
     ])
 
     const allExams = examRes.data || []
@@ -176,8 +186,13 @@ export default function ExamStatsPage() {
       sessionData = data || []
     }
 
+    // Gắn class_name từ enrollment vào profile
+    const studentData = (profileRes.data || []).map(p => ({
+      ...p, class_name: enrollMap[p.id] || '',
+    }))
+
     setExams(filteredExams)
-    setStudents(studentRes.data || [])
+    setStudents(studentData)
     setSessions(sessionData)
     setLoading(false)
   }

@@ -400,10 +400,29 @@ function ExamResultsModal({ exam, onClose }) {
 
   useEffect(() => {
     supabase.from('exam_sessions')
-      .select('*, profiles(full_name, class_name)')
+      .select('*, profiles(full_name)')
       .eq('exam_id', exam.id)
       .order('submitted_at', { ascending: false })
-      .then(({ data }) => { setSessions(data || []); setLoading(false) })
+      .then(async ({ data }) => {
+        const sess = data || []
+        const userIds = [...new Set(sess.map(s => s.user_id))]
+        if (userIds.length > 0 && exam.grade) {
+          const { data: enrollData } = await supabase
+            .from('student_enrollments')
+            .select('user_id, class_name')
+            .in('user_id', userIds)
+            .eq('grade', exam.grade)
+          const em = {}
+          ;(enrollData || []).forEach(e => { em[e.user_id] = e.class_name || '' })
+          setSessions(sess.map(s => ({
+            ...s,
+            profiles: { ...s.profiles, class_name: em[s.user_id] || '' },
+          })))
+        } else {
+          setSessions(sess)
+        }
+        setLoading(false)
+      })
   }, [exam.id])
 
   async function viewDetail(session) {
