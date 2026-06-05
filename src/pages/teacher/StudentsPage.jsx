@@ -342,12 +342,17 @@ function StudentEditModal({ student, classes, gradeValues, onClose, onDone }) {
     full_name: student.full_name || '',
     grade: firstEnroll.grade || student.grade || '',
     class_name: firstEnroll.class_name || student.class_name || '',
+    new_password: '',
   })
   const [saving, setSaving] = useState(false)
 
   const filteredClasses = form.grade ? classes.filter(c => c.grade === form.grade) : classes
 
   async function handleSave() {
+    if (form.new_password && form.new_password.length < 6) {
+      toast.error('Mật khẩu mới phải ít nhất 6 ký tự')
+      return
+    }
     setSaving(true)
     const ops = [
       supabase.from('profiles').update({ full_name: form.full_name }).eq('id', student.id),
@@ -361,10 +366,28 @@ function StudentEditModal({ student, classes, gradeValues, onClose, onDone }) {
       )
     }
     const results = await Promise.all(ops)
-    setSaving(false)
     const err = results.find(r => r.error)?.error
-    if (err) toast.error('Lưu thất bại: ' + err.message)
-    else { toast.success('Đã cập nhật'); onDone() }
+    if (err) { setSaving(false); toast.error('Lưu thất bại: ' + err.message); return }
+
+    if (form.new_password) {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+      const res = await fetch(`${supabaseUrl}/functions/v1/update-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anonKey}`, 'apikey': anonKey },
+        body: JSON.stringify({ userId: student.id, password: form.new_password }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setSaving(false)
+        toast.error('Đổi mật khẩu thất bại: ' + (data.error || 'Lỗi không xác định'))
+        return
+      }
+    }
+
+    setSaving(false)
+    toast.success('Đã cập nhật')
+    onDone()
   }
 
   return (
@@ -405,7 +428,19 @@ function StudentEditModal({ student, classes, gradeValues, onClose, onDone }) {
               {filteredClasses.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
             </select>
           </div>
-          <div className="pt-1 text-xs text-gray-400">
+          <div className="border-t pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Đặt lại mật khẩu <span className="text-gray-400 font-normal">(để trống nếu không đổi)</span>
+            </label>
+            <input
+              type="password"
+              value={form.new_password}
+              onChange={e => setForm({ ...form, new_password: e.target.value })}
+              placeholder="Mật khẩu mới (ít nhất 6 ký tự)"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="text-xs text-gray-400">
             Tên đăng nhập: <span className="font-mono">{student.username || '—'}</span> (không thể thay đổi)
           </div>
         </div>
