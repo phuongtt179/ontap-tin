@@ -20,6 +20,7 @@ export default function JoinCoursePage() {
   const [enrollments, setEnrollments] = useState([])
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(null)
+  const [switchingGrade, setSwitchingGrade] = useState(null) // grade đang chọn ca mới
 
   useEffect(() => { if (user) loadAll() }, [user?.id])
 
@@ -57,6 +58,17 @@ export default function JoinCoursePage() {
     await supabase.from('student_enrollments').delete().eq('id', enrollmentId)
     toast('Đã huỷ yêu cầu')
     loadAll()
+  }
+
+  async function handleSwitch(enrollmentId, newClassName) {
+    setJoining(newClassName)
+    const { error } = await supabase.from('student_enrollments')
+      .update({ class_name: newClassName, is_approved: false })
+      .eq('id', enrollmentId)
+    setJoining(null)
+    setSwitchingGrade(null)
+    if (error) toast.error('Đổi ca thất bại: ' + error.message)
+    else { toast.success(`Đã đổi sang ${newClassName}, chờ giáo viên duyệt lại`); loadAll() }
   }
 
   if (loading) {
@@ -107,20 +119,49 @@ export default function JoinCoursePage() {
 
                 {/* Trạng thái / Nút đăng ký */}
                 {enrollment ? (
-                  <div className={`rounded-xl px-4 py-3 text-sm font-medium flex items-center justify-between gap-2
-                    ${enrollment.is_approved ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                    <span className="flex items-center gap-1.5">
-                      {enrollment.is_approved
-                        ? <><CheckCircle size={14} /> Đã tham gia{enrollment.class_name ? ` · ${enrollment.class_name}` : ''}</>
-                        : <><Clock size={14} /> Chờ duyệt{enrollment.class_name ? ` · ${enrollment.class_name}` : ''}</>
-                      }
-                    </span>
-                    {!enrollment.is_approved && (
-                      <button onClick={() => handleCancel(enrollment.id)}
-                        className="shrink-0 text-amber-600 hover:text-amber-800 transition"
-                        title="Huỷ yêu cầu">
-                        <X size={14} />
-                      </button>
+                  <div className="space-y-2">
+                    {/* Trạng thái hiện tại */}
+                    <div className={`rounded-xl px-4 py-3 text-sm font-medium flex items-center justify-between gap-2
+                      ${enrollment.is_approved ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                      <span className="flex items-center gap-1.5">
+                        {enrollment.is_approved
+                          ? <><CheckCircle size={14} /> Đã tham gia{enrollment.class_name ? ` · ${enrollment.class_name}` : ''}</>
+                          : <><Clock size={14} /> Chờ duyệt{enrollment.class_name ? ` · ${enrollment.class_name}` : ''}</>
+                        }
+                      </span>
+                      {!enrollment.is_approved && (
+                        <button onClick={() => handleCancel(enrollment.id)}
+                          className="shrink-0 text-amber-600 hover:text-amber-800 transition" title="Huỷ yêu cầu">
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Đổi ca — chỉ hiện khi có >1 ca */}
+                    {gradeClasses.length > 1 && (
+                      switchingGrade === grade ? (
+                        <div className="space-y-1.5">
+                          <p className="text-xs text-gray-500 px-1">Chọn ca mới:</p>
+                          {gradeClasses
+                            .filter(cls => cls.name !== enrollment.class_name)
+                            .map(cls => (
+                              <button key={cls.id}
+                                onClick={() => handleSwitch(enrollment.id, cls.name)}
+                                disabled={!!joining}
+                                className="w-full flex items-center justify-center gap-2 text-sm py-2 rounded-xl border-2 border-dashed border-gray-300 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 transition disabled:opacity-50">
+                                {joining === cls.name && <Loader2 size={12} className="animate-spin" />}
+                                Đổi sang {cls.name}
+                              </button>
+                            ))}
+                          <button onClick={() => setSwitchingGrade(null)}
+                            className="w-full text-xs text-gray-400 hover:text-gray-600 py-1">Hủy</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setSwitchingGrade(grade)}
+                          className="w-full text-xs text-gray-500 hover:text-indigo-600 py-1.5 rounded-lg hover:bg-white transition">
+                          Đổi ca học
+                        </button>
+                      )
                     )}
                   </div>
                 ) : gradeClasses.length > 0 ? (
