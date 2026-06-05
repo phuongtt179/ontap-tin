@@ -539,7 +539,7 @@ export default function LessonsPage() {
               onChange={e => setSelectedGrade(e.target.value)}
               className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              {GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}
+              {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
             <button
               className="md:hidden text-gray-400 hover:text-gray-600 p-1"

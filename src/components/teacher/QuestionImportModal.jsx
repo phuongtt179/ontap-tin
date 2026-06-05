@@ -140,10 +140,10 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
               {/* Meta */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Khối</label>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Khoá học</label>
                   <select value={meta.grade} onChange={e => handleGradeChange(e.target.value)}
                     className="w-full border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    {grades.map(g => <option key={g} value={g}>Khối {g}</option>)}
+                    {grades.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
                 <div>

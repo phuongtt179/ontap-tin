@@ -59,7 +59,7 @@ export default function GradesPage() {
   async function handleRename(oldValue) {
     const val = editVal.trim()
     if (!val || val === oldValue) { setEditGrade(null); return }
-    if (grades.includes(val)) { toast.error(`Khối "${val}" đã tồn tại`); return }
+    if (grades.includes(val)) { toast.error(`Khoá học "${val}" đã tồn tại`); return }
     setSaving(true)
     // Update grades table
     const { error } = await supabase.from('grades').update({ value: val }).eq('value', oldValue)

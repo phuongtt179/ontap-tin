@@ -686,7 +686,7 @@ export default function StudentsPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 w-10">#</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Họ và tên</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Email đăng nhập</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Khối</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Khoá học</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Lớp</th>
                 <th className="px-4 py-3 w-20" />
               </tr>

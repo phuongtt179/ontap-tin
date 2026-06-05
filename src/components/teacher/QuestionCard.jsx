@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
+import { useGrades } from '../../hooks/useGrades'
 import { ImageUpload } from './QuestionFormModal'
 import toast from 'react-hot-toast'
 import { Trash2, ChevronDown, ChevronUp, Pencil, X, Loader2 } from 'lucide-react'
@@ -21,6 +22,7 @@ const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 
 function QuestionEditModal({ question: q, onClose, onDone }) {
   const { topics } = useTopics()
+  const { grades: GRADES } = useGrades()
   const [form, setForm] = useState({
     question: q.question || '',
     image_url: q.image_url || '',
@@ -198,15 +200,13 @@ function QuestionEditModal({ question: q, onClose, onDone }) {
           {/* Grade, Topic, Difficulty */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Khối</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Khoá học</label>
               <select
                 value={form.grade}
                 onChange={e => setForm({ ...form, grade: e.target.value, topic: '' })}
                 className="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="3">Khối 3</option>
-                <option value="4">Khối 4</option>
-                <option value="5">Khối 5</option>
+                {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
             <div>
@@ -268,7 +268,7 @@ export default function QuestionCard({ question: q, index, onDelete, onUpdate })
           </div>
           <div className="flex items-center gap-2 shrink-0 ml-3">
             <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">{TYPE_LABELS[q.type]}</span>
-            <span className="text-xs text-gray-400">Khối {q.grade}</span>
+            <span className="text-xs text-gray-400">{q.grade}</span>
             {q.image_url && <span className="text-xs text-green-600">📷</span>}
             {q.audio_url && <span className="text-xs text-blue-600">🔊</span>}
             <button onClick={e => { e.stopPropagation(); setShowEdit(true) }}

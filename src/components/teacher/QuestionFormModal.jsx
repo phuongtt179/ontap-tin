@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
+import { useGrades } from '../../hooks/useGrades'
 import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
 import { X, Plus, Trash2, Loader2, Image } from 'lucide-react'
@@ -92,6 +93,7 @@ export function AudioUpload({ value, onChange }) {
 export default function QuestionFormModal({ onClose, onDone }) {
   const { user } = useAuth()
   const { topics } = useTopics()
+  const { grades: GRADES } = useGrades()
   const [form, setForm] = useState({
     type: 'multiple_choice',
     question: '',
@@ -286,10 +288,10 @@ export default function QuestionFormModal({ onClose, onDone }) {
           {/* Grade / Topic / Difficulty */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Khối</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Khoá học</label>
               <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value, topic: '' })}
                 className="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                {['3','4','5'].map(g => <option key={g} value={g}>Khối {g}</option>)}
+                {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
             <div>
