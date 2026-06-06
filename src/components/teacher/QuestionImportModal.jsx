@@ -169,6 +169,119 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
                 <label className="text-xs font-medium text-gray-600 mb-1 block">
                   Dán nội dung từ Word vào đây
                 </label>
+                {/* Hướng dẫn */}
+                <details className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden mb-2">
+                  <summary className="px-4 py-2.5 text-sm font-medium text-gray-600 cursor-pointer select-none hover:bg-gray-100 transition">
+                    📋 Hướng dẫn định dạng từng loại câu hỏi
+                  </summary>
+                  <div className="px-4 pb-4 pt-2 space-y-3 text-xs text-gray-600 font-mono">
+
+                    <div>
+                      <p className="font-sans font-semibold text-gray-700 mb-1">1. Trắc nghiệm</p>
+                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 1: Thiết bị nào dùng để nhập dữ liệu?
+A. Màn hình
+B. Bàn phím
+C. Loa
+D. Máy in
+Đáp án: B
+Gợi ý: Bàn phím là thiết bị INPUT`}</pre>
+                    </div>
+
+                    <div>
+                      <p className="font-sans font-semibold text-gray-700 mb-1">2. Đúng / Sai</p>
+                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 2: CPU là bộ não của máy tính. Đúng hay sai?
+Đáp án: Đúng`}</pre>
+                    </div>
+
+                    <div>
+                      <p className="font-sans font-semibold text-gray-700 mb-1">3. Điền từ — 1 chỗ trống</p>
+                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 3: ___ là thiết bị dùng để nhập văn bản.
+Đáp án: Bàn phím`}</pre>
+                    </div>
+
+                    <div>
+                      <p className="font-sans font-semibold text-gray-700 mb-1">3b. Điền từ — nhiều chỗ trống</p>
+                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 4: ___ là thiết bị nhập, ___ là thiết bị xuất, ___ xử lý dữ liệu.
+Đáp án: Bàn phím, Màn hình, CPU`}</pre>
+                      <p className="font-sans text-gray-400 mt-1">Số đáp án = số ___ trong câu (phân cách dấu phẩy)</p>
+                    </div>
+
+                    <div>
+                      <p className="font-sans font-semibold text-gray-700 mb-1">4. Kéo thả từ — 1 chỗ trống</p>
+                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 5: Thiết bị ___ dùng để in tài liệu ra giấy.
+Từ: máy in, màn hình, loa
+Đáp án: máy in`}</pre>
+                    </div>
+
+                    <div>
+                      <p className="font-sans font-semibold text-gray-700 mb-1">4b. Kéo thả từ — nhiều chỗ trống</p>
+                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 6: ___ là ngôn ngữ lập trình, ___ là phần mềm soạn thảo.
+Từ: Python, Word, Excel, Scratch
+Đáp án: Python, Word`}</pre>
+                      <p className="font-sans text-gray-400 mt-1">Số đáp án = số ___ · Từ thừa trong "Từ:" → từ gây nhiễu</p>
+                    </div>
+
+                    <div>
+                      <p className="font-sans font-semibold text-gray-700 mb-1">5. Sắp xếp thứ tự</p>
+                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 7: Sắp xếp các bước khởi động máy tính
+1. Bật màn hình
+2. Bật thùng máy
+3. Đăng nhập`}</pre>
+                    </div>
+
+                    <div>
+                      <p className="font-sans font-semibold text-gray-700 mb-1">6. Ghép đôi</p>
+                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 8: Ghép thiết bị với chức năng
+Bàn phím | Nhập văn bản
+Chuột | Di chuyển con trỏ
+Màn hình | Hiển thị thông tin`}</pre>
+                    </div>
+
+                    <div>
+                      <p className="font-sans font-semibold text-gray-700 mb-1">7. Sắp xếp từ thành câu</p>
+                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 9: Sắp xếp các từ thành câu đúng
+Câu đúng: Bàn phím là thiết bị nhập dữ liệu`}</pre>
+                    </div>
+
+                    <div>
+                      <p className="font-sans font-semibold text-gray-700 mb-1">8. Tự luận</p>
+                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 10: [Tự luận] Em hãy nêu tên 3 thiết bị nhập dữ liệu
+Gợi ý: Bàn phím, chuột, màn hình cảm ứng`}</pre>
+                    </div>
+
+                    <div>
+                      <p className="font-sans font-semibold text-gray-700 mb-1">9. Câu hỏi có code Python</p>
+                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 11: Đoạn code sau in ra kết quả gì?
+\`\`\`python
+x = 5
+print(x + 3)
+\`\`\`
+A. 5
+B. 3
+C. 8
+D. 53
+Đáp án: C
+
+Câu 12: Điền từ còn thiếu vào chỗ ___ để in ra "Xin chào"
+\`\`\`python
+___(\"Xin chào\")
+\`\`\`
+Đáp án: print
+
+Câu 13: Kéo thả từ đúng vào chỗ trống
+\`\`\`python
+x = ___
+y = ___
+print(x + y)
+\`\`\`
+Từ: 10, 20, 30, "hello"
+Đáp án: 10, 20`}</pre>
+                      <p className="font-sans text-gray-400 mt-1">Dùng ```python ... ``` để chèn code — hiển thị có syntax highlight</p>
+                    </div>
+
+                  </div>
+                </details>
+
                 <textarea
                   value={rawText}
                   onChange={e => setRawText(e.target.value)}
@@ -183,9 +296,9 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
                       requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + 4 })
                     }
                   }}
-                  rows={14}
+                  rows={12}
                   className="w-full border border-gray-300 rounded-lg p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                  placeholder={`Ví dụ:\nCâu 1: Thiết bị nào dùng để nhập dữ liệu?\nA. Màn hình\nB. Bàn phím\nC. Loa\nD. Máy in\nĐáp án: B\n\nCâu 2: Chuột là thiết bị xuất. Đúng hay sai?\nĐáp án: Sai\n\nCâu 3: Điền từ vào chỗ ___ cho đúng\nTừ: bàn phím, chuột, màn hình\nĐáp án: bàn phím\n\nCâu 4: Sắp xếp các bước đúng thứ tự\n1. Bật máy tính\n2. Đăng nhập\n3. Mở phần mềm\n\nCâu 5: Ghép đôi thiết bị với chức năng\nBàn phím | Nhập văn bản\nChuột | Di chuyển con trỏ\n\nCâu 6: Sắp xếp các từ thành câu đúng\nCâu đúng: Bàn phím là thiết bị nhập dữ liệu\n\nCâu 7: [Tự luận] Em hãy nêu tên 3 thiết bị nhập dữ liệu\nGợi ý: Bàn phím, chuột, màn hình`}
+                  placeholder="Dán câu hỏi vào đây..."
                 />
               </div>
             </div>
