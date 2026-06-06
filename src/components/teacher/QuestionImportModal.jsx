@@ -3,6 +3,7 @@ import { parseQuestions } from '../../utils/questionParser'
 import { supabase } from '../../lib/supabase'
 import { uploadImage } from '../../lib/cloudinary'
 import { useAuth } from '../../context/AuthContext'
+import { useUnits } from '../../hooks/useUnits'
 import toast from 'react-hot-toast'
 import { X, ChevronRight, Save, ImagePlus, Trash2 } from 'lucide-react'
 
@@ -17,7 +18,7 @@ const QUESTION_TYPES = {
   essay: 'Tự luận',
 }
 
-export default function QuestionImportModal({ onClose, onSaved, grades, topics }) {
+export default function QuestionImportModal({ onClose, onSaved, grades, topics, defaultGrade, defaultTopic, defaultUnitId }) {
   const { user } = useAuth()
   const [step, setStep] = useState(1) // 1: paste, 2: preview & edit
   const [rawText, setRawText] = useState('')
@@ -27,15 +28,17 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
   const topicsForGrade = (grade) =>
     topics.filter(t => (t.grade === grade || t.grade === 'all')).map(t => t.name)
 
-  const initialGrade = grades[0] || ''
+  const initialGrade = defaultGrade || grades[0] || ''
   const initialTopics = topicsForGrade(initialGrade)
-  const [meta, setMeta] = useState({ grade: initialGrade, topic: initialTopics[0] || '', difficulty: 'easy' })
+  const initialTopic = defaultTopic || initialTopics[0] || ''
+  const [meta, setMeta] = useState({ grade: initialGrade, topic: initialTopic, unit_id: defaultUnitId || '', difficulty: 'easy' })
+  const { units } = useUnits(meta.grade, meta.topic)
 
   const currentTopics = topicsForGrade(meta.grade)
 
   function handleGradeChange(grade) {
     const available = topicsForGrade(grade)
-    setMeta({ ...meta, grade, topic: available[0] || '' })
+    setMeta({ ...meta, grade, topic: available[0] || '', unit_id: '' })
   }
 
   function handleParse() {
@@ -109,6 +112,7 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
         audio_url: null,
         grade: meta.grade,
         topic: meta.topic,
+        unit_id: meta.unit_id || null,
         difficulty: meta.difficulty,
         created_by: user.id,
       }))
@@ -138,19 +142,12 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
           {step === 1 ? (
             <div className="space-y-4">
               {/* Meta */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-600 mb-1 block">Khoá học</label>
                   <select value={meta.grade} onChange={e => handleGradeChange(e.target.value)}
                     className="w-full border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     {grades.map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Chủ đề</label>
-                  <select value={meta.topic} onChange={e => setMeta({ ...meta, topic: e.target.value })}
-                    className="w-full border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    {currentTopics.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
@@ -160,6 +157,24 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics }
                     <option value="easy">Dễ</option>
                     <option value="medium">Trung bình</option>
                     <option value="hard">Khó</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Chủ đề</label>
+                  <select value={meta.topic} onChange={e => setMeta({ ...meta, topic: e.target.value, unit_id: '' })}
+                    className="w-full border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    {currentTopics.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">
+                    Bài <span className="font-normal text-gray-400">(tuỳ chọn)</span>
+                  </label>
+                  <select value={meta.unit_id} onChange={e => setMeta({ ...meta, unit_id: e.target.value })}
+                    className="w-full border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={units.length === 0}>
+                    <option value="">-- Chọn bài --</option>
+                    {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                   </select>
                 </div>
               </div>

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
 import { useGrades } from '../../hooks/useGrades'
+import { useUnits } from '../../hooks/useUnits'
 import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
 import { X, Plus, Trash2, Loader2, Image } from 'lucide-react'
@@ -90,15 +91,16 @@ export function AudioUpload({ value, onChange }) {
   )
 }
 
-export default function QuestionFormModal({ onClose, onDone }) {
+export default function QuestionFormModal({ onClose, onDone, defaultGrade, defaultTopic, defaultUnitId }) {
   const { user } = useAuth()
   const { topics } = useTopics()
   const { grades: GRADES } = useGrades()
   const [form, setForm] = useState({
     type: 'multiple_choice',
     question: '',
-    grade: '3',
-    topic: '',
+    grade: defaultGrade || '3',
+    topic: defaultTopic || '',
+    unit_id: defaultUnitId || '',
     difficulty: 'easy',
     image_url: '',
     audio_url: '',
@@ -124,6 +126,7 @@ export default function QuestionFormModal({ onClose, onDone }) {
   const [saving, setSaving] = useState(false)
 
   const topicOptions = topics.filter(t => t.grade === form.grade || t.grade === 'all')
+  const { units } = useUnits(form.grade, form.topic)
   const blankCount = (form.question.match(/___/g) || []).length
 
   function buildPayload() {
@@ -207,6 +210,7 @@ export default function QuestionFormModal({ onClose, onDone }) {
       image_url: form.image_url || null,
       audio_url: form.audio_url || null,
       hint: form.hint.trim() || null,
+      unit_id: form.unit_id || null,
       created_by: user.id,
       ...specific,
     })
@@ -285,21 +289,13 @@ export default function QuestionFormModal({ onClose, onDone }) {
             </div>
           </div>
 
-          {/* Grade / Topic / Difficulty */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Grade / Topic / Unit / Difficulty */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Khoá học</label>
-              <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value, topic: '' })}
+              <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value, topic: '', unit_id: '' })}
                 className="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề</label>
-              <select value={form.topic} onChange={e => setForm({ ...form, topic: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value="">-- Chủ đề --</option>
-                {topicOptions.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
               </select>
             </div>
             <div>
@@ -310,6 +306,28 @@ export default function QuestionFormModal({ onClose, onDone }) {
                 <option value="medium">Trung bình</option>
                 <option value="hard">Khó</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề</label>
+              <select value={form.topic} onChange={e => setForm({ ...form, topic: e.target.value, unit_id: '' })}
+                className="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">-- Chủ đề --</option>
+                {topicOptions.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Bài <span className="text-xs font-normal text-gray-400">(tuỳ chọn)</span>
+              </label>
+              <select value={form.unit_id} onChange={e => setForm({ ...form, unit_id: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={!form.topic || units.length === 0}>
+                <option value="">-- Chọn bài --</option>
+                {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+              {form.topic && units.length === 0 && (
+                <p className="text-xs text-gray-400 mt-0.5">Chủ đề này chưa có bài nào</p>
+              )}
             </div>
           </div>
 

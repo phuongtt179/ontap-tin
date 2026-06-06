@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
 import { useTopics } from '../../hooks/useTopics'
+import { useUnits } from '../../hooks/useUnits'
 import toast from 'react-hot-toast'
 import {
   Plus, Pencil, Trash2, FileText, X, Loader2, Check, Upload,
@@ -41,6 +42,7 @@ function LessonFormModal({ lesson, onClose, onDone }) {
     video_url: lesson?.video_url || '',
     pptx_url: lesson?.pptx_url || '',
     order: lesson?.order ?? 0,
+    unit_id: lesson?.unit_id || '',
     has_practice: lesson?.has_practice ?? false,
     practice_tasks: parseTasks(lesson?.practice_instructions),
     is_published: lesson?.is_published ?? false,
@@ -80,6 +82,7 @@ function LessonFormModal({ lesson, onClose, onDone }) {
   const filteredTopics = ALL_TOPICS.filter(
     t => !form.grade || t.grade === form.grade || t.grade === 'all'
   )
+  const { units: lessonUnits } = useUnits(form.grade, form.topic)
 
   useEffect(() => {
     if (step !== 2) return
@@ -139,6 +142,7 @@ function LessonFormModal({ lesson, onClose, onDone }) {
       title: form.title.trim(),
       grade: form.grade,
       topic: form.topic || null,
+      unit_id: form.unit_id || null,
       description: form.description.trim() || null,
       video_url: form.video_url.trim() || null,
       pptx_url: form.pptx_url || null,
@@ -212,7 +216,7 @@ function LessonFormModal({ lesson, onClose, onDone }) {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Khoá học</label>
                   <select
                     value={form.grade}
-                    onChange={e => setForm({ ...form, grade: e.target.value, topic: '' })}
+                    onChange={e => setForm({ ...form, grade: e.target.value, topic: '', unit_id: '' })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
@@ -222,12 +226,31 @@ function LessonFormModal({ lesson, onClose, onDone }) {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề</label>
                   <select
                     value={form.topic}
-                    onChange={e => setForm({ ...form, topic: e.target.value })}
+                    onChange={e => setForm({ ...form, topic: e.target.value, unit_id: '' })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="">-- Không chọn --</option>
                     {filteredTopics.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
                   </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Bài <span className="text-xs font-normal text-gray-400">(tuỳ chọn — gắn vào danh mục bài của chủ đề)</span>
+                  </label>
+                  <select
+                    value={form.unit_id}
+                    onChange={e => setForm({ ...form, unit_id: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={!form.topic || lessonUnits.length === 0}
+                  >
+                    <option value="">-- Không gắn vào bài nào --</option>
+                    {lessonUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                  {form.topic && lessonUnits.length === 0 && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Chủ đề này chưa có danh sách bài — tạo tại trang Chủ đề
+                    </p>
+                  )}
                 </div>
               </div>
 
