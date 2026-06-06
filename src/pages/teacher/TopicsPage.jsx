@@ -3,8 +3,154 @@ import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Check, X, Upload, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+
+// ─── Modal nhập hàng loạt ────────────────────────────────────────────────────
+function TopicImportModal({ grades, existingTopics, defaultGrade, user, onClose, onDone }) {
+  const [grade, setGrade] = useState(defaultGrade || grades[0] || '')
+  const [text, setText] = useState('')
+  const [rows, setRows] = useState(null)  // null = chưa parse, [] = đã parse
+  const [saving, setSaving] = useState(false)
+
+  function handleParse() {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+    if (!lines.length) { toast.error('Chưa nhập chủ đề nào'); return }
+    const existingNames = new Set(
+      existingTopics.filter(t => t.grade === grade).map(t => t.name.toLowerCase())
+    )
+    const seen = new Set()
+    const parsed = lines.map(name => {
+      const lower = name.toLowerCase()
+      const isDup = existingNames.has(lower)
+      const isRepeat = seen.has(lower)
+      seen.add(lower)
+      return { name, isDup, isRepeat }
+    })
+    setRows(parsed)
+  }
+
+  const newRows = rows?.filter(r => !r.isDup && !r.isRepeat) || []
+  const dupRows = rows?.filter(r => r.isDup || r.isRepeat) || []
+
+  async function handleSave() {
+    if (!newRows.length) return
+    setSaving(true)
+    const inserts = newRows.map(r => ({ name: r.name, grade, created_by: user.id }))
+    const { error } = await supabase.from('topics').insert(inserts)
+    setSaving(false)
+    if (error) toast.error('Lưu thất bại: ' + error.message)
+    else { toast.success(`Đã thêm ${newRows.length} chủ đề`); onDone() }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <h2 className="text-base font-bold text-gray-800">Nhập chủ đề hàng loạt</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-6 space-y-4">
+          {/* Grade selector */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Khoá học</label>
+            <select
+              value={grade}
+              onChange={e => { setGrade(e.target.value); setRows(null) }}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {grades.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
+
+          {/* Textarea */}
+          {rows === null ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Danh sách chủ đề
+                <span className="ml-2 text-xs font-normal text-gray-400">mỗi dòng 1 chủ đề</span>
+              </label>
+              <textarea
+                autoFocus
+                value={text}
+                onChange={e => setText(e.target.value)}
+                rows={12}
+                placeholder={`1. Nhập môn Python\n2. Biến và kiểu dữ liệu\n3. Câu lệnh điều kiện\n4. Vòng lặp\n5. Hàm`}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Số thứ tự đầu dòng (1. 2. 3.) sẽ được giữ nguyên nếu bạn muốn, hoặc bỏ đi cũng được.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Summary */}
+              <div className="flex gap-2 flex-wrap">
+                <span className="flex items-center gap-1 text-sm bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-full">
+                  <CheckCircle2 size={14} /> {newRows.length} sẽ thêm
+                </span>
+                {dupRows.length > 0 && (
+                  <span className="flex items-center gap-1 text-sm bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full">
+                    <AlertCircle size={14} /> {dupRows.length} bỏ qua (trùng)
+                  </span>
+                )}
+              </div>
+
+              {/* Preview list */}
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                {rows.map((r, i) => (
+                  <div key={i} className={`flex items-center gap-3 px-4 py-2.5 text-sm ${i > 0 ? 'border-t border-gray-100' : ''} ${r.isDup || r.isRepeat ? 'bg-amber-50' : 'bg-white'}`}>
+                    {r.isDup || r.isRepeat
+                      ? <AlertCircle size={14} className="text-amber-500 shrink-0" />
+                      : <CheckCircle2 size={14} className="text-green-500 shrink-0" />
+                    }
+                    <span className={`flex-1 ${r.isDup || r.isRepeat ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                      {r.name}
+                    </span>
+                    {r.isDup && <span className="text-xs text-amber-600">đã tồn tại</span>}
+                    {r.isRepeat && !r.isDup && <span className="text-xs text-amber-600">trùng trong danh sách</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
+          {rows !== null ? (
+            <button onClick={() => setRows(null)} className="text-sm text-gray-500 hover:text-gray-700">
+              ← Sửa lại
+            </button>
+          ) : (
+            <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">Hủy</button>
+          )}
+
+          {rows === null ? (
+            <button
+              onClick={handleParse}
+              disabled={!text.trim()}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+            >
+              Xem trước →
+            </button>
+          ) : (
+            <button
+              onClick={handleSave}
+              disabled={saving || newRows.length === 0}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              Thêm {newRows.length} chủ đề
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function TopicsPage() {
   const { canDelete, user } = useAuth()
@@ -16,6 +162,7 @@ export default function TopicsPage() {
   const [newName, setNewName] = useState('')
   const [newGrade, setNewGrade] = useState('')
   const [adding, setAdding] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [editId, setEditId] = useState(null)
   const [editName, setEditName] = useState('')
   const [editGrade, setEditGrade] = useState('')
@@ -66,12 +213,20 @@ export default function TopicsPage() {
           <p className="text-gray-400 text-sm mt-0.5">{displayed.length} chủ đề</p>
         </div>
         {!adding && (
-          <button
-            onClick={() => setAdding(true)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-          >
-            <Plus size={16} /> Thêm chủ đề
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium transition"
+            >
+              <Upload size={15} /> Nhập hàng loạt
+            </button>
+            <button
+              onClick={() => setAdding(true)}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+            >
+              <Plus size={16} /> Thêm chủ đề
+            </button>
+          </div>
         )}
       </div>
 
@@ -170,6 +325,17 @@ export default function TopicsPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {showImport && (
+        <TopicImportModal
+          grades={gradeValues}
+          existingTopics={topics}
+          defaultGrade={filterGrade !== 'all' ? filterGrade : gradeValues[0]}
+          user={user}
+          onClose={() => setShowImport(false)}
+          onDone={() => { setShowImport(false); refetch() }}
+        />
       )}
     </div>
   )
