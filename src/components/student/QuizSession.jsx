@@ -5,6 +5,7 @@ import { CheckCircle, XCircle, Clock, ChevronRight, RotateCcw, ArrowUp, ArrowDow
 import { normalizeAnswer } from '../../utils/normalizeAnswer'
 import toast from 'react-hot-toast'
 import QuestionText from '../ui/QuestionText'
+import { CodeBlock, CodeBlockWithBlanks } from '../ui/CodeBlock'
 
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
@@ -573,7 +574,7 @@ function FillBlankQuestion({ q, value, onChange, disabled, showResult }) {
         result.push({ type: 'code-with-blanks', lang: m[1] || '', segs, startIdx: blankIdx })
         blankIdx += segs.length - 1
       } else {
-        result.push({ type: 'code', content: code })
+        result.push({ type: 'code', lang: m[1] || '', content: code })
       }
       last = m.index + m[0].length
     }
@@ -625,22 +626,15 @@ function FillBlankQuestion({ q, value, onChange, disabled, showResult }) {
       {tokens.map((token, ti) => {
         if (token.type === 'text') return <span key={ti}>{token.content}</span>
         if (token.type === 'blank') return renderBlank(token.index)
-        if (token.type === 'code') return (
-          <div key={ti} className="block my-2">
-            <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono whitespace-pre overflow-x-auto">
-              <code>{token.content}</code>
-            </pre>
-          </div>
-        )
+        if (token.type === 'code') return <CodeBlock key={ti} lang={token.lang} code={token.content} />
         if (token.type === 'code-with-blanks') return (
-          <div key={ti} className="block my-2 bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono overflow-x-auto">
-            {token.segs.map((seg, si) => (
-              <span key={si}>
-                <span className="whitespace-pre">{seg}</span>
-                {si < token.segs.length - 1 && renderBlank(token.startIdx + si, true)}
-              </span>
-            ))}
-          </div>
+          <CodeBlockWithBlanks
+            key={ti}
+            lang={token.lang}
+            segs={token.segs}
+            startIdx={token.startIdx}
+            renderBlank={idx => renderBlank(idx, true)}
+          />
         )
         return null
       })}
@@ -933,46 +927,36 @@ function DragWordQuestion({ q, value, onChange, disabled }) {
           }
 
           if (token.type === 'code') {
-            return (
-              <div key={ti} className="block my-2">
-                <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono overflow-x-auto whitespace-pre">
-                  <code>{token.content}</code>
-                </pre>
-              </div>
-            )
+            return <CodeBlock key={ti} lang={token.lang} code={token.content} />
           }
 
           if (token.type === 'code-with-blanks') {
             return (
-              <div key={ti} className="block my-2 bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono overflow-x-auto">
-                {token.segs.map((seg, si) => {
-                  const idx = token.startIdx + si
-                  return (
-                    <span key={si}>
-                      <span className="whitespace-pre">{seg}</span>
-                      {si < token.segs.length - 1 && (
-                        <span
-                          onDragOver={e => e.preventDefault()}
-                          onDrop={e => onDropBlank(e, idx)}
-                          onClick={() => handleBlankClick(idx)}
-                          className={`inline-flex items-center mx-1 px-2 py-0.5 rounded border-2 min-w-12 font-semibold transition cursor-pointer select-none
-                            ${filled[idx]
-                              ? 'border-indigo-400 bg-indigo-50 text-indigo-800 hover:border-red-300 hover:bg-red-50'
-                              : activeWord
-                                ? 'border-dashed border-indigo-400 bg-indigo-50/60 text-indigo-300 animate-pulse'
-                                : 'border-dashed border-gray-300 text-gray-300'
-                            }`}
-                        >
-                          {filled[idx]
-                            ? <span draggable={!disabled} onDragStart={e => onDragStartBlank(e, idx)} className="cursor-grab">{filled[idx]}</span>
-                            : <span className="select-none text-gray-300">{'____'}</span>
-                          }
-                        </span>
-                      )}
-                    </span>
-                  )
-                })}
-              </div>
+              <CodeBlockWithBlanks
+                key={ti}
+                lang={token.lang}
+                segs={token.segs}
+                startIdx={token.startIdx}
+                renderBlank={idx => (
+                  <span
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={e => onDropBlank(e, idx)}
+                    onClick={() => handleBlankClick(idx)}
+                    className={`inline-flex items-center mx-1 px-2 py-0.5 rounded border-2 min-w-12 font-semibold transition cursor-pointer select-none
+                      ${filled[idx]
+                        ? 'border-indigo-400 bg-indigo-50 text-indigo-800 hover:border-red-300 hover:bg-red-50'
+                        : activeWord
+                          ? 'border-dashed border-indigo-400 bg-indigo-50/60 text-indigo-300 animate-pulse'
+                          : 'border-dashed border-gray-300 text-gray-300'
+                      }`}
+                  >
+                    {filled[idx]
+                      ? <span draggable={!disabled} onDragStart={e => onDragStartBlank(e, idx)} className="cursor-grab">{filled[idx]}</span>
+                      : <span className="select-none text-gray-300">{'____'}</span>
+                    }
+                  </span>
+                )}
+              />
             )
           }
 

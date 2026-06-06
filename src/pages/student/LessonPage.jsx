@@ -8,13 +8,41 @@ import { uploadFile } from '../../lib/cloudinary'
 import QuestionText from '../../components/ui/QuestionText'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { CodeBlock, CodeBlockWithBlanks } from '../../components/ui/CodeBlock'
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5) }
 
 /* ── DragWordInput ─────────────────────────────────────────── */
 function DragWordInput({ q, value, onChange, disabled }) {
-  const segments = q.question.split('___')
-  const blankCount = segments.length - 1
+  const tokens = useMemo(() => {
+    const result = []; let blankIdx = 0
+    const codeBlockRe = /```(\w*)\n?([\s\S]*?)```/g
+    let last = 0, m
+    function pushText(txt) {
+      txt.split('___').forEach((seg, i, arr) => {
+        if (seg) result.push({ type: 'text', content: seg })
+        if (i < arr.length - 1) result.push({ type: 'blank', index: blankIdx++ })
+      })
+    }
+    while ((m = codeBlockRe.exec(q.question)) !== null) {
+      if (m.index > last) pushText(q.question.slice(last, m.index))
+      const code = m[2].replace(/\n$/, '')
+      if (code.includes('___')) {
+        const segs = code.split('___')
+        result.push({ type: 'code-with-blanks', lang: m[1] || '', segs, startIdx: blankIdx })
+        blankIdx += segs.length - 1
+      } else {
+        result.push({ type: 'code', lang: m[1] || '', content: code })
+      }
+      last = m.index + m[0].length
+    }
+    if (last < q.question.length) pushText(q.question.slice(last))
+    return result
+  }, [q.id, q.question])
+
+  const blankCount = tokens.filter(t => t.type === 'blank').length +
+    tokens.filter(t => t.type === 'code-with-blanks').reduce((a, t) => a + t.segs.length - 1, 0)
+
   const wordBank = useMemo(() => shuffle(q.options || []), [q.id])
   const [filled, setFilled] = useState(() =>
     value ? value.split(',').map(w => w.trim()) : Array(blankCount).fill(null)
@@ -35,26 +63,39 @@ function DragWordInput({ q, value, onChange, disabled }) {
     onChange(hasAny ? next.map(w => w || '').join(',') : null)
   }
 
+  function renderBlank(idx) {
+    return (
+      <button key={`b${idx}`}
+        onClick={() => !disabled && removeWord(idx)}
+        disabled={disabled && !filled[idx]}
+        className={`inline-flex items-center mx-1 px-3 py-0.5 rounded-lg border-2 min-w-12 text-sm font-semibold transition ${
+          filled[idx]
+            ? disabled ? 'border-indigo-300 bg-indigo-50 text-indigo-700 cursor-default'
+              : 'border-indigo-400 bg-indigo-50 text-indigo-800 hover:bg-red-50 hover:border-red-300 hover:text-red-600'
+            : 'border-dashed border-gray-300 text-gray-300 cursor-default'
+        }`}
+      >{filled[idx] || '___'}</button>
+    )
+  }
+
   return (
     <div className="space-y-3">
-      <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 text-sm leading-relaxed text-gray-800">
-        {segments.map((seg, i) => (
-          <span key={i}>
-            {seg}
-            {i < blankCount && (
-              <button
-                onClick={() => !disabled && removeWord(i)}
-                disabled={disabled && !filled[i]}
-                className={`inline-flex items-center mx-1 px-3 py-0.5 rounded-lg border-2 min-w-12 text-sm font-semibold transition ${
-                  filled[i]
-                    ? disabled ? 'border-indigo-300 bg-indigo-50 text-indigo-700 cursor-default'
-                      : 'border-indigo-400 bg-indigo-50 text-indigo-800 hover:bg-red-50 hover:border-red-300 hover:text-red-600'
-                    : 'border-dashed border-gray-300 text-gray-300 cursor-default'
-                }`}
-              >{filled[i] || '___'}</button>
-            )}
-          </span>
-        ))}
+      <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 text-sm leading-relaxed text-gray-800 whitespace-pre-wrap">
+        {tokens.map((token, ti) => {
+          if (token.type === 'text') return <span key={ti}>{token.content}</span>
+          if (token.type === 'blank') return renderBlank(token.index)
+          if (token.type === 'code') return <CodeBlock key={ti} lang={token.lang} code={token.content} />
+          if (token.type === 'code-with-blanks') return (
+            <CodeBlockWithBlanks
+              key={ti}
+              lang={token.lang}
+              segs={token.segs}
+              startIdx={token.startIdx}
+              renderBlank={idx => renderBlank(idx)}
+            />
+          )
+          return null
+        })}
       </div>
       <div>
         <p className="text-xs text-gray-400 mb-2">Bấm từ để điền · Bấm chỗ trống để xóa</p>
@@ -185,7 +226,7 @@ function FillBlankInput({ q, value, onChange, disabled }) {
         result.push({ type: 'code-with-blanks', lang: m[1] || '', segs, startIdx: blankIdx })
         blankIdx += segs.length - 1
       } else {
-        result.push({ type: 'code', content: code })
+        result.push({ type: 'code', lang: m[1] || '', content: code })
       }
       last = m.index + m[0].length
     }
@@ -224,22 +265,15 @@ function FillBlankInput({ q, value, onChange, disabled }) {
       {tokens.map((token, ti) => {
         if (token.type === 'text') return <span key={ti}>{token.content}</span>
         if (token.type === 'blank') return renderBlank(token.index)
-        if (token.type === 'code') return (
-          <div key={ti} className="block my-2">
-            <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono whitespace-pre overflow-x-auto">
-              <code>{token.content}</code>
-            </pre>
-          </div>
-        )
+        if (token.type === 'code') return <CodeBlock key={ti} lang={token.lang} code={token.content} />
         if (token.type === 'code-with-blanks') return (
-          <div key={ti} className="block my-2 bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono overflow-x-auto">
-            {token.segs.map((seg, si) => (
-              <span key={si}>
-                <span className="whitespace-pre">{seg}</span>
-                {si < token.segs.length - 1 && renderBlank(token.startIdx + si, true)}
-              </span>
-            ))}
-          </div>
+          <CodeBlockWithBlanks
+            key={ti}
+            lang={token.lang}
+            segs={token.segs}
+            startIdx={token.startIdx}
+            renderBlank={idx => renderBlank(idx, true)}
+          />
         )
         return null
       })}
