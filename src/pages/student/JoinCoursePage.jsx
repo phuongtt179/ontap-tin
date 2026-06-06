@@ -20,7 +20,8 @@ export default function JoinCoursePage() {
   const [enrollments, setEnrollments] = useState([])
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(null)
-  const [switchingGrade, setSwitchingGrade] = useState(null) // grade đang chọn ca mới
+  const [switchingGrade, setSwitchingGrade] = useState(null)
+  const [cancelingGrade, setCancelingGrade] = useState(null)
 
   useEffect(() => { if (user) loadAll() }, [user?.id])
 
@@ -137,8 +138,8 @@ export default function JoinCoursePage() {
                       )}
                     </div>
 
-                    {/* Đổi ca — chỉ hiện khi có >1 ca */}
-                    {gradeClasses.length > 1 && (
+                    {/* Đổi ca — chỉ hiện khi có >1 ca và không đang xác nhận huỷ */}
+                    {gradeClasses.length > 1 && cancelingGrade !== grade && (
                       switchingGrade === grade ? (
                         <div className="space-y-1.5">
                           <p className="text-xs text-gray-500 px-1">Chọn ca mới:</p>
@@ -157,11 +158,37 @@ export default function JoinCoursePage() {
                             className="w-full text-xs text-gray-400 hover:text-gray-600 py-1">Hủy</button>
                         </div>
                       ) : (
-                        <button onClick={() => setSwitchingGrade(grade)}
+                        <button onClick={() => { setSwitchingGrade(grade); setCancelingGrade(null) }}
                           className="w-full text-xs text-gray-500 hover:text-indigo-600 py-1.5 rounded-lg hover:bg-white transition">
                           Đổi ca học
                         </button>
                       )
+                    )}
+
+                    {/* Huỷ đăng ký khoá */}
+                    {cancelingGrade === grade ? (
+                      <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                        <p className="text-sm font-medium text-red-700 mb-1">Huỷ khoá <strong>{grade}</strong>?</p>
+                        <p className="text-xs text-red-400 mb-3">Bạn sẽ phải đăng ký lại và chờ giáo viên duyệt.</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { handleCancel(enrollment.id); setCancelingGrade(null) }}
+                            className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs font-medium py-1.5 rounded-lg transition">
+                            Xác nhận huỷ
+                          </button>
+                          <button
+                            onClick={() => setCancelingGrade(null)}
+                            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-medium py-1.5 rounded-lg transition">
+                            Không
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setCancelingGrade(grade); setSwitchingGrade(null) }}
+                        className="w-full text-xs text-red-400 hover:text-red-600 py-1.5 rounded-lg hover:bg-red-50 transition">
+                        Huỷ đăng ký khoá này
+                      </button>
                     )}
                   </div>
                 ) : gradeClasses.length > 0 ? (
