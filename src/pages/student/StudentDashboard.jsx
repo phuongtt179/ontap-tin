@@ -1,11 +1,53 @@
 import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useEnrollments } from '../../hooks/useEnrollments'
-import { PenSquare, BarChart2, BookOpen, FileText, LibraryBig, ArrowRight } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import toast from 'react-hot-toast'
+import { PenSquare, BarChart2, BookOpen, FileText, LibraryBig, ArrowRight, CheckSquare, Loader2 } from 'lucide-react'
 
 export default function StudentDashboard() {
   const { profile, user } = useAuth()
   const { enrollments, grades, loading } = useEnrollments(user?.id)
+  const [attendance, setAttendance] = useState(null) // null | { session, checkedIn }
+  const [checkingIn, setCheckingIn] = useState(false)
+
+  useEffect(() => {
+    if (user?.id && enrollments.length > 0) checkAttendance()
+  }, [user?.id, enrollments.length])
+
+  async function checkAttendance() {
+    const { data: sessions } = await supabase
+      .from('attendance_sessions')
+      .select('*')
+      .is('closed_at', null)
+      .limit(1)
+    if (!sessions?.length) { setAttendance(null); return }
+    const session = sessions[0]
+    const { data: record } = await supabase
+      .from('attendance_records')
+      .select('id')
+      .eq('session_id', session.id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    setAttendance({ session, checkedIn: !!record })
+  }
+
+  async function handleCheckIn() {
+    if (!attendance?.session) return
+    setCheckingIn(true)
+    const { error } = await supabase.from('attendance_records').insert({
+      session_id: attendance.session.id,
+      user_id: user.id,
+    })
+    setCheckingIn(false)
+    if (error) {
+      toast.error('Điểm danh thất bại')
+    } else {
+      toast.success('Đã điểm danh thành công!')
+      setAttendance(prev => ({ ...prev, checkedIn: true }))
+    }
+  }
 
   const pendingCount = enrollments.filter(e => !e.is_approved).length
   const hasApproved = grades.length > 0
@@ -41,6 +83,33 @@ export default function StudentDashboard() {
 
       {(loading || hasApproved) && !(!loading && !hasApproved) && (
         <p className="text-gray-500 text-sm mb-6 invisible">placeholder</p>
+      )}
+
+      {/* Attendance widget */}
+      {attendance && (
+        <div className={`mb-6 max-w-xl rounded-xl border-2 px-5 py-4 flex items-center gap-4
+          ${attendance.checkedIn ? 'border-green-300 bg-green-50' : 'border-indigo-300 bg-indigo-50'}`}
+        >
+          <CheckSquare size={24} className={attendance.checkedIn ? 'text-green-600 shrink-0' : 'text-indigo-600 shrink-0'} />
+          <div className="flex-1 min-w-0">
+            <p className={`font-semibold text-sm ${attendance.checkedIn ? 'text-green-800' : 'text-indigo-800'}`}>
+              {attendance.checkedIn ? 'Đã điểm danh hôm nay' : 'Có buổi học đang diễn ra'}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {attendance.session.class_name || attendance.session.grade}
+            </p>
+          </div>
+          {!attendance.checkedIn && (
+            <button
+              onClick={handleCheckIn}
+              disabled={checkingIn}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50 shrink-0"
+            >
+              {checkingIn ? <Loader2 size={14} className="animate-spin" /> : null}
+              Điểm danh
+            </button>
+          )}
+        </div>
       )}
 
       <div className="grid grid-cols-2 gap-3 md:gap-4 max-w-xl">

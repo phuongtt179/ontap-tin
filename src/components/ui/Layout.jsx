@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useEnrollments } from '../../hooks/useEnrollments'
-import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen } from 'lucide-react'
+import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare } from 'lucide-react'
 
 export default function Layout({ children }) {
   const { profile, user, signOut, isTeacher } = useAuth()
@@ -29,6 +29,7 @@ export default function Layout({ children }) {
         { to: '/teacher/classes', icon: <School size={18} />, label: 'Lớp' },
         { to: '/teacher/students', icon: <Users size={18} />, label: 'Học sinh' },
         { to: '/teacher/notes', icon: <NotebookPen size={18} />, label: 'Ghi chú' },
+        { to: '/teacher/attendance', icon: <CheckSquare size={18} />, label: 'Điểm danh' },
         ...(profile?.role === 'teacher' ? [{ to: '/teacher/assistants', icon: <Users size={18} />, label: 'Trợ giảng' }] : []),
       ]
     : [

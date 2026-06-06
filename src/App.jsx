@@ -19,6 +19,7 @@ import LessonsPage from './pages/teacher/LessonsPage'
 import LessonSubmissionsPage from './pages/teacher/LessonSubmissionsPage'
 import AssistantsPage from './pages/teacher/AssistantsPage'
 import StudentNotesPage from './pages/teacher/StudentNotesPage'
+import AttendancePage from './pages/teacher/AttendancePage'
 import StudentDashboard from './pages/student/StudentDashboard'
 import PracticePage from './pages/student/PracticePage'
 import HistoryPage from './pages/student/HistoryPage'
@@ -110,6 +111,11 @@ export default function App() {
           <Route path="/teacher/notes" element={
             <ProtectedRoute role="teacher">
               <Layout><StudentNotesPage /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/teacher/attendance" element={
+            <ProtectedRoute role="teacher">
+              <Layout><AttendancePage /></Layout>
             </ProtectedRoute>
           } />
 
