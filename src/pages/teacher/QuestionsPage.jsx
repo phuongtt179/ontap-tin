@@ -16,31 +16,27 @@ export default function QuestionsPage() {
 
   const [selectedGrade, setSelectedGrade] = useState('')
   const [selectedTopic, setSelectedTopic] = useState('')
-  const [allQuestions, setAllQuestions] = useState([])   // tất cả câu hỏi của grade đang chọn
+  const [allQuestions, setAllQuestions] = useState([])
   const [loading, setLoading] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
 
-  // Chọn grade + topic mặc định khi dữ liệu đã tải
+  // Chọn mặc định khi dữ liệu sẵn sàng
   useEffect(() => {
     if (GRADES.length > 0 && topics.length > 0 && !selectedGrade) {
-      const firstGrade = GRADES[0]
-      const firstTopic = topics.find(t => t.grade === firstGrade || t.grade === 'all')
-      setSelectedGrade(firstGrade)
-      if (firstTopic) setSelectedTopic(firstTopic.name)
+      const g = GRADES[0]
+      const t = topics.find(t => t.grade === g || t.grade === 'all')
+      setSelectedGrade(g)
+      if (t) setSelectedTopic(t.name)
     }
   }, [GRADES, topics])
 
-  // Tải câu hỏi khi grade thay đổi
-  useEffect(() => {
-    if (selectedGrade) fetchQuestions()
-  }, [selectedGrade])
+  useEffect(() => { if (selectedGrade) fetchQuestions() }, [selectedGrade])
 
   async function fetchQuestions() {
     setLoading(true)
     const { data, error } = await supabase
-      .from('questions')
-      .select('*')
+      .from('questions').select('*')
       .eq('grade', selectedGrade)
       .order('created_at', { ascending: false })
     if (error) toast.error('Lỗi tải câu hỏi')
@@ -50,24 +46,21 @@ export default function QuestionsPage() {
 
   function handleGradeChange(grade) {
     setSelectedGrade(grade)
-    const gradeTopics = topics.filter(t => t.grade === grade || t.grade === 'all')
-    setSelectedTopic(gradeTopics[0]?.name || '')
+    const first = topics.find(t => t.grade === grade || t.grade === 'all')
+    setSelectedTopic(first?.name || '')
   }
 
-  // Topics của grade đang chọn
   const gradeTopics = useMemo(
     () => topics.filter(t => t.grade === selectedGrade || t.grade === 'all'),
     [topics, selectedGrade]
   )
 
-  // Đếm câu hỏi theo chủ đề
   const countByTopic = useMemo(() => {
     const map = {}
     allQuestions.forEach(q => { map[q.topic] = (map[q.topic] || 0) + 1 })
     return map
   }, [allQuestions])
 
-  // Câu hỏi hiện thị bên phải
   const displayedQuestions = useMemo(
     () => selectedTopic ? allQuestions.filter(q => q.topic === selectedTopic) : allQuestions,
     [allQuestions, selectedTopic]
@@ -80,109 +73,107 @@ export default function QuestionsPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-bold text-gray-800">Ngân hàng câu hỏi</h1>
-        <select
-          value={selectedGrade}
-          onChange={e => handleGradeChange(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-        >
-          {GRADES.length === 0 && <option value="">-- Chọn khoá --</option>}
-          {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-        </select>
-      </div>
+    <div className="flex h-full min-h-0">
 
-      {/* Two-panel layout */}
-      <div className="flex gap-4 items-start">
+      {/* ── Sidebar ─────────────────────────────── */}
+      <aside className="w-64 shrink-0 bg-white border-r border-gray-200 flex flex-col min-h-0">
 
-        {/* ── Left: Topic sidebar ── */}
-        <div className="w-52 shrink-0 bg-white border border-gray-200 rounded-xl overflow-hidden sticky top-4">
-          <div className="px-3 py-3 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Chủ đề</p>
-          </div>
-
-          {topicsLoading ? (
-            <div className="p-3 space-y-2">
-              {[1,2,3,4].map(i => <div key={i} className="h-8 bg-gray-100 rounded-lg animate-pulse" />)}
-            </div>
-          ) : gradeTopics.length === 0 ? (
-            <div className="p-4 text-xs text-gray-400 text-center">
-              Chưa có chủ đề nào
-            </div>
-          ) : (
-            <nav className="p-1.5 space-y-0.5 max-h-[calc(100vh-220px)] overflow-y-auto">
-              {gradeTopics.map(t => {
-                const count = countByTopic[t.name] || 0
-                const active = selectedTopic === t.name
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => setSelectedTopic(t.name)}
-                    className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-left text-sm transition
-                      ${active
-                        ? 'bg-indigo-600 text-white font-medium'
-                        : 'text-gray-700 hover:bg-gray-100'}`}
-                  >
-                    <span className="truncate leading-tight">{t.name}</span>
-                    <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full font-medium
-                      ${active ? 'bg-indigo-500 text-indigo-100' : 'bg-gray-100 text-gray-500'}`}>
-                      {loading ? '…' : count}
-                    </span>
-                  </button>
-                )
-              })}
-            </nav>
-          )}
+        {/* Title + grade selector */}
+        <div className="px-4 pt-5 pb-4 border-b border-gray-100">
+          <h1 className="text-lg font-bold text-gray-800 mb-3">Ngân hàng câu hỏi</h1>
+          <select
+            value={selectedGrade}
+            onChange={e => handleGradeChange(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {GRADES.length === 0 && <option value="">-- Chọn khoá --</option>}
+            {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
         </div>
 
-        {/* ── Right: Questions panel ── */}
-        <div className="flex-1 min-w-0">
-          {/* Toolbar */}
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-2 min-w-0">
-              {selectedTopic && (
-                <h2 className="font-semibold text-gray-700 truncate">{selectedTopic}</h2>
-              )}
-              <span className="shrink-0 text-sm text-gray-400">
-                {loading ? '...' : `${displayedQuestions.length} câu hỏi`}
-              </span>
+        {/* Topic list */}
+        <nav className="flex-1 overflow-y-auto py-2 px-2">
+          {topicsLoading ? (
+            <div className="space-y-1 px-1 pt-1">
+              {[1,2,3,4,5].map(i => (
+                <div key={i} className="h-9 bg-gray-100 rounded-lg animate-pulse" />
+              ))}
             </div>
-            <div className="flex gap-2 shrink-0">
-              <button
-                onClick={() => setShowCreate(true)}
-                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg transition text-sm font-medium"
-              >
-                <Plus size={15} /> Tạo câu hỏi
-              </button>
-              <button
-                onClick={() => setShowImport(true)}
-                className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-2 rounded-lg transition text-sm font-medium"
-              >
-                <Upload size={15} /> Nhập
-              </button>
-            </div>
-          </div>
+          ) : gradeTopics.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center px-4 pt-6">Chưa có chủ đề nào</p>
+          ) : (
+            gradeTopics.map(t => {
+              const count = countByTopic[t.name] || 0
+              const active = selectedTopic === t.name
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedTopic(t.name)}
+                  className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-left text-sm mb-0.5 transition
+                    ${active
+                      ? 'bg-indigo-600 text-white font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'}`}
+                >
+                  <span className="leading-tight line-clamp-2">{t.name}</span>
+                  <span className={`shrink-0 min-w-[20px] text-center text-xs px-1.5 py-0.5 rounded-full font-semibold
+                    ${active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                    {loading ? '·' : count}
+                  </span>
+                </button>
+              )
+            })
+          )}
+        </nav>
+      </aside>
 
-          {/* Question list */}
+      {/* ── Main panel ──────────────────────────── */}
+      <div className="flex-1 flex flex-col min-h-0 bg-gray-50">
+
+        {/* Toolbar */}
+        <div className="flex items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-200 shrink-0">
+          <div className="min-w-0">
+            <h2 className="font-semibold text-gray-800 truncate">
+              {selectedTopic || 'Tất cả câu hỏi'}
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {loading ? '...' : `${displayedQuestions.length} câu hỏi`}
+            </p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+            >
+              <Plus size={15} /> Tạo câu hỏi
+            </button>
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-4 py-2 rounded-lg text-sm font-medium transition"
+            >
+              <Upload size={15} /> Nhập
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
-            <div className="flex justify-center py-16">
+            <div className="flex justify-center py-20">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
             </div>
           ) : displayedQuestions.length === 0 ? (
-            <div className="text-center py-20 text-gray-400 bg-white border border-gray-200 rounded-xl">
-              <BookOpen size={36} className="mx-auto mb-3 opacity-20" />
-              <p>Chưa có câu hỏi nào cho chủ đề này</p>
+            <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+              <BookOpen size={40} className="mb-3 opacity-20" />
+              <p className="text-sm">Chưa có câu hỏi nào cho chủ đề này</p>
               <button
                 onClick={() => setShowCreate(true)}
-                className="mt-3 text-sm text-indigo-500 hover:text-indigo-700"
+                className="mt-3 text-sm text-indigo-500 hover:text-indigo-700 font-medium"
               >
                 + Tạo câu hỏi đầu tiên
               </button>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 max-w-4xl">
               {displayedQuestions.map((q, i) => (
                 <QuestionCard
                   key={q.id}
