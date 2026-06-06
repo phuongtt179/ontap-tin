@@ -662,6 +662,12 @@ function MatchingQuestion({ q, value, onChange, disabled }) {
   const [overIdx, setOverIdx] = useState(null)
 
   function buildAnswer(items) {
+    // If arrangement matches original match_options order → return q.correct_answer directly
+    // so normalizeAnswer works regardless of what format correct_answer is stored in
+    const matchOpts = q.match_options || []
+    if (matchOpts.length > 0 && matchOpts.every((m, i) => items[i]?.key === m.key)) {
+      return q.correct_answer
+    }
     return (q.options || []).map((o, i) => items[i] ? `${o.key}-${items[i].key}` : null).filter(Boolean).join(',')
   }
 
@@ -679,7 +685,13 @@ function MatchingQuestion({ q, value, onChange, disabled }) {
   }
   function onDragEnd() { setDragIdx(null); setOverIdx(null) }
 
-  const correctPairs = new Set((q.correct_answer || '').split(',').map(p => p.trim()))
+  // Derive correct pairs from match_options structure (position-based, not string-based)
+  const correctPairs = new Set(
+    (q.options || []).map((o, i) => {
+      const r = (q.match_options || [])[i]
+      return r ? `${o.key}-${r.key}` : null
+    }).filter(Boolean)
+  )
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-4">

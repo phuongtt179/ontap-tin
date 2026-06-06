@@ -139,6 +139,10 @@ function MatchingInput({ q, value, onChange, disabled }) {
   const [overIdx, setOverIdx] = useState(null)
 
   function buildAnswer(items) {
+    const matchOpts = q.match_options || []
+    if (matchOpts.length > 0 && matchOpts.every((m, i) => items[i]?.key === m.key)) {
+      return q.correct_answer
+    }
     return (q.options || []).map((o, i) => items[i] ? `${o.key}-${items[i].key}` : null).filter(Boolean).join(',')
   }
   useEffect(() => { if (!value) onChange(buildAnswer(rightItems)) }, [])
@@ -155,7 +159,12 @@ function MatchingInput({ q, value, onChange, disabled }) {
   }
   function onDragEnd() { setDragIdx(null); setOverIdx(null) }
 
-  const correctPairs = new Set((q.correct_answer || '').split(',').map(p => p.trim()))
+  const correctPairs = new Set(
+    (q.options || []).map((o, i) => {
+      const r = (q.match_options || [])[i]
+      return r ? `${o.key}-${r.key}` : null
+    }).filter(Boolean)
+  )
 
   return (
     <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
