@@ -91,11 +91,68 @@ export function AudioUpload({ value, onChange }) {
   )
 }
 
-export default function QuestionFormModal({ onClose, onDone, defaultGrade, defaultTopic, defaultUnitId }) {
+function initFormFromQuestion(q) {
+  const base = {
+    type: q.type,
+    question: q.question || '',
+    grade: q.grade || '3',
+    topic: q.topic || '',
+    unit_id: q.unit_id || '',
+    difficulty: q.difficulty || 'easy',
+    image_url: q.image_url || '',
+    audio_url: q.audio_url || '',
+    correct_answer: q.correct_answer || '',
+    hint: q.hint || '',
+    // defaults (override per type below)
+    options: q.options?.length ? q.options.map(o => ({ ...o })) : [
+      { key: 'A', text: '', image_url: '' }, { key: 'B', text: '', image_url: '' },
+      { key: 'C', text: '', image_url: '' }, { key: 'D', text: '', image_url: '' },
+    ],
+    pairs: [{ left: '', leftImage: '', right: '', rightImage: '' }, { left: '', leftImage: '', right: '', rightImage: '' }],
+    items: ['', '', ''],
+    drag_answers: [''],
+    drag_distractors: ['', ''],
+    fill_answers: [''],
+    allow_file: false,
+    essay_max_score: 1,
+  }
+  if (q.type === 'matching' && q.options?.length) {
+    base.pairs = q.options.map((o, i) => ({
+      left: o.text || '', leftImage: o.image_url || '',
+      right: q.match_options?.[i]?.text || '', rightImage: q.match_options?.[i]?.image_url || '',
+    }))
+  }
+  if (q.type === 'ordering' && q.options?.length) {
+    base.items = q.options.map(o => o.text || '')
+  }
+  if (q.type === 'drag_word') {
+    const correctWords = (q.correct_answer || '').split(',').map(s => s.trim())
+    base.drag_answers = correctWords.length ? correctWords : ['']
+    const correctSet = new Set(correctWords)
+    base.drag_distractors = q.options?.filter(o => !correctSet.has(o.text)).map(o => o.text) || ['', '']
+    if (!base.drag_distractors.length) base.drag_distractors = ['', '']
+  }
+  if (q.type === 'word_order') {
+    const correctWords = new Set((q.correct_answer || '').trim().split(/\s+/).filter(Boolean))
+    base.drag_distractors = q.options?.filter(o => !correctWords.has(o.text)).map(o => o.text) || ['', '']
+    if (!base.drag_distractors.length) base.drag_distractors = ['', '']
+  }
+  if (q.type === 'fill_blank' && q.correct_answer) {
+    base.fill_answers = q.correct_answer.split(',').map(s => s.trim())
+  }
+  if (q.type === 'essay') {
+    base.allow_file = q.options?.[0]?.allow_file || false
+    base.essay_max_score = q.options?.[0]?.max_score || 1
+  }
+  return base
+}
+
+export default function QuestionFormModal({ onClose, onDone, defaultGrade, defaultTopic, defaultUnitId, question: editQuestion }) {
+  const isEdit = !!editQuestion
   const { user } = useAuth()
   const { topics } = useTopics()
   const { grades: GRADES } = useGrades()
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => editQuestion ? initFormFromQuestion(editQuestion) : {
     type: 'multiple_choice',
     question: '',
     grade: defaultGrade || '3',
@@ -105,10 +162,8 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
     image_url: '',
     audio_url: '',
     options: [
-      { key: 'A', text: '', image_url: '' },
-      { key: 'B', text: '', image_url: '' },
-      { key: 'C', text: '', image_url: '' },
-      { key: 'D', text: '', image_url: '' },
+      { key: 'A', text: '', image_url: '' }, { key: 'B', text: '', image_url: '' },
+      { key: 'C', text: '', image_url: '' }, { key: 'D', text: '', image_url: '' },
     ],
     correct_answer: '',
     pairs: [
@@ -201,7 +256,7 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
     const specific = buildPayload()
     if (!specific) return
     setSaving(true)
-    const { error } = await supabase.from('questions').insert({
+    const payload = {
       type: form.type,
       question: form.question.trim(),
       grade: form.grade,
@@ -211,12 +266,14 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
       audio_url: form.audio_url || null,
       hint: form.hint.trim() || null,
       unit_id: form.unit_id || null,
-      created_by: user.id,
       ...specific,
-    })
+    }
+    const { error } = isEdit
+      ? await supabase.from('questions').update(payload).eq('id', editQuestion.id)
+      : await supabase.from('questions').insert({ ...payload, created_by: user.id })
     setSaving(false)
-    if (error) toast.error('Thêm thất bại: ' + error.message)
-    else { toast.success('Đã thêm câu hỏi'); onDone() }
+    if (error) toast.error((isEdit ? 'Cập nhật' : 'Thêm') + ' thất bại: ' + error.message)
+    else { toast.success(isEdit ? 'Đã cập nhật câu hỏi' : 'Đã thêm câu hỏi'); onDone() }
   }
 
   function setOption(i, field, value) {
@@ -244,7 +301,7 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
-          <h2 className="text-base font-bold text-gray-800">Thêm câu hỏi</h2>
+          <h2 className="text-base font-bold text-gray-800">{isEdit ? 'Sửa câu hỏi' : 'Thêm câu hỏi'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
         </div>
 
@@ -253,8 +310,8 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
           <div className="flex flex-wrap gap-2">
             {TYPES.map(t => (
               <button key={t.value}
-                onClick={() => setForm({ ...form, type: t.value, correct_answer: '' })}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition ${form.type === t.value ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                onClick={() => !isEdit && setForm({ ...form, type: t.value, correct_answer: '' })}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition ${form.type === t.value ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'} ${isEdit ? 'cursor-default' : ''}`}>
                 {t.label}
               </button>
             ))}
@@ -631,7 +688,7 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
           <button onClick={handleSave} disabled={saving || !form.question.trim()}
             className="flex items-center gap-2 px-5 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 transition">
             {saving && <Loader2 size={14} className="animate-spin" />}
-            Thêm câu hỏi
+            {isEdit ? 'Lưu thay đổi' : 'Thêm câu hỏi'}
           </button>
         </div>
       </div>
