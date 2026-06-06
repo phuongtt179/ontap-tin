@@ -749,8 +749,40 @@ function OrderingQuestion({ q, value, onChange, disabled }) {
 
 // Kéo thả từ vào chỗ trống — hỗ trợ cả click lẫn drag-and-drop
 function DragWordQuestion({ q, value, onChange, disabled }) {
-  const segments = q.question.split('___')
-  const blankCount = segments.length - 1
+  // Tokenize question thành text / blank / code / code-with-blanks
+  const tokens = useMemo(() => {
+    const result = []
+    let blankIdx = 0
+    const codeBlockRe = /```(\w*)\n?([\s\S]*?)```/g
+    let last = 0, m
+
+    function pushText(txt) {
+      const segs = txt.split('___')
+      segs.forEach((seg, i) => {
+        if (seg) result.push({ type: 'text', content: seg })
+        if (i < segs.length - 1) result.push({ type: 'blank', index: blankIdx++ })
+      })
+    }
+
+    while ((m = codeBlockRe.exec(q.question)) !== null) {
+      if (m.index > last) pushText(q.question.slice(last, m.index))
+      const codeContent = m[2].replace(/\n$/, '')
+      if (codeContent.includes('___')) {
+        const segs = codeContent.split('___')
+        result.push({ type: 'code-with-blanks', lang: m[1] || '', segs, startIdx: blankIdx })
+        blankIdx += segs.length - 1
+      } else {
+        result.push({ type: 'code', lang: m[1] || '', content: codeContent })
+      }
+      last = m.index + m[0].length
+    }
+    if (last < q.question.length) pushText(q.question.slice(last))
+    return result
+  }, [q.id, q.question])
+
+  const blankCount = tokens.filter(t => t.type === 'blank' || t.type === 'code-with-blanks').reduce(
+    (acc, t) => acc + (t.type === 'blank' ? 1 : t.segs.length - 1), 0
+  )
   const wordBank = useMemo(() => shuffle(q.options || []), [q.id])
 
   const [filled, setFilled] = useState(() => {
@@ -827,30 +859,78 @@ function DragWordQuestion({ q, value, onChange, disabled }) {
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-gray-200 p-5 text-base leading-loose text-gray-800 whitespace-pre-wrap">
-        {segments.map((seg, i) => (
-          <span key={i}>
-            <span>{seg}</span>
-            {i < blankCount && (
-              <span
+        {tokens.map((token, ti) => {
+          if (token.type === 'text') return <span key={ti}>{token.content}</span>
+
+          if (token.type === 'blank') {
+            const idx = token.index
+            return (
+              <span key={ti}
                 onDragOver={e => e.preventDefault()}
-                onDrop={e => onDropBlank(e, i)}
-                onClick={() => handleBlankClick(i)}
+                onDrop={e => onDropBlank(e, idx)}
+                onClick={() => handleBlankClick(idx)}
                 className={`inline-flex items-center mx-1 px-3 py-0.5 rounded-lg border-2 min-w-16 text-sm font-semibold transition cursor-pointer select-none
-                  ${filled[i]
+                  ${filled[idx]
                     ? 'border-indigo-400 bg-indigo-50 text-indigo-800 hover:border-red-300 hover:bg-red-50'
                     : activeWord
                       ? 'border-dashed border-indigo-400 bg-indigo-50/60 text-indigo-300 animate-pulse'
                       : 'border-dashed border-gray-300 text-gray-300'
                   }`}
               >
-                {filled[i]
-                  ? <span draggable={!disabled} onDragStart={e => onDragStartBlank(e, i)} className="cursor-grab">{filled[i]}</span>
+                {filled[idx]
+                  ? <span draggable={!disabled} onDragStart={e => onDragStartBlank(e, idx)} className="cursor-grab">{filled[idx]}</span>
                   : <span className="select-none text-gray-300">{'____'}</span>
                 }
               </span>
-            )}
-          </span>
-        ))}
+            )
+          }
+
+          if (token.type === 'code') {
+            return (
+              <div key={ti} className="block my-2">
+                <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono overflow-x-auto whitespace-pre">
+                  <code>{token.content}</code>
+                </pre>
+              </div>
+            )
+          }
+
+          if (token.type === 'code-with-blanks') {
+            return (
+              <div key={ti} className="block my-2 bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono overflow-x-auto">
+                {token.segs.map((seg, si) => {
+                  const idx = token.startIdx + si
+                  return (
+                    <span key={si}>
+                      <span className="whitespace-pre">{seg}</span>
+                      {si < token.segs.length - 1 && (
+                        <span
+                          onDragOver={e => e.preventDefault()}
+                          onDrop={e => onDropBlank(e, idx)}
+                          onClick={() => handleBlankClick(idx)}
+                          className={`inline-flex items-center mx-1 px-2 py-0.5 rounded border-2 min-w-12 font-semibold transition cursor-pointer select-none
+                            ${filled[idx]
+                              ? 'border-indigo-400 bg-indigo-50 text-indigo-800 hover:border-red-300 hover:bg-red-50'
+                              : activeWord
+                                ? 'border-dashed border-indigo-400 bg-indigo-50/60 text-indigo-300 animate-pulse'
+                                : 'border-dashed border-gray-300 text-gray-300'
+                            }`}
+                        >
+                          {filled[idx]
+                            ? <span draggable={!disabled} onDragStart={e => onDragStartBlank(e, idx)} className="cursor-grab">{filled[idx]}</span>
+                            : <span className="select-none text-gray-300">{'____'}</span>
+                          }
+                        </span>
+                      )}
+                    </span>
+                  )
+                })}
+              </div>
+            )
+          }
+
+          return null
+        })}
       </div>
 
       <div onDragOver={e => e.preventDefault()} onDrop={onDropBank}>
