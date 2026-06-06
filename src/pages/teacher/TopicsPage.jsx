@@ -342,6 +342,8 @@ export default function TopicsPage() {
   const [editId, setEditId] = useState(null)
   const [editName, setEditName] = useState('')
   const [editGrade, setEditGrade] = useState('')
+  const [editOldName, setEditOldName] = useState('')
+  const [editOldGrade, setEditOldGrade] = useState('')
   const [unitTopic, setUnitTopic] = useState(null) // topic object for UnitManagerModal
   const [unitCounts, setUnitCounts] = useState({}) // topicName+grade → count
 
@@ -371,9 +373,27 @@ export default function TopicsPage() {
 
   async function handleUpdate(id) {
     if (!editName.trim()) return
-    const { error } = await supabase.from('topics').update({ name: editName.trim(), grade: editGrade }).eq('id', id)
-    if (error) toast.error('Cập nhật thất bại')
-    else { toast.success('Đã cập nhật'); setEditId(null); refetch() }
+    const newName = editName.trim()
+    const newGrade = editGrade
+    const { error } = await supabase.from('topics').update({ name: newName, grade: newGrade }).eq('id', id)
+    if (error) { toast.error('Cập nhật thất bại'); return }
+    const cascades = []
+    if (newName !== editOldName) {
+      cascades.push(
+        supabase.from('lessons').update({ topic: newName }).eq('topic', editOldName).eq('grade', editOldGrade),
+        supabase.from('units').update({ topic: newName }).eq('topic', editOldName).eq('grade', editOldGrade),
+        supabase.from('questions').update({ topic: newName }).eq('topic', editOldName).eq('grade', editOldGrade),
+      )
+    }
+    if (newGrade !== editOldGrade) {
+      cascades.push(
+        supabase.from('units').update({ grade: newGrade }).eq('topic', newName).eq('grade', editOldGrade),
+      )
+    }
+    if (cascades.length) await Promise.all(cascades)
+    toast.success('Đã cập nhật')
+    setEditId(null)
+    refetch()
   }
 
   async function handleDelete(id, name) {
@@ -442,13 +462,13 @@ export default function TopicsPage() {
                 {editId === topic.id ? (
                   <>
                     <input autoFocus value={editName} onChange={e => setEditName(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleUpdate(topic.id)}
+                      onKeyDown={e => e.key === 'Enter' && handleUpdate(topic.id, topic.name, topic.grade)}
                       className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     <select value={editGrade} onChange={e => setEditGrade(e.target.value)}
                       className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                       {GRADES.slice(1).map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
                     </select>
-                    <button onClick={() => handleUpdate(topic.id)} className="text-green-600 hover:text-green-700 p-1"><Check size={16} /></button>
+                    <button onClick={() => handleUpdate(topic.id, topic.name, topic.grade)} className="text-green-600 hover:text-green-700 p-1"><Check size={16} /></button>
                     <button onClick={() => setEditId(null)} className="text-gray-400 hover:text-gray-600 p-1"><X size={16} /></button>
                   </>
                 ) : (
@@ -465,7 +485,7 @@ export default function TopicsPage() {
                       <BookOpen size={12} />
                       {unitCount > 0 ? `${unitCount} bài` : 'Thêm bài'}
                     </button>
-                    <button onClick={() => { setEditId(topic.id); setEditName(topic.name); setEditGrade(topic.grade) }}
+                    <button onClick={() => { setEditId(topic.id); setEditName(topic.name); setEditGrade(topic.grade); setEditOldName(topic.name); setEditOldGrade(topic.grade) }}
                       className="text-gray-400 hover:text-indigo-600 p-1 transition"><Pencil size={15} /></button>
                     {canDelete && (
                       <button onClick={() => handleDelete(topic.id, topic.name)}

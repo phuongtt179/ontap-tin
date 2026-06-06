@@ -71,6 +71,8 @@ export default function GradesPage() {
       supabase.from('questions').update({ grade: val }).eq('grade', oldValue),
       supabase.from('exams').update({ grade: val }).eq('grade', oldValue),
       supabase.from('lessons').update({ grade: val }).eq('grade', oldValue),
+      supabase.from('topics').update({ grade: val }).eq('grade', oldValue),
+      supabase.from('units').update({ grade: val }).eq('grade', oldValue),
     ])
     setSaving(false)
     setEditGrade(null)
