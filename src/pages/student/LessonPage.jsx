@@ -164,26 +164,62 @@ function OrderingInput({ q, value, onChange, disabled }) {
     return shuffle(q.options || [])
   })
   useEffect(() => { if (!value) onChange(items.map(o => o.key).join(',')) }, [])
+  const [dragIdx, setDragIdx] = useState(null)
+  const [overIdx, setOverIdx] = useState(null)
+
+  function commit(next) { setItems(next); onChange(next.map(o => o.key).join(',')) }
 
   function move(index, dir) {
     const next = [...items]; const target = index + dir
     if (target < 0 || target >= next.length) return
     ;[next[index], next[target]] = [next[target], next[index]]
-    setItems(next); onChange(next.map(o => o.key).join(','))
+    commit(next)
   }
+
+  function onDragStart(i) { setDragIdx(i) }
+  function onDragOver(e, i) { e.preventDefault(); setOverIdx(i) }
+  function onDrop(i) {
+    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setOverIdx(null); return }
+    const next = [...items]
+    const [moved] = next.splice(dragIdx, 1)
+    next.splice(i, 0, moved)
+    commit(next)
+    setDragIdx(null); setOverIdx(null)
+  }
+  function onDragEnd() { setDragIdx(null); setOverIdx(null) }
 
   return (
     <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
-      <p className="text-xs text-gray-400 mb-3">Sắp xếp theo thứ tự đúng bằng cách bấm ↑ ↓</p>
+      <p className="text-xs text-gray-400 mb-3">Kéo thả để sắp xếp · hoặc bấm ↑ ↓</p>
       <div className="space-y-2">
         {items.map((opt, i) => (
-          <div key={opt.key} className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
-            <span className="flex-1 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-800">{opt.text}</span>
-            <div className="flex flex-col gap-0.5">
-              <button onClick={() => move(i, -1)} disabled={disabled || i === 0} className="text-gray-400 hover:text-indigo-600 disabled:opacity-20"><ArrowUp size={14} /></button>
-              <button onClick={() => move(i, 1)} disabled={disabled || i === items.length - 1} className="text-gray-400 hover:text-indigo-600 disabled:opacity-20"><ArrowDown size={14} /></button>
-            </div>
+          <div
+            key={opt.key}
+            draggable={!disabled}
+            onDragStart={() => onDragStart(i)}
+            onDragOver={e => onDragOver(e, i)}
+            onDrop={() => onDrop(i)}
+            onDragEnd={onDragEnd}
+            className={`flex items-center gap-2 rounded-xl border-2 transition cursor-grab active:cursor-grabbing
+              ${dragIdx === i ? 'opacity-40 border-indigo-300 bg-indigo-50' :
+                overIdx === i ? 'border-indigo-400 bg-indigo-50 scale-[1.01]' :
+                'border-gray-200 bg-white hover:border-indigo-200'}`}
+          >
+            <span className="w-8 h-full flex items-center justify-center text-gray-300 px-2 py-3 shrink-0 select-none text-lg leading-none">⠿</span>
+            <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0 select-none">{i + 1}</span>
+            <span className="flex-1 py-2 pr-2 text-sm text-gray-800 select-none">{opt.text}</span>
+            {!disabled && (
+              <div className="flex flex-col gap-0.5 pr-2 shrink-0">
+                <button onClick={e => { e.stopPropagation(); move(i, -1) }} disabled={i === 0}
+                  className="text-gray-300 hover:text-indigo-500 disabled:opacity-20 transition p-0.5">
+                  <ArrowUp size={13} />
+                </button>
+                <button onClick={e => { e.stopPropagation(); move(i, 1) }} disabled={i === items.length - 1}
+                  className="text-gray-300 hover:text-indigo-500 disabled:opacity-20 transition p-0.5">
+                  <ArrowDown size={13} />
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
