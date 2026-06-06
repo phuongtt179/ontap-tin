@@ -887,7 +887,17 @@ function DragWordQuestion({ q, value, onChange, disabled }) {
 
 // Sắp xếp từ thành câu hoàn chỉnh
 function WordOrderQuestion({ q, value, onChange, disabled }) {
-  const wordBank = useMemo(() => shuffle(normalizeOptions(q.options)), [q.id])
+  // Fallback: nếu options rỗng nhưng correct_answer có, tự tách thành từ
+  const resolvedOptions = useMemo(() => {
+    const opts = normalizeOptions(q.options)
+    if (opts.length > 0) return opts
+    if (q.correct_answer) {
+      const words = q.correct_answer.trim().split(/\s+/).filter(Boolean)
+      return words.map((text, i) => ({ key: String.fromCharCode(65 + i), text }))
+    }
+    return []
+  }, [q.id])
+  const wordBank = useMemo(() => shuffle(resolvedOptions), [q.id])
   const [ordered, setOrdered] = useState(() => {
     if (value) return value.split(',').map(w => w.trim()).filter(Boolean)
     return []
