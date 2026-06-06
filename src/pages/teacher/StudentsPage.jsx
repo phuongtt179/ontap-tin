@@ -892,7 +892,8 @@ export default function StudentsPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 w-10">#</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Họ và tên</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Email đăng nhập</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Khoá học / Ca</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Khoá học</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Ca học</th>
                 <th className="px-4 py-3 w-24" />
               </tr>
             </thead>
@@ -925,10 +926,22 @@ export default function StudentsPage() {
                       {(s.enrollments || []).length > 0
                         ? (s.enrollments || []).map(e => (
                             <span key={e.id} className={`text-xs px-2 py-0.5 rounded-full font-medium ${gradeColors[e.grade] || 'bg-gray-100 text-gray-600'}`}>
-                              {e.class_name || e.grade}
+                              {e.grade}
                               {!e.is_approved && <span className="ml-1 opacity-60">(chờ)</span>}
                             </span>
                           ))
+                        : <span className="text-gray-300 text-xs">—</span>
+                      }
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {(s.enrollments || []).some(e => e.class_name)
+                        ? (s.enrollments || []).map(e => e.class_name ? (
+                            <span key={e.id} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
+                              {e.class_name}
+                            </span>
+                          ) : null)
                         : <span className="text-gray-300 text-xs">—</span>
                       }
                     </div>
