@@ -31,17 +31,23 @@ export default function TeacherDashboard() {
 
   async function fetchActions() {
     const [
-      { count: pendingStudents },
+      { data: pendingProfileUsers },
+      { data: pendingEnrollUsers },
       { count: pendingSubmissions },
       { data: openSessions, error: sessErr },
     ] = await Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact', head: true })
-        .eq('role', 'student').eq('is_approved', false),
+      supabase.from('profiles').select('id').eq('role', 'student').eq('is_approved', false),
+      supabase.from('student_enrollments').select('user_id').eq('is_approved', false),
       supabase.from('lesson_submissions').select('id', { count: 'exact', head: true })
         .is('reviewed_at', null),
       supabase.from('attendance_sessions').select('id, grade, class_name, opened_at')
         .is('closed_at', null),
     ])
+    const pendingUserIds = new Set([
+      ...(pendingProfileUsers || []).map(p => p.id),
+      ...(pendingEnrollUsers || []).map(e => e.user_id),
+    ])
+    const pendingStudents = pendingUserIds.size
 
     let openAttendees = 0
     if (!sessErr && openSessions?.length > 0) {
