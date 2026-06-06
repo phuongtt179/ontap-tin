@@ -191,6 +191,74 @@ function OrderingInput({ q, value, onChange, disabled }) {
   )
 }
 
+/* ── WordOrderInput ─────────────────────────────────────────── */
+function WordOrderInput({ q, value, onChange, disabled }) {
+  // Nếu options rỗng, tách từ correct_answer làm ngân hàng từ
+  const bankWords = useMemo(() => {
+    const opts = (q.options || []).filter(o => o && o.text)
+    if (opts.length > 0) return shuffle(opts.map(o => o.text))
+    if (q.correct_answer) {
+      const words = q.correct_answer.trim().split(/\s+/).filter(Boolean)
+      return shuffle(words)
+    }
+    return []
+  }, [q.id])
+
+  const [ordered, setOrdered] = useState(() =>
+    value ? value.split(',').map(w => w.trim()).filter(Boolean) : []
+  )
+  const usedSet = useMemo(() => new Set(ordered), [ordered])
+
+  function handleBankClick(word) {
+    if (disabled || usedSet.has(word)) return
+    const next = [...ordered, word]
+    setOrdered(next)
+    onChange(next.join(','))
+  }
+
+  function handleRemove(idx) {
+    if (disabled) return
+    const next = ordered.filter((_, i) => i !== idx)
+    setOrdered(next)
+    onChange(next.length ? next.join(',') : null)
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Ordered area */}
+      <div className="min-h-12 p-3 rounded-xl border-2 border-indigo-200 bg-indigo-50/30 flex flex-wrap gap-2 items-center">
+        {ordered.length === 0
+          ? <span className="text-sm text-gray-300 select-none">Bấm từ bên dưới để ghép thành câu...</span>
+          : ordered.map((word, i) => (
+            <button key={i} onClick={() => handleRemove(i)} disabled={disabled}
+              className="px-3 py-1.5 rounded-lg border-2 border-indigo-400 bg-white text-indigo-800 text-sm font-medium hover:bg-red-50 hover:border-red-300 transition select-none">
+              {word}
+            </button>
+          ))
+        }
+      </div>
+
+      {/* Word bank */}
+      <div>
+        <p className="text-xs text-gray-400 mb-2">Bấm từ để thêm · bấm từ đã chọn để xoá</p>
+        <div className="flex flex-wrap gap-2 p-3 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50">
+          {bankWords.map((word, i) => {
+            const used = usedSet.has(word)
+            return (
+              <button key={i} onClick={() => handleBankClick(word)} disabled={disabled || used}
+                className={`px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition select-none
+                  ${used ? 'border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed opacity-50'
+                         : 'border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50 cursor-pointer'}`}>
+                {word}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── Helpers ───────────────────────────────────────────────── */
 function parseTasks(instructions) {
   if (!instructions) return [{ instructions: '' }]
@@ -210,10 +278,15 @@ function getEmbedUrl(url) {
 }
 
 function checkAnswer(type, ans, correct) {
+  if (type === 'essay') return true // không chấm tự động
   if (!ans || !correct) return false
   if (type === 'matching') {
     const norm = s => s.split(',').map(p => p.trim()).sort().join(',')
     return norm(ans) === norm(correct)
+  }
+  if (type === 'word_order') {
+    const sentence = ans.split(',').map(w => w.trim()).join(' ')
+    return sentence.toLowerCase() === correct.trim().toLowerCase()
   }
   if (type === 'drag_word' || (type === 'fill_blank' && correct.includes(','))) {
     const a = ans.split(',').map(w => w.trim().toLowerCase())
@@ -334,7 +407,8 @@ function LessonQuiz({ questions, onSubmit }) {
   const isLast = current === questions.length - 1
 
   function handleConfirm() {
-    if (!answer) return
+    if (!answer && q.type !== 'essay') return
+    if (q.type === 'essay' && !answer?.trim()) return
     setConfirmed(true)
   }
 
@@ -495,14 +569,48 @@ function LessonQuiz({ questions, onSubmit }) {
         {q.type === 'ordering' && (
           <OrderingInput key={current} q={q} value={answer || ''} onChange={setAnswer} disabled={confirmed} />
         )}
+        {q.type === 'word_order' && (
+          <WordOrderInput key={current} q={q} value={answer || ''} onChange={setAnswer} disabled={confirmed} />
+        )}
+
+        {q.type === 'essay' && (
+          <div className="space-y-2">
+            <textarea
+              value={answer || ''}
+              onChange={e => setAnswer(e.target.value || null)}
+              disabled={confirmed}
+              rows={4}
+              placeholder="Nhập câu trả lời của bạn..."
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none disabled:bg-gray-50"
+            />
+            {confirmed && q.correct_answer && (
+              <div className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                <strong>Đáp án mẫu:</strong> {q.correct_answer}
+              </div>
+            )}
+            {!confirmed && <p className="text-xs text-gray-400">Câu tự luận — giáo viên sẽ xem xét sau</p>}
+          </div>
+        )}
 
         {/* Feedback */}
-        {confirmed && (
+        {confirmed && q.type !== 'essay' && (
           <div className={`mt-3 flex items-center gap-2 text-sm font-medium rounded-lg px-3 py-2 ${isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
             {isCorrect
               ? <><CheckCircle size={15} /> Chính xác!</>
-              : <><span>✗</span> Sai rồi! Đáp án đúng: <strong>{q.correct_answer}</strong></>
+              : <>
+                  <span>✗</span> Sai rồi! Đáp án đúng:{' '}
+                  <strong>
+                    {q.type === 'word_order'
+                      ? q.correct_answer
+                      : q.correct_answer}
+                  </strong>
+                </>
             }
+          </div>
+        )}
+        {confirmed && q.type === 'essay' && (
+          <div className="mt-3 flex items-center gap-2 text-sm font-medium rounded-lg px-3 py-2 bg-blue-50 text-blue-700">
+            <CheckCircle size={15} /> Đã ghi nhận câu trả lời
           </div>
         )}
 
