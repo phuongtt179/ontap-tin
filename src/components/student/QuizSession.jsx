@@ -303,7 +303,9 @@ export default function QuizSession({
             {q.image_url && (
               <img src={q.image_url} alt="" className="rounded-lg mb-4 max-h-48 w-auto" />
             )}
-            <QuestionText text={q.question} className="text-gray-800 font-medium text-base leading-relaxed" />
+            {q.type !== 'drag_word' && q.type !== 'fill_blank' && (
+              <QuestionText text={q.question} className="text-gray-800 font-medium text-base leading-relaxed" />
+            )}
           </div>
 
           {/* Khu vực đáp án */}

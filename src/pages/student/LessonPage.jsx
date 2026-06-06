@@ -606,9 +606,11 @@ function LessonQuiz({ questions, onSubmit }) {
 
       {/* Question card */}
       <div className={`rounded-xl border p-4 transition ${confirmed ? isCorrect ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'}`}>
-        <div className="text-sm font-medium text-gray-800 mb-3">
-          <QuestionText text={q.question} />
-        </div>
+        {q.type !== 'drag_word' && q.type !== 'fill_blank' && (
+          <div className="text-sm font-medium text-gray-800 mb-3">
+            <QuestionText text={q.question} />
+          </div>
+        )}
         {q.image_url && (
           <img src={q.image_url} alt="" className="mb-3 rounded-lg max-h-40 object-contain border" />
         )}
