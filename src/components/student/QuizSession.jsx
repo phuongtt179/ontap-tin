@@ -333,53 +333,16 @@ export default function QuizSession({
               />
             ))}
 
-            {q.type === 'fill_blank' && (() => {
-              const correctAnswers = (q.correct_answer || '').split(',')
-              const blanksCount = correctAnswers.length
-              const currentAnswers = selected ? selected.split(',') : Array(blanksCount).fill('')
-              if (blanksCount === 1) {
-                return (
-                  <input
-                    value={selected || ''}
-                    onChange={e => handleSelect(e.target.value)}
-                    disabled={confirmed && showAnswer}
-                    placeholder="Nhập câu trả lời..."
-                    className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-indigo-500 disabled:bg-gray-50"
-                  />
-                )
-              }
-              return (
-                <div className="space-y-2">
-                  {Array.from({ length: blanksCount }).map((_, i) => {
-                    const ans = currentAnswers[i] || ''
-                    const isCorrect = ans.trim().toLowerCase() === (correctAnswers[i] || '').trim().toLowerCase()
-                    return (
-                      <div key={i} className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
-                        <input
-                          value={ans}
-                          onChange={e => {
-                            const newAnswers = [...currentAnswers]
-                            newAnswers[i] = e.target.value
-                            handleSelect(newAnswers.join(','))
-                          }}
-                          disabled={confirmed && showAnswer}
-                          placeholder={`Chỗ trống ${i + 1}`}
-                          className={`flex-1 border-2 rounded-xl px-4 py-2 text-base focus:outline-none disabled:bg-gray-50 ${
-                            confirmed && showAnswer
-                              ? isCorrect ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50'
-                              : 'border-gray-300 focus:border-indigo-500'
-                          }`}
-                        />
-                        {confirmed && showAnswer && !isCorrect && (
-                          <span className="text-red-500 text-xs shrink-0">→ {correctAnswers[i]}</span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )
-            })()}
+            {q.type === 'fill_blank' && (
+              <FillBlankQuestion
+                key={current}
+                q={q}
+                value={selected}
+                onChange={handleSelect}
+                disabled={confirmed && showAnswer}
+                showResult={confirmed && showAnswer}
+              />
+            )}
 
             {q.type === 'matching' && (
               <MatchingQuestion
@@ -587,104 +550,186 @@ const PAIR_COLORS = [
   { cls: 'border-teal-400 bg-teal-50 text-teal-800',   label: 'text-teal-600' },
 ]
 
+function FillBlankQuestion({ q, value, onChange, disabled, showResult }) {
+  const correctAnswers = useMemo(() => (q.correct_answer || '').split(',').map(s => s.trim()), [q.id])
+
+  const tokens = useMemo(() => {
+    const result = []; let blankIdx = 0
+    const codeBlockRe = /```(\w*)\n?([\s\S]*?)```/g
+    let last = 0, m
+    function pushText(txt) {
+      txt.split('___').forEach((seg, i, arr) => {
+        if (seg) result.push({ type: 'text', content: seg })
+        if (i < arr.length - 1) result.push({ type: 'blank', index: blankIdx++ })
+      })
+    }
+    while ((m = codeBlockRe.exec(q.question)) !== null) {
+      if (m.index > last) pushText(q.question.slice(last, m.index))
+      const code = m[2].replace(/\n$/, '')
+      if (code.includes('___')) {
+        const segs = code.split('___')
+        result.push({ type: 'code-with-blanks', lang: m[1] || '', segs, startIdx: blankIdx })
+        blankIdx += segs.length - 1
+      } else {
+        result.push({ type: 'code', content: code })
+      }
+      last = m.index + m[0].length
+    }
+    if (last < q.question.length) pushText(q.question.slice(last))
+    return result
+  }, [q.id, q.question])
+
+  const blankCount = useMemo(() =>
+    tokens.filter(t => t.type === 'blank').length +
+    tokens.filter(t => t.type === 'code-with-blanks').reduce((a, t) => a + t.segs.length - 1, 0),
+  [tokens])
+
+  const vals = useMemo(() => {
+    const arr = value ? value.split(',') : []
+    return Array.from({ length: blankCount }, (_, i) => arr[i] || '')
+  }, [value, blankCount])
+
+  function handleChange(idx, v) {
+    const next = [...vals]; next[idx] = v
+    onChange(next.every(x => !x) ? null : next.join(','))
+  }
+
+  function renderBlank(idx, isCode = false) {
+    const val = vals[idx] || ''
+    const correct = correctAnswers[idx] || ''
+    const isCorrect = showResult && val.trim().toLowerCase() === correct.toLowerCase()
+    const isWrong = showResult && val.trim().toLowerCase() !== correct.toLowerCase()
+    return (
+      <span key={`b${idx}`} className="inline-flex items-center gap-1">
+        <input
+          value={val}
+          onChange={e => handleChange(idx, e.target.value)}
+          disabled={disabled}
+          placeholder="..."
+          className={`border-b-2 bg-transparent focus:outline-none text-center transition px-1
+            ${isCode ? 'font-mono text-sm w-20' : 'text-base w-24'}
+            ${isCorrect ? 'border-green-500 text-green-700'
+              : isWrong ? 'border-red-400 text-red-700'
+              : 'border-indigo-400 focus:border-indigo-600 text-indigo-800'
+            }`}
+        />
+        {isWrong && <span className="text-xs text-green-600 font-medium">→{correct}</span>}
+      </span>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-5 text-base leading-loose text-gray-800 whitespace-pre-wrap">
+      {tokens.map((token, ti) => {
+        if (token.type === 'text') return <span key={ti}>{token.content}</span>
+        if (token.type === 'blank') return renderBlank(token.index)
+        if (token.type === 'code') return (
+          <div key={ti} className="block my-2">
+            <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono whitespace-pre overflow-x-auto">
+              <code>{token.content}</code>
+            </pre>
+          </div>
+        )
+        if (token.type === 'code-with-blanks') return (
+          <div key={ti} className="block my-2 bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono overflow-x-auto">
+            {token.segs.map((seg, si) => (
+              <span key={si}>
+                <span className="whitespace-pre">{seg}</span>
+                {si < token.segs.length - 1 && renderBlank(token.startIdx + si, true)}
+              </span>
+            ))}
+          </div>
+        )
+        return null
+      })}
+    </div>
+  )
+}
+
 function MatchingQuestion({ q, value, onChange, disabled }) {
-  const rightShuffled = useMemo(() => shuffle(q.match_options || []), [q.id])
-  const [activeLeft, setActiveLeft] = useState(null)
-  const [pairs, setPairs] = useState(() => {
-    if (!value) return {}
-    const p = {}
-    value.split(',').forEach(pair => {
-      const [l, r] = pair.split('-')
-      if (l && r) p[l] = r
-    })
-    return p
+  const [rightItems, setRightItems] = useState(() => {
+    if (value) {
+      const pairs = {}
+      value.split(',').forEach(p => { const [l, r] = p.split('-'); if (l && r) pairs[l] = r })
+      const allRight = q.match_options || []
+      const used = new Set()
+      const ordered = (q.options || []).map(o => {
+        const rk = pairs[o.key]; if (!rk) return null
+        used.add(rk); return allRight.find(m => m.key === rk)
+      }).filter(Boolean)
+      const remaining = allRight.filter(m => !used.has(m.key))
+      return [...ordered, ...remaining]
+    }
+    return shuffle(q.match_options || [])
   })
+  const [dragIdx, setDragIdx] = useState(null)
+  const [overIdx, setOverIdx] = useState(null)
 
-  function buildAnswer(newPairs) {
-    return q.options?.map(o => `${o.key}-${newPairs[o.key] || ''}`).filter(s => !s.endsWith('-')).join(',')
+  function buildAnswer(items) {
+    return (q.options || []).map((o, i) => items[i] ? `${o.key}-${items[i].key}` : null).filter(Boolean).join(',')
   }
 
-  function handleLeftClick(key) {
-    if (disabled) return
-    setActiveLeft(activeLeft === key ? null : key)
-  }
+  useEffect(() => { if (!value) onChange(buildAnswer(rightItems)) }, [])
 
-  function handleRightClick(key) {
-    if (disabled || !activeLeft) return
-    const newPairs = { ...pairs, [activeLeft]: key }
-    setPairs(newPairs)
-    setActiveLeft(null)
-    const ans = buildAnswer(newPairs)
-    if (ans) onChange(ans)
+  function onDragStart(i) { setDragIdx(i) }
+  function onDragOver(e, i) { e.preventDefault(); setOverIdx(i) }
+  function onDrop(i) {
+    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setOverIdx(null); return }
+    const next = [...rightItems]
+    const [moved] = next.splice(dragIdx, 1)
+    next.splice(i, 0, moved)
+    setRightItems(next); setDragIdx(null); setOverIdx(null)
+    onChange(buildAnswer(next))
   }
+  function onDragEnd() { setDragIdx(null); setOverIdx(null) }
 
-  function clearPair(leftKey) {
-    if (disabled) return
-    const newPairs = { ...pairs }
-    delete newPairs[leftKey]
-    setPairs(newPairs)
-    const ans = buildAnswer(newPairs)
-    onChange(ans || null)
-  }
-
-  const usedRight = new Set(Object.values(pairs))
+  const correctPairs = new Set((q.correct_answer || '').split(',').map(p => p.trim()))
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-4">
-      <p className="text-xs text-gray-400 mb-3">Bấm cột trái → sau đó bấm cột phải để nối</p>
-      <div className="flex gap-3">
+      <p className="text-xs text-gray-400 mb-3">Kéo cột phải để sắp xếp tương ứng với cột trái</p>
+      <div className="flex gap-3 items-start">
         <div className="flex-1 space-y-2">
-          {q.options?.map((opt, idx) => {
-            const matched = pairs[opt.key]
-            const isActive = activeLeft === opt.key
-            const color = PAIR_COLORS[idx % PAIR_COLORS.length]
+          {(q.options || []).map(opt => (
+            <div key={opt.key} className="px-3 py-2 rounded-lg border-2 border-gray-200 bg-gray-50 text-sm text-gray-800 min-h-[42px] flex items-center">
+              {opt.image_url && <img src={opt.image_url} alt="" className="h-12 w-auto mb-1 rounded" />}
+              <span className="font-bold mr-1">{opt.key}.</span>{opt.text}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-col text-gray-300 text-lg select-none">
+          {(q.options || []).map((_, i) => (
+            <div key={i} className="min-h-[42px] mb-2 flex items-center">→</div>
+          ))}
+        </div>
+
+        <div className="flex-1 space-y-2">
+          {rightItems.map((opt, i) => {
+            const pairKey = `${(q.options || [])[i]?.key}-${opt.key}`
+            const isCorrect = disabled && correctPairs.has(pairKey)
+            const isWrong = disabled && !correctPairs.has(pairKey)
             return (
-              <div key={opt.key} className="flex items-center gap-1">
-                <button
-                  onClick={() => handleLeftClick(opt.key)}
-                  disabled={disabled}
-                  className={`flex-1 text-left px-3 py-2 rounded-lg border-2 text-sm transition ${
-                    isActive ? 'border-indigo-500 bg-indigo-50 text-indigo-800'
-                    : matched ? color.cls
-                    : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-indigo-300'
+              <div key={opt.key}
+                draggable={!disabled}
+                onDragStart={() => onDragStart(i)}
+                onDragOver={e => onDragOver(e, i)}
+                onDrop={() => onDrop(i)}
+                onDragEnd={onDragEnd}
+                className={`px-3 py-2 rounded-lg border-2 text-sm min-h-[42px] flex items-center gap-2 transition
+                  ${disabled
+                    ? isCorrect ? 'border-green-400 bg-green-50 text-green-800'
+                    : isWrong ? 'border-red-300 bg-red-50 text-red-800'
+                    : 'border-gray-200 bg-gray-50'
+                    : dragIdx === i ? 'border-indigo-400 bg-indigo-50 opacity-50'
+                    : overIdx === i ? 'border-indigo-400 border-dashed bg-indigo-50/40'
+                    : 'border-gray-200 bg-white text-gray-700 cursor-grab hover:border-indigo-300'
                   }`}
-                >
-                  {opt.image_url && <img src={opt.image_url} alt="" className="h-12 w-auto mb-1 rounded" />}
-                  <span className="font-bold mr-1">{opt.key}.</span>{opt.text}
-                </button>
-                {matched && !disabled && (
-                  <button onClick={() => clearPair(opt.key)} className="text-gray-300 hover:text-red-400 text-xs">✕</button>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="flex flex-col justify-around text-gray-300 text-lg select-none">
-          {q.options?.map((_, i) => <span key={i}>→</span>)}
-        </div>
-
-        <div className="flex-1 space-y-2">
-          {rightShuffled.map(opt => {
-            const isUsed = usedRight.has(opt.key)
-            const pairedLeft = Object.entries(pairs).find(([, r]) => r === opt.key)?.[0]
-            const leftIdx = pairedLeft ? (q.options?.findIndex(o => o.key === pairedLeft) ?? 0) : 0
-            const color = PAIR_COLORS[leftIdx % PAIR_COLORS.length]
-            return (
-              <button
-                key={opt.key}
-                onClick={() => handleRightClick(opt.key)}
-                disabled={disabled || (isUsed && !activeLeft)}
-                className={`w-full text-left px-3 py-2 rounded-lg border-2 text-sm transition ${
-                  isUsed && pairedLeft ? color.cls
-                  : activeLeft ? 'border-indigo-300 bg-white text-gray-700 hover:border-indigo-500 hover:bg-indigo-50'
-                  : 'border-gray-200 bg-gray-50 text-gray-500'
-                }`}
               >
-                {opt.image_url && <img src={opt.image_url} alt="" className="h-12 w-auto mb-1 rounded" />}
-                {isUsed && pairedLeft && <span className={`font-bold mr-1 ${color.label}`}>{pairedLeft}-</span>}
+                {!disabled && <span className="text-gray-300 shrink-0 select-none">⠿</span>}
+                {opt.image_url && <img src={opt.image_url} alt="" className="h-12 w-auto rounded" />}
                 {opt.text}
-              </button>
+              </div>
             )
           })}
         </div>
