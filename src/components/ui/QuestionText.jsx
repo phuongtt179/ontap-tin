@@ -2,13 +2,22 @@ import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
+// Chuyển single \n thành "  \n" (markdown line break) bên ngoài code block
+function preserveLineBreaks(text) {
+  const parts = text.split(/(```[\s\S]*?```|`[^`\n]+`)/g)
+  return parts.map((part, i) => {
+    if (i % 2 === 1) return part
+    return part.replace(/(?<!\n)\n(?!\n)/g, '  \n')
+  }).join('')
+}
+
 export default function QuestionText({ text, className = '' }) {
   if (!text) return null
 
   const hasMarkdown = text.includes('```') || text.includes('`')
 
   if (!hasMarkdown) {
-    return <span className={className}>{text}</span>
+    return <div className={`whitespace-pre-wrap ${className}`}>{text}</div>
   }
 
   return (
@@ -49,7 +58,7 @@ export default function QuestionText({ text, className = '' }) {
           },
         }}
       >
-        {text}
+        {preserveLineBreaks(text)}
       </ReactMarkdown>
     </div>
   )
