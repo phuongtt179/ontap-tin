@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useSelectedGrade } from '../../hooks/useEnrollments'
-import { BookOpen, CheckCircle, PlayCircle, Clock, FileText, ChevronRight } from 'lucide-react'
+import { BookOpen, CheckCircle, PlayCircle, Clock, FileText, ChevronRight, ChevronDown } from 'lucide-react'
 
 function getProgress(lesson, progress) {
   const hasVideo = !!lesson.video_url
@@ -23,43 +23,41 @@ export default function LearnPage() {
   const { grades, selectedGrade, setSelectedGrade, loading: enrollLoading } = useSelectedGrade(user?.id)
   const [lessons, setLessons] = useState([])
   const [topics, setTopics] = useState([])
+  const [units, setUnits] = useState([])
   const [progressMap, setProgressMap] = useState({})
   const [loading, setLoading] = useState(false)
   const [selectedTopic, setSelectedTopic] = useState(null)
+  const [selectedUnit, setSelectedUnit] = useState(null)
+  const [expandedTopics, setExpandedTopics] = useState({})
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const touchStartX = { current: 0 }
 
   useEffect(() => {
-    if (selectedGrade && user) { setSelectedTopic(null); loadData() }
+    if (selectedGrade && user) { setSelectedTopic(null); setSelectedUnit(null); setExpandedTopics({}); loadData() }
   }, [selectedGrade, user?.id])
 
   async function loadData() {
     setLoading(true)
-    const [{ data: topicsData }, { data: lessonsData }, { data: progressData }] = await Promise.all([
-      supabase.from('topics')
-        .select('*')
-        .in('grade', [selectedGrade, 'all']),
-      supabase.from('lessons')
-        .select('*')
-        .eq('is_published', true)
-        .eq('grade', selectedGrade)
-        .order('order', { ascending: true }),
-      supabase.from('lesson_progress')
-        .select('*')
-        .eq('user_id', user.id),
+    const [{ data: topicsData }, { data: lessonsData }, { data: progressData }, { data: unitsData }] = await Promise.all([
+      supabase.from('topics').select('*').in('grade', [selectedGrade, 'all']),
+      supabase.from('lessons').select('*').eq('is_published', true).eq('grade', selectedGrade).order('order', { ascending: true }),
+      supabase.from('lesson_progress').select('*').eq('user_id', user.id),
+      supabase.from('units').select('*').eq('grade', selectedGrade).order('sort_order').order('name'),
     ])
 
     const list = lessonsData || []
     setLessons(list)
-    setTopics((topicsData || []).sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true })))
+    setUnits(unitsData || [])
+    const sortedTopics = (topicsData || []).sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true }))
+    setTopics(sortedTopics)
 
     const map = {}
     ;(progressData || []).forEach(p => { map[p.lesson_id] = p })
     setProgressMap(map)
 
-    // Chọn chủ đề đầu tiên mặc định
-    const firstTopic = topicsData?.[0]?.name || list[0]?.topic || null
+    const firstTopic = sortedTopics[0]?.name || list[0]?.topic || null
     setSelectedTopic(firstTopic)
+    if (firstTopic) setExpandedTopics({ [firstTopic]: true })
     setLoading(false)
   }
 
@@ -77,6 +75,23 @@ export default function LearnPage() {
     const key = lesson.topic || '__no_topic__'
     if (!topicList.includes(key)) topicList.push(key)
   })
+
+  // Units grouped by topic
+  const unitsByTopic = useMemo(() => {
+    const map = {}
+    units.forEach(u => {
+      if (!map[u.topic]) map[u.topic] = []
+      map[u.topic].push(u)
+    })
+    return map
+  }, [units])
+
+  // Count lessons per unit
+  const countByUnit = useMemo(() => {
+    const map = {}
+    lessons.forEach(l => { if (l.unit_id) map[l.unit_id] = (map[l.unit_id] || 0) + 1 })
+    return map
+  }, [lessons])
 
   if (enrollLoading || loading) {
     return (
@@ -121,29 +136,81 @@ export default function LearnPage() {
     )
   }
 
-  const selectedLessons = selectedTopic ? (grouped[selectedTopic] || []) : []
-  const selectedLabel = selectedTopic === '__no_topic__' ? 'Chưa phân loại' : selectedTopic
+  let selectedLessons = selectedTopic ? (grouped[selectedTopic] || []) : []
+  if (selectedUnit) selectedLessons = selectedLessons.filter(l => l.unit_id === selectedUnit.id)
+
+  const selectedLabel = selectedUnit
+    ? selectedUnit.name
+    : (selectedTopic === '__no_topic__' ? 'Chưa phân loại' : selectedTopic)
+
+  function handleTopicClick(topicKey) {
+    if (selectedTopic === topicKey) {
+      setExpandedTopics(prev => ({ ...prev, [topicKey]: !prev[topicKey] }))
+    } else {
+      setSelectedTopic(topicKey)
+      setSelectedUnit(null)
+      setExpandedTopics(prev => ({ ...prev, [topicKey]: true }))
+    }
+  }
+
+  function handleUnitClick(topic, unit) {
+    setSelectedTopic(topic)
+    setSelectedUnit(prev => prev?.id === unit.id ? null : unit)
+  }
 
   function TopicList({ onSelect }) {
     return (
-      <div className="p-2 space-y-1">
+      <div className="py-2 px-2 space-y-0.5">
         {topicList.map(topicKey => {
           const label = topicKey === '__no_topic__' ? 'Chưa phân loại' : topicKey
           const count = (grouped[topicKey] || []).length
-          const isSelected = selectedTopic === topicKey
+          const topicActive = selectedTopic === topicKey && !selectedUnit
+          const isExpanded = !!expandedTopics[topicKey]
+          const topicUnits = unitsByTopic[topicKey] || []
+
           return (
-            <button
-              key={topicKey}
-              onClick={() => { setSelectedTopic(topicKey); onSelect?.() }}
-              className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition flex items-center justify-between gap-2
-                ${isSelected ? 'bg-indigo-600 text-white font-medium' : 'text-gray-700 hover:bg-gray-200'}`}
-            >
-              <span className="line-clamp-2 leading-snug">{label}</span>
-              <span className={`text-xs shrink-0 px-1.5 py-0.5 rounded-full font-medium
-                ${isSelected ? 'bg-indigo-500 text-indigo-100' : 'bg-gray-200 text-gray-500'}`}>
-                {count}
-              </span>
-            </button>
+            <div key={topicKey}>
+              <button
+                onClick={() => { handleTopicClick(topicKey); onSelect?.() }}
+                className={`w-full flex items-center gap-1.5 px-2 py-2.5 rounded-lg text-left text-sm transition
+                  ${topicActive ? 'bg-indigo-600 text-white font-medium' : 'text-gray-700 hover:bg-gray-200'}`}
+              >
+                {topicUnits.length > 0 ? (
+                  isExpanded
+                    ? <ChevronDown size={13} className="shrink-0 opacity-60" />
+                    : <ChevronRight size={13} className="shrink-0 opacity-60" />
+                ) : <span className="w-[13px] shrink-0" />}
+                <span className="flex-1 line-clamp-2 leading-snug text-xs">{label}</span>
+                <span className={`text-xs shrink-0 px-1.5 py-0.5 rounded-full font-medium
+                  ${topicActive ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                  {count}
+                </span>
+              </button>
+
+              {isExpanded && topicUnits.length > 0 && (
+                <div className="ml-4 mt-0.5 space-y-0.5 border-l-2 border-gray-100 pl-2">
+                  {topicUnits.map(u => {
+                    const uCount = countByUnit[u.id] || 0
+                    const uActive = selectedUnit?.id === u.id
+                    return (
+                      <button
+                        key={u.id}
+                        onClick={() => { handleUnitClick(topicKey, u); onSelect?.() }}
+                        className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs transition
+                          ${uActive ? 'bg-indigo-100 text-indigo-800 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+                      >
+                        <BookOpen size={11} className="shrink-0 opacity-50" />
+                        <span className="flex-1 leading-tight line-clamp-2">{u.name}</span>
+                        <span className={`shrink-0 text-xs px-1 py-0.5 rounded-full
+                          ${uActive ? 'bg-indigo-200 text-indigo-700' : 'bg-gray-100 text-gray-400'}`}>
+                          {uCount}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           )
         })}
       </div>
@@ -213,10 +280,15 @@ export default function LearnPage() {
           <span className="font-medium text-gray-800 truncate">{selectedLabel}</span>
         </button>
 
-        <h2 className="hidden md:flex text-lg font-bold text-gray-800 mb-4 items-center gap-2">
-          <span className="w-1 h-5 bg-indigo-500 rounded-full inline-block" />
-          {selectedLabel}
-        </h2>
+        <div className="hidden md:flex items-center gap-2 mb-4">
+          {selectedUnit && (
+            <span className="text-sm text-gray-400">{selectedTopic === '__no_topic__' ? 'Chưa phân loại' : selectedTopic} /</span>
+          )}
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <span className="w-1 h-5 bg-indigo-500 rounded-full inline-block" />
+            {selectedLabel}
+          </h2>
+        </div>
 
         {selectedLessons.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
