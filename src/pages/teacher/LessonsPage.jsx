@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
 import { useTopics } from '../../hooks/useTopics'
-import { useUnits } from '../../hooks/useUnits'
+import { useUnits, useUnitsByGrade } from '../../hooks/useUnits'
 import toast from 'react-hot-toast'
 import {
   Plus, Pencil, Trash2, FileText, X, Loader2, Check, Upload,
   ToggleLeft, ToggleRight, RefreshCw, PlayCircle, BookOpen, ClipboardList,
+  ChevronDown, ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { uploadFile } from '../../lib/cloudinary'
@@ -28,7 +29,7 @@ function parseTasks(instructions) {
 }
 
 /* ── LessonFormModal ───────────────────────────────────────── */
-function LessonFormModal({ lesson, onClose, onDone }) {
+function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, onClose, onDone }) {
   const { user } = useAuth()
   const { grades: GRADES } = useGrades()
   const { topics: ALL_TOPICS } = useTopics()
@@ -36,13 +37,13 @@ function LessonFormModal({ lesson, onClose, onDone }) {
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({
     title: lesson?.title || '',
-    grade: lesson?.grade || (GRADES[0] || '3'),
-    topic: lesson?.topic || '',
+    grade: lesson?.grade || defaultGrade || (GRADES[0] || '3'),
+    topic: lesson?.topic || defaultTopic || '',
     description: lesson?.description || '',
     video_url: lesson?.video_url || '',
     pptx_url: lesson?.pptx_url || '',
     order: lesson?.order ?? 0,
-    unit_id: lesson?.unit_id || '',
+    unit_id: lesson?.unit_id || defaultUnitId || '',
     has_practice: lesson?.has_practice ?? false,
     practice_tasks: parseTasks(lesson?.practice_instructions),
     is_published: lesson?.is_published ?? false,
@@ -75,7 +76,7 @@ function LessonFormModal({ lesson, onClose, onDone }) {
   // Sync grade default when GRADES loads
   useEffect(() => {
     if (!isEdit && GRADES.length > 0 && !form.grade) {
-      setForm(f => ({ ...f, grade: GRADES[0] }))
+      setForm(f => ({ ...f, grade: defaultGrade || GRADES[0] }))
     }
   }, [GRADES])
 
@@ -479,64 +480,101 @@ export default function LessonsPage() {
   const { canDelete } = useAuth()
   const navigate = useNavigate()
   const { grades: GRADES } = useGrades()
-  const { topics: ALL_TOPICS } = useTopics()
-  const [lessons, setLessons] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [selectedGrade, setSelectedGrade] = useState(() => sessionStorage.getItem('lessons_grade') || '')
-  const [selectedTopic, setSelectedTopic] = useState(() => sessionStorage.getItem('lessons_topic') || null)
+  const { topics } = useTopics()
+
+  const [selectedGrade, setSelectedGrade] = useState('')
+  const [selectedTopic, setSelectedTopic] = useState('')
+  const [selectedUnit, setSelectedUnit] = useState(null)
+  const [expandedTopics, setExpandedTopics] = useState({})
+  const [allLessons, setAllLessons] = useState([])
+  const [loading, setLoading] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [editLesson, setEditLesson] = useState(null)
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-  const touchStartX = { current: 0 }
 
-  useEffect(() => { fetchLessons() }, [])
+  const { units: gradeUnits } = useUnitsByGrade(selectedGrade)
 
   useEffect(() => {
-    if (GRADES.length > 0 && !selectedGrade) setSelectedGrade(GRADES[0])
-  }, [GRADES])
+    if (GRADES.length > 0 && topics.length > 0 && !selectedGrade) {
+      const g = GRADES[0]
+      const t = topics.find(t => t.grade === g || t.grade === 'all')
+      setSelectedGrade(g)
+      if (t) {
+        setSelectedTopic(t.name)
+        setExpandedTopics({ [t.name]: true })
+      }
+    }
+  }, [GRADES, topics])
 
-  useEffect(() => {
-    if (selectedGrade) sessionStorage.setItem('lessons_grade', selectedGrade)
-  }, [selectedGrade])
-
-  useEffect(() => {
-    if (selectedTopic) sessionStorage.setItem('lessons_topic', selectedTopic)
-    else sessionStorage.removeItem('lessons_topic')
-  }, [selectedTopic])
+  useEffect(() => { if (selectedGrade) fetchLessons() }, [selectedGrade])
 
   async function fetchLessons() {
     setLoading(true)
-    const { data } = await supabase.from('lessons').select('*').order('order', { ascending: true }).order('created_at', { ascending: false })
-    setLessons(data || [])
+    const { data } = await supabase
+      .from('lessons')
+      .select('*')
+      .eq('grade', selectedGrade)
+      .order('order', { ascending: true })
+      .order('created_at', { ascending: false })
+    setAllLessons(data || [])
     setLoading(false)
   }
 
-  // Topics & lessons for selected grade
-  const gradeLessons = lessons.filter(l => !selectedGrade || l.grade === selectedGrade)
-  const topicsForGrade = ALL_TOPICS.filter(t => !selectedGrade || t.grade === selectedGrade || t.grade === 'all')
+  function handleGradeChange(grade) {
+    setSelectedGrade(grade)
+    const first = topics.find(t => t.grade === grade || t.grade === 'all')
+    setSelectedTopic(first?.name || '')
+    setSelectedUnit(null)
+    setExpandedTopics(first ? { [first.name]: true } : {})
+  }
 
-  const topicList = topicsForGrade.map(t => t.name)
-  gradeLessons.forEach(l => {
-    const key = l.topic || '__no_topic__'
-    if (!topicList.includes(key)) topicList.push(key)
-  })
+  function handleTopicClick(topicName) {
+    if (selectedTopic === topicName) {
+      setExpandedTopics(prev => ({ ...prev, [topicName]: !prev[topicName] }))
+    } else {
+      setSelectedTopic(topicName)
+      setSelectedUnit(null)
+      setExpandedTopics(prev => ({ ...prev, [topicName]: true }))
+    }
+  }
 
-  // Auto-select first topic — giữ topic đã lưu nếu còn hợp lệ với grade hiện tại
-  useEffect(() => {
-    if (loading) return
-    const saved = sessionStorage.getItem('lessons_topic')
-    if (saved && topicList.includes(saved)) setSelectedTopic(saved)
-    else setSelectedTopic(topicList[0] || null)
-  }, [selectedGrade, loading])
+  function handleUnitClick(unit) {
+    setSelectedUnit(prev => prev?.id === unit.id ? null : unit)
+  }
 
-  const grouped = {}
-  gradeLessons.forEach(l => {
-    const key = l.topic || '__no_topic__'
-    if (!grouped[key]) grouped[key] = []
-    grouped[key].push(l)
-  })
+  const gradeTopics = useMemo(
+    () => topics.filter(t => t.grade === selectedGrade || t.grade === 'all'),
+    [topics, selectedGrade]
+  )
 
-  const selectedLessons = selectedTopic ? (grouped[selectedTopic] || []) : []
+  const unitsByTopic = useMemo(() => {
+    const map = {}
+    gradeUnits.forEach(u => {
+      if (!map[u.topic]) map[u.topic] = []
+      map[u.topic].push(u)
+    })
+    return map
+  }, [gradeUnits])
+
+  const countByTopic = useMemo(() => {
+    const map = {}
+    allLessons.forEach(l => { map[l.topic] = (map[l.topic] || 0) + 1 })
+    return map
+  }, [allLessons])
+
+  const countByUnit = useMemo(() => {
+    const map = {}
+    allLessons.forEach(l => {
+      if (l.unit_id) map[l.unit_id] = (map[l.unit_id] || 0) + 1
+    })
+    return map
+  }, [allLessons])
+
+  const displayedLessons = useMemo(() => {
+    let ls = allLessons
+    if (selectedTopic) ls = ls.filter(l => l.topic === selectedTopic)
+    if (selectedUnit) ls = ls.filter(l => l.unit_id === selectedUnit.id)
+    return ls
+  }, [allLessons, selectedTopic, selectedUnit])
 
   async function handleDelete(id, title) {
     if (!confirm(`Xóa bài học "${title}"?`)) return
@@ -551,179 +589,191 @@ export default function LessonsPage() {
     else fetchLessons()
   }
 
-  function SidebarContent() {
-    return (
-      <>
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between gap-2">
-          <h1 className="text-base font-bold text-gray-800">Bài học</h1>
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedGrade}
-              onChange={e => setSelectedGrade(e.target.value)}
-              className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-            <button
-              className="md:hidden text-gray-400 hover:text-gray-600 p-1"
-              onClick={() => setMobileSidebarOpen(false)}
-            >✕</button>
-          </div>
-        </div>
-        <div className="p-2 space-y-1 overflow-y-auto flex-1">
-          {topicList.length === 0 ? (
-            <p className="text-xs text-gray-400 px-3 py-4 text-center">Không có chủ đề nào</p>
-          ) : topicList.map(topicKey => {
-            const label = topicKey === '__no_topic__' ? 'Chưa phân loại' : topicKey
-            const count = (grouped[topicKey] || []).length
-            const isSelected = selectedTopic === topicKey
-            return (
-              <button
-                key={topicKey}
-                onClick={() => { setSelectedTopic(topicKey); setMobileSidebarOpen(false) }}
-                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition flex items-center justify-between gap-2
-                  ${isSelected ? 'bg-indigo-600 text-white font-medium' : 'text-gray-700 hover:bg-gray-200'}`}
-              >
-                <span className="line-clamp-2 leading-snug">{label}</span>
-                <span className={`text-xs shrink-0 px-1.5 py-0.5 rounded-full font-medium
-                  ${isSelected ? 'bg-indigo-500 text-indigo-100' : 'bg-gray-200 text-gray-500'}`}>
-                  {count}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </>
-    )
-  }
+  const panelTitle = selectedUnit
+    ? selectedUnit.name
+    : selectedTopic || 'Tất cả bài học'
 
   return (
-    <div
-      className="flex md:flex-row md:h-[calc(100vh-64px)] h-full"
-      onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
-      onTouchEnd={e => {
-        const dx = e.changedTouches[0].clientX - touchStartX.current
-        if (dx > 60 && touchStartX.current < 40) setMobileSidebarOpen(true)
-        if (dx < -60) setMobileSidebarOpen(false)
-      }}
-    >
-      {/* Mobile backdrop */}
-      {mobileSidebarOpen && (
-        <div className="md:hidden fixed inset-0 bg-black/40 z-30" onClick={() => setMobileSidebarOpen(false)} />
-      )}
+    <div className="flex h-full min-h-0">
 
-      {/* Sidebar — drawer on mobile, fixed on desktop */}
-      <div className={`
-        fixed md:static top-0 left-0 h-full md:h-auto z-40 md:z-auto
-        w-72 bg-gray-50 border-r border-gray-200 flex flex-col
-        transition-transform duration-300 ease-in-out
-        ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        md:w-72 shrink-0 md:overflow-y-auto
-      `}>
-        <SidebarContent />
-      </div>
+      {/* ── Sidebar ─────────────────────────────── */}
+      <aside className="w-64 shrink-0 bg-white border-r border-gray-200 flex flex-col min-h-0">
+        <div className="px-4 pt-5 pb-4 border-b border-gray-100">
+          <h1 className="text-lg font-bold text-gray-800 mb-3">Bài học</h1>
+          <select value={selectedGrade} onChange={e => handleGradeChange(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            {GRADES.length === 0 && <option value="">-- Chọn khoá --</option>}
+            {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </div>
 
-      {/* Right: lesson list */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 w-full">
-        {/* Mobile: topic selector button */}
-        <button
-          className="md:hidden flex items-center gap-2 mb-4 text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 w-full text-left shadow-sm"
-          onClick={() => setMobileSidebarOpen(true)}
-        >
-          <span className="text-indigo-500 shrink-0">☰</span>
-          <span className="text-gray-500 text-xs">Chủ đề:</span>
-          <span className="font-medium text-gray-800 truncate">
-            {selectedTopic === '__no_topic__' ? 'Chưa phân loại' : selectedTopic || 'Chọn chủ đề'}
-          </span>
-        </button>
+        <nav className="flex-1 overflow-y-auto py-2 px-2">
+          {gradeTopics.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center px-4 pt-6">Chưa có chủ đề nào</p>
+          ) : (
+            gradeTopics.map(t => {
+              const topicCount = countByTopic[t.name] || 0
+              const topicActive = selectedTopic === t.name && !selectedUnit
+              const isExpanded = !!expandedTopics[t.name]
+              const topicUnits = unitsByTopic[t.name] || []
 
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="hidden md:flex text-base font-bold text-gray-800 items-center gap-2">
-            <span className="w-1 h-5 bg-indigo-500 rounded-full inline-block" />
-            {selectedTopic === '__no_topic__' ? 'Chưa phân loại' : selectedTopic || 'Chọn chủ đề'}
-          </h2>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition"
-          >
+              return (
+                <div key={t.id} className="mb-0.5">
+                  <button
+                    onClick={() => handleTopicClick(t.name)}
+                    className={`w-full flex items-center gap-1.5 px-2 py-2.5 rounded-lg text-left text-sm transition
+                      ${topicActive
+                        ? 'bg-indigo-600 text-white font-medium'
+                        : 'text-gray-700 hover:bg-gray-100'}`}
+                  >
+                    {topicUnits.length > 0 ? (
+                      isExpanded
+                        ? <ChevronDown size={13} className="shrink-0 opacity-60" />
+                        : <ChevronRight size={13} className="shrink-0 opacity-60" />
+                    ) : <span className="w-[13px] shrink-0" />}
+                    <span className="flex-1 leading-tight line-clamp-2 text-xs">{t.name}</span>
+                    <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full font-semibold
+                      ${topicActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                      {loading ? '·' : topicCount}
+                    </span>
+                  </button>
+
+                  {isExpanded && topicUnits.length > 0 && (
+                    <div className="ml-4 mt-0.5 space-y-0.5 border-l-2 border-gray-100 pl-2">
+                      {topicUnits.map(u => {
+                        const uCount = countByUnit[u.id] || 0
+                        const uActive = selectedUnit?.id === u.id
+                        return (
+                          <button
+                            key={u.id}
+                            onClick={() => { setSelectedTopic(t.name); handleUnitClick(u) }}
+                            className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs transition
+                              ${uActive
+                                ? 'bg-indigo-100 text-indigo-800 font-medium'
+                                : 'text-gray-600 hover:bg-gray-100'}`}
+                          >
+                            <BookOpen size={11} className="shrink-0 opacity-50" />
+                            <span className="flex-1 leading-tight line-clamp-2">{u.name}</span>
+                            <span className={`shrink-0 text-xs px-1 py-0.5 rounded-full
+                              ${uActive ? 'bg-indigo-200 text-indigo-700' : 'bg-gray-100 text-gray-400'}`}>
+                              {uCount}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </nav>
+      </aside>
+
+      {/* ── Main panel ──────────────────────────── */}
+      <div className="flex-1 flex flex-col min-h-0 bg-gray-50">
+        <div className="flex items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-200 shrink-0">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              {selectedUnit && (
+                <span className="text-xs text-gray-400">{selectedTopic} /</span>
+              )}
+              <h2 className="font-semibold text-gray-800 truncate">{panelTitle}</h2>
+            </div>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {loading ? '...' : `${displayedLessons.length} bài học`}
+            </p>
+          </div>
+          <button onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shrink-0">
             <Plus size={15} /> Tạo bài học
           </button>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-          </div>
-        ) : selectedLessons.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <BookOpen size={36} className="mx-auto mb-3 opacity-30" />
-            <p>Chưa có bài học nào trong chủ đề này</p>
-          </div>
-        ) : (
-          <div className="space-y-3 max-w-3xl">
-            {selectedLessons.map(lesson => (
-              <div key={lesson.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3.5 flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-gray-800 text-sm">{lesson.title}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${lesson.is_published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {lesson.is_published ? 'Đã xuất bản' : 'Nháp'}
-                    </span>
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+            </div>
+          ) : displayedLessons.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+              <BookOpen size={40} className="mb-3 opacity-20" />
+              <p className="text-sm">Chưa có bài học nào</p>
+              <button onClick={() => setShowCreate(true)}
+                className="mt-3 text-sm text-indigo-500 hover:text-indigo-700 font-medium">
+                + Tạo bài học đầu tiên
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3 max-w-4xl">
+              {displayedLessons.map((lesson, i) => (
+                <div key={lesson.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3.5 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-gray-400 font-mono shrink-0">{i + 1}.</span>
+                      <span className="font-medium text-gray-800 text-sm">{lesson.title}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${lesson.is_published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {lesson.is_published ? 'Đã xuất bản' : 'Nháp'}
+                      </span>
+                    </div>
+                    <div className="flex gap-3 mt-1 text-xs text-gray-400 flex-wrap items-center">
+                      <span>{lesson.question_ids?.length || 0} câu hỏi</span>
+                      {lesson.video_url && (
+                        <span className="flex items-center gap-0.5 text-blue-500"><PlayCircle size={11} /> Video</span>
+                      )}
+                      {lesson.pptx_url && (
+                        <span className="flex items-center gap-0.5 text-orange-500"><FileText size={11} /> PPTX</span>
+                      )}
+                      {lesson.has_practice && (
+                        <span className="flex items-center gap-0.5 text-orange-500"><ClipboardList size={11} /> Thực hành</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-3 mt-1 text-xs text-gray-400 flex-wrap items-center">
-                    <span>{lesson.question_ids?.length || 0} câu hỏi</span>
-                    {lesson.video_url && (
-                      <span className="flex items-center gap-0.5 text-blue-500"><PlayCircle size={11} /> Video</span>
-                    )}
-                    {lesson.pptx_url && (
-                      <span className="flex items-center gap-0.5 text-orange-500"><FileText size={11} /> PPTX</span>
-                    )}
-                    {lesson.has_practice && (
-                      <span className="flex items-center gap-0.5 text-orange-500"><ClipboardList size={11} /> Thực hành</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => handleTogglePublish(lesson)}
-                    title={lesson.is_published ? 'Ẩn bài học' : 'Xuất bản'}
-                    className={`p-1.5 rounded-lg transition ${lesson.is_published ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
-                  >
-                    {lesson.is_published ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-                  </button>
-                  <button
-                    onClick={() => navigate(`/teacher/lessons/${lesson.id}/submissions`)}
-                    className="p-1.5 text-gray-400 hover:text-indigo-600 transition"
-                    title="Thống kê tiến độ"
-                  >
-                    <FileText size={15} />
-                  </button>
-                  <button
-                    onClick={() => setEditLesson(lesson)}
-                    className="p-1.5 text-gray-400 hover:text-indigo-600 transition"
-                    title="Sửa bài học"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  {canDelete && (
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
-                      onClick={() => handleDelete(lesson.id, lesson.title)}
-                      className="p-1.5 text-red-400 hover:text-red-600 transition"
-                      title="Xóa bài học"
+                      onClick={() => handleTogglePublish(lesson)}
+                      title={lesson.is_published ? 'Ẩn bài học' : 'Xuất bản'}
+                      className={`p-1.5 rounded-lg transition ${lesson.is_published ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
                     >
-                      <Trash2 size={14} />
+                      {lesson.is_published ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                     </button>
-                  )}
+                    <button
+                      onClick={() => navigate(`/teacher/lessons/${lesson.id}/submissions`)}
+                      className="p-1.5 text-gray-400 hover:text-indigo-600 transition"
+                      title="Thống kê tiến độ"
+                    >
+                      <FileText size={15} />
+                    </button>
+                    <button
+                      onClick={() => setEditLesson(lesson)}
+                      className="p-1.5 text-gray-400 hover:text-indigo-600 transition"
+                      title="Sửa bài học"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDelete(lesson.id, lesson.title)}
+                        className="p-1.5 text-red-400 hover:text-red-600 transition"
+                        title="Xóa bài học"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {(showCreate || editLesson) && (
         <LessonFormModal
           lesson={editLesson}
+          defaultGrade={selectedGrade}
+          defaultTopic={selectedTopic}
+          defaultUnitId={selectedUnit?.id || null}
           onClose={() => { setShowCreate(false); setEditLesson(null) }}
           onDone={() => { setShowCreate(false); setEditLesson(null); fetchLessons() }}
         />
