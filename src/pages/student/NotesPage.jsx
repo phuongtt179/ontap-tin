@@ -18,18 +18,31 @@ function colorOf(key) { return COLORS.find(c => c.key === key) || COLORS[0] }
 // ── NoteModal ────────────────────────────────────────────────
 function NoteModal({ note, enrollments, topicsByGrade, onClose, onSave }) {
   const [form, setForm] = useState({
-    title:   note?.title   || '',
-    content: note?.content || '',
-    color:   note?.color   || 'yellow',
-    grade:   note?.grade   || (enrollments.length === 1 ? enrollments[0].grade : ''),
-    topic:   note?.topic   || '',
+    title:     note?.title     || '',
+    content:   note?.content   || '',
+    color:     note?.color     || 'yellow',
+    grade:     note?.grade     || (enrollments.length === 1 ? enrollments[0].grade : ''),
+    topic:     note?.topic     || '',
+    lesson_id: note?.lesson_id || '',
   })
   const [saving, setSaving] = useState(false)
+  const [availableLessons, setAvailableLessons] = useState([])
 
-  // Khi đổi khoá → reset topic nếu không thuộc khoá mới
+  // Fetch bài học theo khoá + chủ đề
+  useEffect(() => {
+    if (!form.grade) { setAvailableLessons([]); return }
+    let q = supabase.from('lessons').select('id, title').eq('grade', form.grade).eq('is_published', true).order('order', { ascending: true })
+    if (form.topic) q = q.eq('topic', form.topic)
+    q.then(({ data }) => setAvailableLessons(data || []))
+  }, [form.grade, form.topic])
+
   function handleGradeChange(g) {
     const validTopics = topicsByGrade[g] || []
-    setForm(f => ({ ...f, grade: g, topic: validTopics.includes(f.topic) ? f.topic : '' }))
+    setForm(f => ({ ...f, grade: g, topic: validTopics.includes(f.topic) ? f.topic : '', lesson_id: '' }))
+  }
+
+  function handleTopicChange(t) {
+    setForm(f => ({ ...f, topic: t, lesson_id: '' }))
   }
 
   const availableTopics = form.grade ? (topicsByGrade[form.grade] || []) : []
@@ -37,7 +50,12 @@ function NoteModal({ note, enrollments, topicsByGrade, onClose, onSave }) {
   async function handleSave() {
     if (!form.content.trim()) { toast.error('Nội dung không được trống'); return }
     setSaving(true)
-    await onSave({ ...form, title: form.title.trim(), content: form.content.trim() })
+    await onSave({
+      ...form,
+      title: form.title.trim(),
+      content: form.content.trim(),
+      lesson_id: form.lesson_id || null,
+    })
     setSaving(false)
   }
 
@@ -64,7 +82,7 @@ function NoteModal({ note, enrollments, topicsByGrade, onClose, onSave }) {
               placeholder="Ghi chú của bạn..." rows={5}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
           </div>
-          {/* Khoá học + Chủ đề — 2 cột */}
+          {/* Khoá học + Chủ đề */}
           {enrollments.length > 0 && (
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -77,12 +95,25 @@ function NoteModal({ note, enrollments, topicsByGrade, onClose, onSave }) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề <span className="text-gray-400 font-normal">(tuỳ chọn)</span></label>
-                <select value={form.topic} onChange={e => setForm({ ...form, topic: e.target.value })}
+                <select value={form.topic} onChange={e => handleTopicChange(e.target.value)}
                   disabled={!form.grade || availableTopics.length === 0}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
                   <option value="">-- Không gắn --</option>
                   {availableTopics.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
+              </div>
+              {/* Bài học — full width */}
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bài học <span className="text-gray-400 font-normal">(tuỳ chọn)</span></label>
+                <select value={form.lesson_id} onChange={e => setForm({ ...form, lesson_id: e.target.value })}
+                  disabled={!form.grade || availableLessons.length === 0}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
+                  <option value="">-- Không gắn --</option>
+                  {availableLessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+                </select>
+                {form.grade && availableLessons.length === 0 && (
+                  <p className="text-xs text-gray-400 mt-1">Chưa có bài học nào cho khoá / chủ đề này</p>
+                )}
               </div>
             </div>
           )}
@@ -111,8 +142,9 @@ function NoteModal({ note, enrollments, topicsByGrade, onClose, onSave }) {
 }
 
 // ── NoteCard ─────────────────────────────────────────────────
-function NoteCard({ note, onEdit, onDelete, onTogglePin }) {
+function NoteCard({ note, lessonsMap, onEdit, onDelete, onTogglePin }) {
   const c = colorOf(note.color)
+  const lessonTitle = note.lesson_id ? lessonsMap[note.lesson_id] : null
   return (
     <div className={`rounded-xl border p-4 flex flex-col gap-2 relative group ${c.bg} ${c.border}`}>
       {note.is_pinned && (
@@ -131,6 +163,11 @@ function NoteCard({ note, onEdit, onDelete, onTogglePin }) {
         {note.topic && (
           <span className="text-xs bg-white/60 border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
             {note.topic}
+          </span>
+        )}
+        {lessonTitle && (
+          <span className="text-xs bg-white/60 border border-indigo-200 text-indigo-600 px-2 py-0.5 rounded-full flex items-center gap-0.5">
+            <BookOpen size={10} /> {lessonTitle}
           </span>
         )}
         <span className="text-xs text-gray-400 ml-auto">
@@ -159,12 +196,15 @@ function NoteCard({ note, onEdit, onDelete, onTogglePin }) {
 export default function NotesPage() {
   const { user, profile } = useAuth()
   const [notes, setNotes] = useState([])
-  const [enrollments, setEnrollments] = useState([])   // [{ grade, class_name }]
-  const [topicsByGrade, setTopicsByGrade] = useState({}) // { grade: [topicName] }
+  const [enrollments, setEnrollments] = useState([])
+  const [topicsByGrade, setTopicsByGrade] = useState({})
+  const [lessonsMap, setLessonsMap] = useState({})     // { lesson_id: title }
+  const [filterLessons, setFilterLessons] = useState([]) // bài học cho filter
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterGrade, setFilterGrade] = useState('')
   const [filterTopic, setFilterTopic] = useState('')
+  const [filterLesson, setFilterLesson] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editNote, setEditNote] = useState(null)
 
@@ -189,14 +229,24 @@ export default function NotesPage() {
 
     const grades = enr.map(e => e.grade)
     if (!grades.length) return
-    const { data: topicData } = await supabase.from('topics').select('name, grade').in('grade', grades)
-    const map = {}
+
+    const [{ data: topicData }, { data: lessonData }] = await Promise.all([
+      supabase.from('topics').select('name, grade').in('grade', grades),
+      supabase.from('lessons').select('id, title, grade, topic').in('grade', grades).eq('is_published', true).order('order', { ascending: true }),
+    ])
+
+    const topicMap = {}
     ;(topicData || []).forEach(t => {
-      if (!map[t.grade]) map[t.grade] = []
-      map[t.grade].push(t.name)
+      if (!topicMap[t.grade]) topicMap[t.grade] = []
+      topicMap[t.grade].push(t.name)
     })
-    Object.keys(map).forEach(g => map[g].sort((a, b) => a.localeCompare(b, 'vi', { numeric: true })))
-    setTopicsByGrade(map)
+    Object.keys(topicMap).forEach(g => topicMap[g].sort((a, b) => a.localeCompare(b, 'vi', { numeric: true })))
+    setTopicsByGrade(topicMap)
+
+    const lMap = {}
+    ;(lessonData || []).forEach(l => { lMap[l.id] = l.title })
+    setLessonsMap(lMap)
+    setFilterLessons(lessonData || [])
   }
 
   async function handleSave(form) {
@@ -226,24 +276,34 @@ export default function NotesPage() {
     loadNotes()
   }
 
-  // Topics available cho filter ngoài trang (theo khoá đang lọc)
+  // Options cho filter chủ đề
   const filterTopicOptions = filterGrade
     ? (topicsByGrade[filterGrade] || [])
     : Object.values(topicsByGrade).flat().filter((v, i, a) => a.indexOf(v) === i)
         .sort((a, b) => a.localeCompare(b, 'vi', { numeric: true }))
 
+  // Options cho filter bài học (lọc theo grade + topic nếu đã chọn)
+  const filterLessonOptions = useMemo(() => {
+    let list = filterLessons
+    if (filterGrade) list = list.filter(l => l.grade === filterGrade)
+    if (filterTopic) list = list.filter(l => l.topic === filterTopic)
+    return list
+  }, [filterLessons, filterGrade, filterTopic])
+
   const displayed = useMemo(() => {
     let list = notes
     if (filterGrade) list = list.filter(n => n.grade === filterGrade)
     if (filterTopic) list = list.filter(n => n.topic === filterTopic)
+    if (filterLesson) list = list.filter(n => n.lesson_id === filterLesson)
     if (search) list = list.filter(n =>
       n.title?.toLowerCase().includes(search.toLowerCase()) ||
       n.content.toLowerCase().includes(search.toLowerCase())
     )
     return list
-  }, [notes, search, filterGrade, filterTopic])
+  }, [notes, search, filterGrade, filterTopic, filterLesson])
 
   const pinnedCount = notes.filter(n => n.is_pinned).length
+  const hasFilter = search || filterGrade || filterTopic || filterLesson
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
@@ -279,21 +339,28 @@ export default function NotesPage() {
         </div>
         {enrollments.length > 1 && (
           <select value={filterGrade}
-            onChange={e => { setFilterGrade(e.target.value); setFilterTopic('') }}
+            onChange={e => { setFilterGrade(e.target.value); setFilterTopic(''); setFilterLesson('') }}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <option value="">Tất cả khoá</option>
             {enrollments.map(e => <option key={e.grade} value={e.grade}>{e.grade}</option>)}
           </select>
         )}
         {filterTopicOptions.length > 0 && (
-          <select value={filterTopic} onChange={e => setFilterTopic(e.target.value)}
+          <select value={filterTopic} onChange={e => { setFilterTopic(e.target.value); setFilterLesson('') }}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <option value="">Tất cả chủ đề</option>
             {filterTopicOptions.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         )}
-        {(search || filterGrade || filterTopic) && (
-          <button onClick={() => { setSearch(''); setFilterGrade(''); setFilterTopic('') }}
+        {filterLessonOptions.length > 0 && (
+          <select value={filterLesson} onChange={e => setFilterLesson(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">Tất cả bài học</option>
+            {filterLessonOptions.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+          </select>
+        )}
+        {hasFilter && (
+          <button onClick={() => { setSearch(''); setFilterGrade(''); setFilterTopic(''); setFilterLesson('') }}
             className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
             <X size={14} /> Xóa bộ lọc
           </button>
@@ -314,7 +381,7 @@ export default function NotesPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {displayed.map(note => (
-            <NoteCard key={note.id} note={note}
+            <NoteCard key={note.id} note={note} lessonsMap={lessonsMap}
               onEdit={n => { setEditNote(n); setShowModal(true) }}
               onDelete={handleDelete}
               onTogglePin={handleTogglePin}
