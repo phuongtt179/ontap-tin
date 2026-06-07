@@ -51,6 +51,7 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
   })
   const [questions, setQuestions] = useState([])
   const [filterTopic, setFilterTopic] = useState('')
+  const [filterUnit, setFilterUnit] = useState('')
   const [filterDiff, setFilterDiff] = useState('')
   const [randomCount, setRandomCount] = useState(10)
   const [saving, setSaving] = useState(false)
@@ -84,28 +85,30 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
     t => !form.grade || t.grade === form.grade || t.grade === 'all'
   )
   const { units: lessonUnits } = useUnits(form.grade, form.topic)
+  const { units: filterUnits } = useUnits(form.grade, filterTopic)
 
   useEffect(() => {
     if (step !== 2) return
     setLoadingQ(true)
-    let q = supabase.from('questions').select('id, question, type, difficulty, topic').eq('grade', form.grade)
+    let q = supabase.from('questions').select('id, question, type, difficulty, topic, unit_id').eq('grade', form.grade)
     if (filterTopic) q = q.eq('topic', filterTopic)
+    if (filterUnit) q = q.eq('unit_id', filterUnit)
     if (filterDiff) q = q.eq('difficulty', filterDiff)
     q.order('created_at', { ascending: false }).then(({ data }) => {
       setQuestions(data || [])
       setLoadingQ(false)
     })
-  }, [step, form.grade, filterTopic, filterDiff])
+  }, [step, form.grade, filterTopic, filterUnit, filterDiff])
 
   // Auto-clean stale question_ids once the full (unfiltered) question list is loaded
   useEffect(() => {
-    if (step !== 2 || loadingQ || filterTopic || filterDiff || questions.length === 0) return
+    if (step !== 2 || loadingQ || filterTopic || filterUnit || filterDiff || questions.length === 0) return
     const validIds = new Set(questions.map(q => q.id))
     setForm(f => {
       const cleaned = f.question_ids.filter(id => validIds.has(id))
       return cleaned.length === f.question_ids.length ? f : { ...f, question_ids: cleaned }
     })
-  }, [step, loadingQ, filterTopic, filterDiff, questions])
+  }, [step, loadingQ, filterTopic, filterUnit, filterDiff, questions])
 
   function toggleQuestion(id) {
     setForm(f => ({
@@ -341,12 +344,22 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
               <div className="flex gap-2 mb-4 flex-wrap items-center">
                 <select
                   value={filterTopic}
-                  onChange={e => setFilterTopic(e.target.value)}
+                  onChange={e => { setFilterTopic(e.target.value); setFilterUnit('') }}
                   className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">Tất cả chủ đề</option>
                   {filteredTopics.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
                 </select>
+                {filterUnits.length > 0 && (
+                  <select
+                    value={filterUnit}
+                    onChange={e => setFilterUnit(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Tất cả bài</option>
+                    {filterUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                )}
                 <select
                   value={filterDiff}
                   onChange={e => setFilterDiff(e.target.value)}
