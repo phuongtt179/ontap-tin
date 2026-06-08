@@ -831,37 +831,6 @@ export default function StudentsPage() {
           </button>
         </div>
       )}
-      {/* Delete-all-in-grade shortcut */}
-      {canDelete && selectedIds.size === 0 && filterGrade && displayed.length > 0 && (
-        <div className="flex items-center justify-end mb-4">
-          <button
-            onClick={async () => {
-              if (!confirm(`Xóa toàn bộ ${displayed.length} học sinh trong khoá "${filterGrade}"? Hành động này không thể hoàn tác.`)) return
-              setBulkDeleting(true)
-              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-              const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-              let ok = 0, fail = 0
-              for (const s of displayed) {
-                const res = await fetch(`${supabaseUrl}/functions/v1/delete-user`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anonKey}`, 'apikey': anonKey },
-                  body: JSON.stringify({ userId: s.id }),
-                })
-                if (res.ok) ok++; else fail++
-              }
-              setBulkDeleting(false)
-              if (ok) toast.success(`Đã xóa ${ok} học sinh trong khoá "${filterGrade}"`)
-              if (fail) toast.error(`${fail} tài khoản xóa thất bại`)
-              fetchStudents()
-            }}
-            disabled={bulkDeleting}
-            className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
-          >
-            {bulkDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-            Xóa toàn bộ {displayed.length} học sinh trong khoá "{filterGrade}"
-          </button>
-        </div>
-      )}
 
       {/* Table */}
       {loading ? (
