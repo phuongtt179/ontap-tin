@@ -8,10 +8,11 @@ import toast from 'react-hot-toast'
 import {
   Plus, Pencil, Trash2, FileText, X, Loader2, Check, Upload,
   ToggleLeft, ToggleRight, RefreshCw, PlayCircle, BookOpen, ClipboardList,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, Eye,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { uploadFile } from '../../lib/cloudinary'
+import QuizSession from '../../components/student/QuizSession'
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 const TYPE_LABELS = {
@@ -488,6 +489,140 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
   )
 }
 
+/* ── LessonPreviewModal ────────────────────────────────────── */
+function LessonPreviewModal({ lesson, onClose }) {
+  const [questions, setQuestions] = useState([])
+  const [loadingQ, setLoadingQ] = useState(false)
+  const [quizKey, setQuizKey] = useState(0)
+
+  useEffect(() => {
+    if (!lesson.question_ids?.length) return
+    setLoadingQ(true)
+    supabase
+      .from('questions')
+      .select('*')
+      .in('id', lesson.question_ids)
+      .then(({ data }) => {
+        const map = {}
+        ;(data || []).forEach(q => { map[q.id] = q })
+        setQuestions(lesson.question_ids.map(id => map[id]).filter(Boolean))
+        setLoadingQ(false)
+      })
+  }, [lesson.id])
+
+  const hasContent = lesson.video_url || lesson.pptx_url || lesson.description
+  const tasks = (() => {
+    if (!lesson.practice_instructions) return []
+    try { const a = JSON.parse(lesson.practice_instructions); return Array.isArray(a) ? a : [{ instructions: lesson.practice_instructions }] }
+    catch { return [{ instructions: lesson.practice_instructions }] }
+  })()
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex flex-col">
+      <div className="bg-white flex items-center justify-between px-6 py-3 border-b shrink-0">
+        <div>
+          <h2 className="font-bold text-gray-800 flex items-center gap-2">
+            <Eye size={16} className="text-indigo-500" />
+            Xem trước: {lesson.title}
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5">Chế độ xem trước · không lưu kết quả</p>
+        </div>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
+          <X size={20} />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto bg-gray-50">
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+
+          {/* Lesson content */}
+          {hasContent && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
+              {lesson.description && (
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{lesson.description}</p>
+              )}
+              {lesson.video_url && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
+                    <PlayCircle size={12} /> Video bài học
+                  </p>
+                  {/youtube\.com|youtu\.be/i.test(lesson.video_url) ? (
+                    <div className="aspect-video rounded-xl overflow-hidden bg-black">
+                      <iframe
+                        src={lesson.video_url
+                          .replace('watch?v=', 'embed/')
+                          .replace('youtu.be/', 'youtube.com/embed/')
+                          .replace('youtube.com/embed/youtube.com/embed/', 'youtube.com/embed/')}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <a href={lesson.video_url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
+                      <PlayCircle size={14} /> Mở video
+                    </a>
+                  )}
+                </div>
+              )}
+              {lesson.pptx_url && (
+                <a href={lesson.pptx_url} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-orange-600 hover:underline">
+                  <FileText size={14} /> Tải bài trình chiếu (PPTX)
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Practice tasks */}
+          {lesson.has_practice && tasks.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-amber-700 mb-3 flex items-center gap-1.5">
+                <ClipboardList size={13} /> Thực hành
+              </p>
+              {tasks.map((t, i) => t.instructions && (
+                <div key={i} className="text-sm text-amber-900 whitespace-pre-line">
+                  {tasks.length > 1 && <span className="font-medium">Bài {i + 1}: </span>}
+                  {t.instructions}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Quiz */}
+          <div>
+            <p className="text-xs font-medium text-gray-500 mb-3 flex items-center gap-1.5">
+              <BookOpen size={12} /> {questions.length} câu hỏi kiểm tra
+            </p>
+            {loadingQ ? (
+              <div className="flex justify-center py-10">
+                <Loader2 size={28} className="animate-spin text-indigo-400" />
+              </div>
+            ) : questions.length === 0 ? (
+              <div className="text-center py-10 text-gray-400 text-sm bg-white rounded-2xl border border-gray-200">
+                Bài học này chưa có câu hỏi
+              </div>
+            ) : (
+              <QuizSession
+                key={quizKey}
+                questions={questions}
+                mode="practice"
+                preview={true}
+                showAnswer={true}
+                showScore={true}
+                examMode={false}
+                onFinish={() => setQuizKey(k => k + 1)}
+              />
+            )}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── LessonsPage ───────────────────────────────────────────── */
 export default function LessonsPage() {
   const { canDelete } = useAuth()
@@ -503,6 +638,7 @@ export default function LessonsPage() {
   const [loading, setLoading] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [editLesson, setEditLesson] = useState(null)
+  const [previewLesson, setPreviewLesson] = useState(null)
 
   const { units: gradeUnits } = useUnitsByGrade(selectedGrade)
 
@@ -751,6 +887,13 @@ export default function LessonsPage() {
                       {lesson.is_published ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                     </button>
                     <button
+                      onClick={() => setPreviewLesson(lesson)}
+                      className="p-1.5 text-gray-400 hover:text-indigo-600 transition"
+                      title="Xem trước bài học"
+                    >
+                      <Eye size={15} />
+                    </button>
+                    <button
                       onClick={() => navigate(`/teacher/lessons/${lesson.id}/submissions`)}
                       className="p-1.5 text-gray-400 hover:text-indigo-600 transition"
                       title="Thống kê tiến độ"
@@ -790,6 +933,9 @@ export default function LessonsPage() {
           onClose={() => { setShowCreate(false); setEditLesson(null) }}
           onDone={() => { setShowCreate(false); setEditLesson(null); fetchLessons() }}
         />
+      )}
+      {previewLesson && (
+        <LessonPreviewModal lesson={previewLesson} onClose={() => setPreviewLesson(null)} />
       )}
     </div>
   )
