@@ -71,11 +71,8 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Học sinh chưa có tài khoản?{' '}
-          <Link to="/register" className="text-indigo-600 font-medium hover:underline">
-            Đăng ký tại đây
-          </Link>
+        <p className="text-center text-xs text-gray-400 mt-6">
+          Liên hệ giáo viên để được cấp tài khoản.
         </p>
       </div>
     </div>
