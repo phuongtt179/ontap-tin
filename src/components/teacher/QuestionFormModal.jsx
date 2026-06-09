@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
 import { useGrades } from '../../hooks/useGrades'
@@ -183,6 +183,22 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
   const topicOptions = topics.filter(t => t.grade === form.grade || t.grade === 'all')
   const { units } = useUnits(form.grade, form.topic)
   const blankCount = (form.question.match(/___/g) || []).length
+  const questionRef = useRef(null)
+
+  function insertCodeTemplate(lang) {
+    const el = questionRef.current
+    if (!el) return
+    const start = el.selectionStart ?? form.question.length
+    const end = el.selectionEnd ?? start
+    const template = '```' + lang + '\n\n```'
+    const newText = form.question.substring(0, start) + template + form.question.substring(end)
+    setForm({ ...form, question: newText })
+    requestAnimationFrame(() => {
+      el.focus()
+      const cursor = start + lang.length + 4 // position inside the code block
+      el.selectionStart = el.selectionEnd = cursor
+    })
+  }
 
   function buildPayload() {
     switch (form.type) {
@@ -326,7 +342,7 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
               )}
               <span className="text-xs font-normal text-blue-500">Dùng <code className="bg-blue-50 px-1 rounded">```python</code> để chèn code</span>
             </label>
-            <textarea value={form.question} onChange={e => setForm({ ...form, question: e.target.value })}
+            <textarea ref={questionRef} value={form.question} onChange={e => setForm({ ...form, question: e.target.value })}
               onKeyDown={e => {
                 if (e.key === 'Tab') {
                   e.preventDefault()
@@ -340,6 +356,16 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
               }}
               rows={3} placeholder={form.type === 'drag_word' ? 'Ví dụ: Chuột là thiết bị ___ dữ liệu' : 'Nhập nội dung câu hỏi...'}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-mono" />
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              <button type="button" onClick={() => insertCodeTemplate('python')}
+                className="text-xs px-2 py-0.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50 font-mono transition">
+                + code python
+              </button>
+              <button type="button" onClick={() => insertCodeTemplate('')}
+                className="text-xs px-2 py-0.5 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 font-mono transition">
+                + code khác
+              </button>
+            </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-3">
               <ImageUpload value={form.image_url} onChange={v => setForm({ ...form, image_url: v })} />
               <AudioUpload value={form.audio_url} onChange={v => setForm({ ...form, audio_url: v })} />
