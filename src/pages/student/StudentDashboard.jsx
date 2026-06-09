@@ -60,19 +60,14 @@ export default function StudentDashboard() {
 
       {/* Enrollment status */}
       {!loading && !hasApproved && (
-        <Link to="/student/courses"
-          className="flex items-center justify-between gap-3 mt-3 mb-6 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 hover:bg-amber-100 transition"
-        >
-          <div>
-            <p className="text-sm font-semibold text-amber-800">Bạn chưa tham gia khoá học nào</p>
-            <p className="text-xs text-amber-600 mt-0.5">
-              {pendingCount > 0
-                ? `${pendingCount} yêu cầu đang chờ giáo viên duyệt`
-                : 'Bấm vào đây để đăng ký khoá học'}
-            </p>
-          </div>
-          <ArrowRight size={18} className="text-amber-600 shrink-0" />
-        </Link>
+        <div className="mt-3 mb-6 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3">
+          <p className="text-sm font-semibold text-amber-800">Bạn chưa tham gia khoá học nào</p>
+          <p className="text-xs text-amber-600 mt-0.5">
+            {pendingCount > 0
+              ? `${pendingCount} khoá đang chờ giáo viên duyệt`
+              : 'Liên hệ giáo viên để được thêm vào khoá học'}
+          </p>
+        </div>
       )}
 
       {!loading && hasApproved && (
