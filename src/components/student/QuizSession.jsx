@@ -102,6 +102,7 @@ export default function QuizSession({
   questions, mode, timeLimit, onFinish,
   examMode = false, examId = null, attemptNumber = 1,
   showAnswer = true, showScore = true, tnMaxScore = 10,
+  preview = false,
 }) {
   const { user } = useAuth()
   const [current, setCurrent] = useState(0)
@@ -186,27 +187,29 @@ export default function QuizSession({
       : 0
 
     try {
-      if (examMode && examId) {
-        await supabase.from('exam_sessions').insert({
-          exam_id: examId,
-          user_id: user.id,
-          total: questions.length,
-          correct,
-          score,
-          answers: finalAnswers,
-          attempt_number: attemptNumber,
-          submitted_at: new Date().toISOString(),
-        })
-      } else {
-        await supabase.from('quiz_sessions').insert({
-          user_id: user.id,
-          mode,
-          total: questions.length,
-          correct,
-          score,
-          answers: finalAnswers,
-          question_ids: questions.map(q => q.id),
-        })
+      if (!preview) {
+        if (examMode && examId) {
+          await supabase.from('exam_sessions').insert({
+            exam_id: examId,
+            user_id: user.id,
+            total: questions.length,
+            correct,
+            score,
+            answers: finalAnswers,
+            attempt_number: attemptNumber,
+            submitted_at: new Date().toISOString(),
+          })
+        } else {
+          await supabase.from('quiz_sessions').insert({
+            user_id: user.id,
+            mode,
+            total: questions.length,
+            correct,
+            score,
+            answers: finalAnswers,
+            question_ids: questions.map(q => q.id),
+          })
+        }
       }
     } catch {}
 

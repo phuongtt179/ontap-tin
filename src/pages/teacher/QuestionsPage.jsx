@@ -6,8 +6,9 @@ import { useUnitsByGrade } from '../../hooks/useUnits'
 import QuestionImportModal from '../../components/teacher/QuestionImportModal'
 import QuestionCard from '../../components/teacher/QuestionCard'
 import QuestionFormModal from '../../components/teacher/QuestionFormModal'
+import QuizSession from '../../components/student/QuizSession'
 import toast from 'react-hot-toast'
-import { Upload, Plus, BookOpen, ChevronDown, ChevronRight } from 'lucide-react'
+import { Upload, Plus, BookOpen, ChevronDown, ChevronRight, Play, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 export default function QuestionsPage() {
@@ -23,6 +24,8 @@ export default function QuestionsPage() {
   const [loading, setLoading] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
+  const [previewIds, setPreviewIds] = useState(new Set())
+  const [showPreview, setShowPreview] = useState(false)
 
   const { units: gradeUnits } = useUnitsByGrade(selectedGrade)
 
@@ -111,6 +114,19 @@ export default function QuestionsPage() {
     if (selectedUnit) qs = qs.filter(q => q.unit_id === selectedUnit.id)
     return qs
   }, [allQuestions, selectedTopic, selectedUnit])
+
+  const previewQuestions = useMemo(
+    () => allQuestions.filter(q => previewIds.has(q.id)),
+    [allQuestions, previewIds]
+  )
+
+  function togglePreview(id) {
+    setPreviewIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
 
   async function handleDelete(id) {
     const { error } = await supabase.from('questions').delete().eq('id', id)
@@ -254,7 +270,9 @@ export default function QuestionsPage() {
               {displayedQuestions.map((q, i) => (
                 <QuestionCard key={q.id} question={q} index={i + 1}
                   onDelete={canDelete ? () => handleDelete(q.id) : undefined}
-                  onUpdate={fetchQuestions} />
+                  onUpdate={fetchQuestions}
+                  selected={previewIds.has(q.id)}
+                  onSelect={() => togglePreview(q.id)} />
               ))}
             </div>
           )}
@@ -278,6 +296,46 @@ export default function QuestionsPage() {
           defaultGrade={selectedGrade}
           defaultTopic={selectedTopic}
           defaultUnitId={selectedUnit?.id || null} />
+      )}
+
+      {/* Floating preview bar */}
+      {previewIds.size > 0 && !showPreview && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-white border border-gray-200 shadow-2xl rounded-2xl px-5 py-3">
+          <span className="text-sm font-medium text-gray-700">Đã chọn <strong>{previewIds.size}</strong> câu</span>
+          <button onClick={() => setPreviewIds(new Set())}
+            className="text-xs text-gray-400 hover:text-gray-600 underline">Bỏ chọn</button>
+          <button onClick={() => setShowPreview(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition">
+            <Play size={14} /> Chạy thử
+          </button>
+        </div>
+      )}
+
+      {/* Preview modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex flex-col">
+          <div className="bg-white flex items-center justify-between px-6 py-3 border-b shrink-0">
+            <div>
+              <h2 className="font-bold text-gray-800">Chạy thử câu hỏi</h2>
+              <p className="text-xs text-gray-400">{previewQuestions.length} câu · chế độ luyện tập · không lưu kết quả</p>
+            </div>
+            <button onClick={() => setShowPreview(false)} className="text-gray-400 hover:text-gray-600 p-1">
+              <X size={20} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto bg-gray-50">
+            <QuizSession
+              key={previewQuestions.map(q => q.id).join(',')}
+              questions={previewQuestions}
+              mode="preview"
+              preview={true}
+              showAnswer={true}
+              showScore={true}
+              examMode={false}
+              onFinish={() => setShowPreview(false)}
+            />
+          </div>
+        </div>
       )}
     </div>
   )

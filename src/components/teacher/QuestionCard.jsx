@@ -11,18 +11,25 @@ const TYPE_LABELS = {
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 
-export default function QuestionCard({ question: q, index, onDelete, onUpdate }) {
+export default function QuestionCard({ question: q, index, onDelete, onUpdate, selected, onSelect }) {
   const [expanded, setExpanded] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
 
   return (
     <>
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className={`bg-white border rounded-xl overflow-hidden transition ${selected ? 'border-indigo-400 ring-1 ring-indigo-300' : 'border-gray-200'}`}>
         <div
           className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50"
           onClick={() => setExpanded(!expanded)}
         >
           <div className="flex items-center gap-3 min-w-0">
+            {onSelect && (
+              <input type="checkbox" checked={!!selected}
+                onChange={onSelect}
+                onClick={e => e.stopPropagation()}
+                className="w-4 h-4 accent-indigo-600 rounded border-gray-300 cursor-pointer shrink-0"
+              />
+            )}
             <span className="text-sm font-semibold text-gray-400 w-6 shrink-0">{index}</span>
             <span className="text-sm text-gray-800 truncate">{q.question}</span>
           </div>
