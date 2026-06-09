@@ -24,6 +24,7 @@ export default function QuestionsPage() {
   const [loading, setLoading] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
+  const [filterType, setFilterType] = useState('')
   const [previewIds, setPreviewIds] = useState(new Set())
   const [showPreview, setShowPreview] = useState(false)
 
@@ -112,8 +113,9 @@ export default function QuestionsPage() {
     let qs = allQuestions
     if (selectedTopic) qs = qs.filter(q => q.topic === selectedTopic)
     if (selectedUnit) qs = qs.filter(q => q.unit_id === selectedUnit.id)
+    if (filterType) qs = qs.filter(q => q.type === filterType)
     return qs
-  }, [allQuestions, selectedTopic, selectedUnit])
+  }, [allQuestions, selectedTopic, selectedUnit, filterType])
 
   const previewQuestions = useMemo(
     () => allQuestions.filter(q => previewIds.has(q.id)),
@@ -238,7 +240,19 @@ export default function QuestionsPage() {
               {loading ? '...' : `${displayedQuestions.length} câu hỏi`}
             </p>
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2 shrink-0 items-center flex-wrap justify-end">
+            <select value={filterType} onChange={e => setFilterType(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">Tất cả loại</option>
+              <option value="multiple_choice">Trắc nghiệm</option>
+              <option value="true_false">Đúng / Sai</option>
+              <option value="fill_blank">Điền từ</option>
+              <option value="drag_word">Kéo thả từ</option>
+              <option value="ordering">Sắp xếp</option>
+              <option value="matching">Nối đôi</option>
+              <option value="word_order">Sắp xếp từ</option>
+              <option value="essay">Tự luận</option>
+            </select>
             <button onClick={() => setShowCreate(true)}
               className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
               <Plus size={15} /> Tạo câu hỏi
