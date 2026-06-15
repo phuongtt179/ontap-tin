@@ -8,7 +8,7 @@ import { useLessonTitles } from '../../hooks/useLessonTitles'
 import toast from 'react-hot-toast'
 import {
   Plus, Pencil, Trash2, FileText, X, Loader2, Check, Upload,
-  ToggleLeft, ToggleRight, RefreshCw, PlayCircle, BookOpen,
+  ToggleLeft, ToggleRight, RefreshCw, PlayCircle, BookOpen, ClipboardList,
   ChevronDown, ChevronRight, Eye,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
