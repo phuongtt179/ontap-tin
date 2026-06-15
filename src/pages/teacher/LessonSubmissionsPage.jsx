@@ -507,20 +507,20 @@ export default function LessonSubmissionsPage() {
                           <BookOpen size={9} /> Bài tập {prog?.quiz_passed ? `✓ ${prog.quiz_correct ?? 0}/${prog.quiz_total ?? ''}` : `${prog?.quiz_correct ?? 0}/${lesson?.question_ids?.length ?? 0}`}
                         </span>
                       )}
-                      {hasPractice && (
-                        <span className={`text-xs px-1.5 py-0.5 rounded flex items-center gap-0.5 font-medium
-                          ${subs.length >= taskCount ? (subs.some(s => s.reviewed_at) ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700') : 'bg-gray-100 text-gray-400'}`}>
-                          <Upload size={9} />
-                          {subs.length === 0 ? 'Chưa nộp'
-                            : subs.length < taskCount ? `${subs.length}/${taskCount} bài`
-                            : (() => {
-                                const reviewed = subs.filter(s => s.reviewed_at).length
-                                if (reviewed === 0) return 'Chờ chấm'
-                                if (reviewed === subs.length) return `Đã chấm ✓`
-                                return `Chấm ${reviewed}/${subs.length} ✓`
-                              })()}
-                        </span>
-                      )}
+                      {hasPractice && Array.from({ length: taskCount }, (_, i) => {
+                        const sub = subs.find(s => (s.content_json?.task_index ?? 0) === i)
+                        const submitted = !!sub
+                        const reviewed = !!sub?.reviewed_at
+                        return (
+                          <div key={i} className="flex flex-col items-center gap-0.5">
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5
+                              ${reviewed ? 'bg-green-100 text-green-700' : submitted ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                              <Upload size={9} /> B{i + 1}{submitted ? ' ✓' : ''}
+                            </span>
+                            {reviewed && <span className="text-[10px] text-green-600 leading-tight font-medium">đã chấm</span>}
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 </div>
