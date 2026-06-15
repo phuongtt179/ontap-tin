@@ -13,7 +13,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { uploadFile } from '../../lib/cloudinary'
 import QuizSession from '../../components/student/QuizSession'
-import QuestionImportModal from '../../components/teacher/QuestionImportModal'
+import { parseQuestions } from '../../utils/questionParser'
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 const TYPE_LABELS = {
@@ -59,8 +59,12 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
   const [saving, setSaving] = useState(false)
   const [loadingQ, setLoadingQ] = useState(false)
   const [pptxUploading, setPptxUploading] = useState(false)
-  const [showImport, setShowImport] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [questionTab, setQuestionTab] = useState('bank') // 'bank' | 'import'
+  const [importRaw, setImportRaw] = useState('')
+  const [importParsed, setImportParsed] = useState([])
+  const [importMeta, setImportMeta] = useState({ topic: lesson?.topic || defaultTopic || '', unit_id: '', difficulty: 'easy' })
+  const [importSaving, setImportSaving] = useState(false)
 
   async function handlePptxUpload(e) {
     const file = e.target.files?.[0]
@@ -90,6 +94,7 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
   )
   const { units: lessonUnits } = useUnits(form.grade, form.topic)
   const { units: filterUnits } = useUnits(form.grade, filterTopic)
+  const { units: importUnits } = useUnits(form.grade, importMeta.topic)
 
   useEffect(() => {
     if (step !== 2) return
@@ -131,6 +136,46 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
 
   function clearAll() {
     setForm(f => ({ ...f, question_ids: [] }))
+  }
+
+  function handleImportParse() {
+    const result = parseQuestions(importRaw)
+    if (result.length === 0) { toast.error('Không nhận dạng được câu hỏi. Kiểm tra định dạng.'); return }
+    setImportParsed(result)
+  }
+
+  async function handleImportSave() {
+    if (importParsed.length === 0) return
+    setImportSaving(true)
+    try {
+      const rows = importParsed.map(q => ({
+        question: q.question,
+        type: q.type,
+        options: q.type === 'essay' ? [{ allow_file: false, max_score: 1 }] : (q.options || []),
+        match_options: q.match_options?.length ? q.match_options : null,
+        correct_answer: q.type === 'essay' ? (q.correct_answer || null) : q.correct_answer,
+        hint: q.hint || null,
+        image_url: null,
+        audio_url: null,
+        grade: form.grade,
+        topic: importMeta.topic,
+        unit_id: importMeta.unit_id || null,
+        difficulty: importMeta.difficulty,
+        created_by: user.id,
+      }))
+      const { data: inserted, error } = await supabase.from('questions').insert(rows).select('id')
+      if (error) throw error
+      const newIds = (inserted || []).map(q => q.id)
+      setForm(f => ({ ...f, question_ids: [...new Set([...f.question_ids, ...newIds])] }))
+      setRefreshKey(k => k + 1)
+      setImportRaw('')
+      setImportParsed([])
+      setQuestionTab('bank')
+      toast.success(`Đã lưu ${rows.length} câu vào ngân hàng và thêm vào bài học`)
+    } catch (err) {
+      toast.error('Lưu thất bại: ' + err.message)
+    }
+    setImportSaving(false)
   }
 
   function addTask() {
@@ -344,90 +389,161 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
             </div>
           ) : step === 2 ? (
             <div>
-              {/* Filters + random */}
-              <div className="flex gap-2 mb-4 flex-wrap items-center">
-                <select
-                  value={filterTopic}
-                  onChange={e => { setFilterTopic(e.target.value); setFilterUnit('') }}
-                  className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              {/* Tab toggle */}
+              <div className="flex gap-2 mb-4 border-b border-gray-100 pb-3">
+                <button
+                  onClick={() => setQuestionTab('bank')}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${questionTab === 'bank' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                 >
-                  <option value="">Tất cả chủ đề</option>
-                  {filteredTopics.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-                </select>
-                {filterUnits.length > 0 && (
-                  <select
-                    value={filterUnit}
-                    onChange={e => setFilterUnit(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Tất cả bài</option>
-                    {filterUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                  </select>
-                )}
-                <select
-                  value={filterDiff}
-                  onChange={e => setFilterDiff(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  Từ ngân hàng{form.question_ids.length > 0 ? ` (${form.question_ids.length})` : ''}
+                </button>
+                <button
+                  onClick={() => { setQuestionTab('import'); setImportParsed([]) }}
+                  className={`flex items-center gap-1 px-4 py-1.5 rounded-lg text-sm font-medium transition ${questionTab === 'import' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                 >
-                  <option value="">Tất cả mức độ</option>
-                  <option value="easy">Dễ</option>
-                  <option value="medium">Trung bình</option>
-                  <option value="hard">Khó</option>
-                </select>
-                <div className="flex items-center gap-1 ml-auto flex-wrap">
-                  <button
-                    onClick={() => setShowImport(true)}
-                    className="flex items-center gap-1 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-lg text-sm font-medium transition"
-                  >
-                    <Plus size={13} /> Nhập hàng loạt
-                  </button>
-                  <input
-                    type="number" min={1} max={50} value={randomCount}
-                    onChange={e => setRandomCount(Number(e.target.value))}
-                    className="w-14 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <button
-                    onClick={pickRandom}
-                    className="flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-sm font-medium transition"
-                  >
-                    <RefreshCw size={13} /> Ngẫu nhiên
-                  </button>
-                  {form.question_ids.length > 0 && (
-                    <button onClick={clearAll} className="text-xs text-red-500 hover:text-red-700 px-2 py-1.5">Bỏ tất cả</button>
-                  )}
-                </div>
+                  <Plus size={13} /> Nhập hàng loạt
+                </button>
               </div>
 
-              {loadingQ ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600" />
-                </div>
-              ) : questions.length === 0 ? (
-                <div className="text-center py-8 text-gray-400 text-sm">Không có câu hỏi nào cho khối {form.grade}</div>
-              ) : (
-                <div className="space-y-1.5">
-                  {questions.map(q => {
-                    const checked = form.question_ids.includes(q.id)
-                    return (
-                      <button
-                        key={q.id}
-                        onClick={() => toggleQuestion(q.id)}
-                        className={`w-full flex items-start gap-3 p-3 rounded-xl border-2 text-left transition ${checked ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-indigo-200 bg-white'}`}
-                      >
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition ${checked ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
-                          {checked && <Check size={11} className="text-white" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-800 line-clamp-2">{q.question}</p>
-                          <div className="flex gap-2 mt-1 flex-wrap">
-                            <span className="text-xs text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">{TYPE_LABELS[q.type]}</span>
-                            <span className="text-xs text-gray-400">{DIFFICULTY_LABELS[q.difficulty]}</span>
-                            {q.topic && <span className="text-xs text-gray-400">{q.topic}</span>}
-                          </div>
-                        </div>
+              {questionTab === 'bank' ? (
+                /* ── Bank mode ── */
+                <div>
+                  <div className="flex gap-2 mb-3 flex-wrap items-center">
+                    <select value={filterTopic} onChange={e => { setFilterTopic(e.target.value); setFilterUnit('') }}
+                      className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                      <option value="">Tất cả chủ đề</option>
+                      {filteredTopics.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                    </select>
+                    {filterUnits.length > 0 && (
+                      <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="">Tất cả bài</option>
+                        {filterUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                      </select>
+                    )}
+                    <select value={filterDiff} onChange={e => setFilterDiff(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                      <option value="">Tất cả mức độ</option>
+                      <option value="easy">Dễ</option>
+                      <option value="medium">Trung bình</option>
+                      <option value="hard">Khó</option>
+                    </select>
+                    <div className="flex items-center gap-1 ml-auto">
+                      <input type="number" min={1} max={50} value={randomCount}
+                        onChange={e => setRandomCount(Number(e.target.value))}
+                        className="w-14 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <button onClick={pickRandom}
+                        className="flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-sm font-medium transition">
+                        <RefreshCw size={13} /> Ngẫu nhiên
                       </button>
-                    )
-                  })}
+                      {form.question_ids.length > 0 && (
+                        <button onClick={clearAll} className="text-xs text-red-500 hover:text-red-700 px-2 py-1.5">Bỏ tất cả</button>
+                      )}
+                    </div>
+                  </div>
+                  {loadingQ ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600" />
+                    </div>
+                  ) : questions.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400 text-sm">Không có câu hỏi nào cho khối {form.grade}</div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {questions.map(q => {
+                        const checked = form.question_ids.includes(q.id)
+                        return (
+                          <button key={q.id} onClick={() => toggleQuestion(q.id)}
+                            className={`w-full flex items-start gap-3 p-3 rounded-xl border-2 text-left transition ${checked ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-indigo-200 bg-white'}`}>
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition ${checked ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
+                              {checked && <Check size={11} className="text-white" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-800 line-clamp-2">{q.question}</p>
+                              <div className="flex gap-2 mt-1 flex-wrap">
+                                <span className="text-xs text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">{TYPE_LABELS[q.type]}</span>
+                                <span className="text-xs text-gray-400">{DIFFICULTY_LABELS[q.difficulty]}</span>
+                                {q.topic && <span className="text-xs text-gray-400">{q.topic}</span>}
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* ── Import mode ── */
+                <div className="space-y-3">
+                  {/* Meta */}
+                  <div className="flex gap-2 flex-wrap items-center">
+                    <select value={importMeta.topic}
+                      onChange={e => setImportMeta(m => ({ ...m, topic: e.target.value, unit_id: '' }))}
+                      className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                      <option value="">-- Chọn chủ đề --</option>
+                      {filteredTopics.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                    </select>
+                    {importUnits.length > 0 && (
+                      <select value={importMeta.unit_id}
+                        onChange={e => setImportMeta(m => ({ ...m, unit_id: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="">-- Chọn bài --</option>
+                        {importUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                      </select>
+                    )}
+                    <select value={importMeta.difficulty}
+                      onChange={e => setImportMeta(m => ({ ...m, difficulty: e.target.value }))}
+                      className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                      <option value="easy">Dễ</option>
+                      <option value="medium">Trung bình</option>
+                      <option value="hard">Khó</option>
+                    </select>
+                  </div>
+
+                  {/* Textarea */}
+                  <textarea
+                    value={importRaw}
+                    onChange={e => { setImportRaw(e.target.value); setImportParsed([]) }}
+                    rows={8}
+                    placeholder={"Dán câu hỏi từ Word vào đây...\n\nVí dụ:\nCâu 1. [TN] Scratch là gì?\nA. Ngôn ngữ lập trình\nB. Phần mềm diệt virus\nĐáp án: A"}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  />
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleImportParse}
+                      disabled={!importRaw.trim()}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                    >
+                      <ClipboardList size={14} /> Phân tích
+                    </button>
+                    {importParsed.length > 0 && (
+                      <span className="text-sm text-gray-500">Tìm thấy <b className="text-indigo-600">{importParsed.length}</b> câu hỏi</span>
+                    )}
+                  </div>
+
+                  {/* Parsed preview */}
+                  {importParsed.length > 0 && (
+                    <div className="space-y-1.5">
+                      {importParsed.map((q, i) => (
+                        <div key={i} className="flex items-start gap-2 border border-gray-200 rounded-lg p-3 bg-white">
+                          <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded shrink-0 mt-0.5">{TYPE_LABELS[q.type] || q.type}</span>
+                          <p className="text-sm text-gray-800 flex-1 line-clamp-2">{q.question}</p>
+                          <button onClick={() => setImportParsed(prev => prev.filter((_, j) => j !== i))}
+                            className="text-gray-300 hover:text-red-400 shrink-0 transition">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={handleImportSave}
+                        disabled={importSaving}
+                        className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 mt-2"
+                      >
+                        {importSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                        Lưu {importParsed.length} câu vào ngân hàng & thêm vào bài học
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -494,22 +610,6 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
           </div>
         </div>
       </div>
-      {showImport && (
-        <QuestionImportModal
-          defaultGrade={form.grade}
-          defaultTopic={form.topic}
-          grades={[]}
-          topics={[]}
-          onClose={() => setShowImport(false)}
-          onSaved={newIds => {
-            setShowImport(false)
-            setRefreshKey(k => k + 1)
-            if (newIds?.length) {
-              setForm(f => ({ ...f, question_ids: [...new Set([...f.question_ids, ...newIds])] }))
-            }
-          }}
-        />
-      )}
     </div>
   )
 }
