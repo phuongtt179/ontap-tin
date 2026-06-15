@@ -146,10 +146,10 @@ export default function LessonSubmissionsPage() {
   const [filterClass, setFilterClass] = useState('')
   const [loading, setLoading] = useState(true)
 
-  const [selected, setSelected] = useState(null) // { student, submission }
-  const [comment, setComment] = useState('')
-  const [score, setScore] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [selected, setSelected] = useState(null) // { student, submissions }
+  const [taskComments, setTaskComments] = useState({}) // subId -> string
+  const [taskScores, setTaskScores] = useState({})     // subId -> string
+  const [taskSaving, setTaskSaving] = useState({})     // subId -> bool
 
   useEffect(() => { loadAll() }, [id])
 
@@ -200,21 +200,20 @@ export default function LessonSubmissionsPage() {
     setLoading(false)
   }
 
-  async function saveComment() {
-    if (!selected) return
-    setSaving(true)
-    const scoreVal = score !== '' ? parseFloat(score) : null
+  async function saveTaskComment(sub) {
+    setTaskSaving(prev => ({ ...prev, [sub.id]: true }))
+    const scoreRaw = taskScores[sub.id]
+    const scoreVal = (scoreRaw !== '' && scoreRaw != null) ? parseFloat(scoreRaw) : null
     const updates = {
-      teacher_comment: comment,
+      teacher_comment: taskComments[sub.id] ?? '',
       reviewed_at: new Date().toISOString(),
-      ...(scoreVal != null && !isNaN(scoreVal) ? { score: scoreVal } : {}),
+      score: (scoreVal != null && !isNaN(scoreVal)) ? scoreVal : null,
     }
-    const subIds = selected.submissions.map(s => s.id)
-    const { error } = await supabase.from('lesson_submissions').update(updates).in('id', subIds)
-    setSaving(false)
+    const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
+    setTaskSaving(prev => ({ ...prev, [sub.id]: false }))
     if (error) { toast.error('Lưu thất bại: ' + error.message); return }
-    toast.success('Đã lưu nhận xét')
-    const updatedSubs = selected.submissions.map(s => ({ ...s, ...updates }))
+    toast.success(`Đã lưu nhận xét bài ${(selected.submissions.findIndex(s => s.id === sub.id) + 1)}`)
+    const updatedSubs = selected.submissions.map(s => s.id === sub.id ? { ...s, ...updates } : s)
     setSubmissionMap(prev => ({ ...prev, [selected.student.id]: updatedSubs }))
     setSelected(prev => prev ? { ...prev, submissions: updatedSubs } : prev)
   }
@@ -386,38 +385,48 @@ export default function LessonSubmissionsPage() {
                   })() : (
                     <p className="text-sm text-gray-400 italic">Học sinh chưa nộp bài này</p>
                   )}
+                  {sub && (() => {
+                    const subItem = selected.submissions.find(s => (s.content_json?.task_index ?? 0) === i)
+                    if (!subItem) return null
+                    return (
+                      <div className="border-t border-gray-100 pt-3">
+                        <p className="text-xs font-semibold text-indigo-600 mb-2 flex items-center gap-1.5">
+                          <MessageSquare size={12} /> Nhận xét & điểm — Bài {i + 1}
+                        </p>
+                        <div className="flex items-center gap-2 mb-2">
+                          <label className="text-xs text-gray-500 shrink-0">Điểm:</label>
+                          <input type="number" min={0} max={10} step={0.5}
+                            value={taskScores[subItem.id] ?? ''}
+                            onChange={e => setTaskScores(prev => ({ ...prev, [subItem.id]: e.target.value }))}
+                            placeholder="0–10"
+                            className="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                          {subItem.score != null && (
+                            <span className="text-xs text-gray-400">Hiện tại: <b className="text-indigo-600">{subItem.score}</b></span>
+                          )}
+                        </div>
+                        <textarea
+                          value={taskComments[subItem.id] ?? ''}
+                          onChange={e => setTaskComments(prev => ({ ...prev, [subItem.id]: e.target.value }))}
+                          rows={3}
+                          placeholder={`Nhận xét bài ${i + 1}...`}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none mb-2"
+                        />
+                        <button onClick={() => saveTaskComment(subItem)} disabled={!!taskSaving[subItem.id]}
+                          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 transition">
+                          {taskSaving[subItem.id] ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+                          Lưu nhận xét bài {i + 1}
+                        </button>
+                        {subItem.reviewed_at && (
+                          <p className="text-xs text-gray-400 mt-1.5">Đã nhận xét lúc {new Date(subItem.reviewed_at).toLocaleString('vi-VN')}</p>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
               )
             })}
 
-            {/* Chấm điểm + nhận xét */}
-            {selected.submissions.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <MessageSquare size={16} className="text-indigo-500" />
-                  <h3 className="font-semibold text-gray-800 text-sm">Chấm điểm & Nhận xét chung</h3>
-                </div>
-                <div className="flex items-center gap-3 mb-3">
-                  <label className="text-sm font-medium text-gray-700 shrink-0">Điểm:</label>
-                  <input type="number" min={0} max={10} step={0.5} value={score}
-                    onChange={e => setScore(e.target.value)} placeholder="0–10"
-                    className="w-24 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  {selected.submissions[0]?.score != null && (
-                    <span className="text-sm text-gray-400">Hiện tại: <b className="text-indigo-600">{selected.submissions[0].score}</b></span>
-                  )}
-                </div>
-                <textarea value={comment} onChange={e => setComment(e.target.value)} rows={4}
-                  placeholder="Nhập nhận xét cho học sinh..."
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none mb-3"
-                />
-                <button onClick={saveComment} disabled={saving}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
-                  {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                  Lưu điểm & nhận xét
-                </button>
-              </div>
-            )}
             {selected.submissions.length === 0 && (
               <div className="text-center py-10 text-gray-400">
                 <Upload size={32} className="mx-auto mb-2 opacity-30" />
@@ -450,7 +459,16 @@ export default function LessonSubmissionsPage() {
               return (
                 <div
                   key={student.id}
-                  onClick={() => hasPractice ? (setSelected({ student, submissions: subs }), setComment(subs[0]?.teacher_comment || ''), setScore(subs[0]?.score ?? '')) : null}
+                  onClick={() => {
+                    if (!hasPractice) return
+                    setSelected({ student, submissions: subs })
+                    const comments = {}; const scores = {}
+                    subs.forEach(s => {
+                      comments[s.id] = s.teacher_comment || ''
+                      scores[s.id] = s.score != null ? String(s.score) : ''
+                    })
+                    setTaskComments(comments); setTaskScores(scores)
+                  }}
                   className={`bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 ${hasPractice ? 'cursor-pointer hover:border-indigo-300 hover:shadow-sm transition' : ''}`}
                 >
                   {/* Avatar */}
@@ -495,8 +513,12 @@ export default function LessonSubmissionsPage() {
                           <Upload size={9} />
                           {subs.length === 0 ? 'Chưa nộp'
                             : subs.length < taskCount ? `${subs.length}/${taskCount} bài`
-                            : subs.some(s => s.reviewed_at) ? `Đã chấm${subs[0]?.score != null ? ` (${subs[0].score}đ)` : ''} ✓`
-                            : 'Chờ chấm'}
+                            : (() => {
+                                const reviewed = subs.filter(s => s.reviewed_at).length
+                                if (reviewed === 0) return 'Chờ chấm'
+                                if (reviewed === subs.length) return `Đã chấm ✓`
+                                return `Chấm ${reviewed}/${subs.length} ✓`
+                              })()}
                         </span>
                       )}
                     </div>
