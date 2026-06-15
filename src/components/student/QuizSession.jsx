@@ -407,7 +407,7 @@ export default function QuizSession({
               ${isCorrect ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
               {isCorrect
                 ? <><CheckCircle size={18} /> Chính xác!</>
-                : <><XCircle size={18} /> Sai rồi! Đáp án đúng: <strong>{q.correct_answer}</strong></>
+                : <><XCircle size={18} /> Sai rồi!</>
               }
             </div>
           )}

@@ -116,10 +116,10 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics, 
         difficulty: meta.difficulty,
         created_by: user.id,
       }))
-      const { error } = await supabase.from('questions').insert(rows)
+      const { data: inserted, error } = await supabase.from('questions').insert(rows).select('id')
       if (error) throw error
       toast.success(`Đã lưu ${rows.length} câu hỏi`)
-      onSaved()
+      onSaved(inserted?.map(q => q.id) || [])
     } catch (err) {
       toast.error('Lưu thất bại: ' + err.message)
     } finally {

@@ -748,14 +748,7 @@ function LessonQuiz({ questions, onSubmit }) {
           <div className={`mt-3 flex items-center gap-2 text-sm font-medium rounded-lg px-3 py-2 ${isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
             {isCorrect
               ? <><CheckCircle size={15} /> Chính xác!</>
-              : <>
-                  <span>✗</span> Sai rồi! Đáp án đúng:{' '}
-                  <strong>
-                    {q.type === 'word_order'
-                      ? q.correct_answer
-                      : q.correct_answer}
-                  </strong>
-                </>
+              : <><span>✗</span> Sai rồi!</>
             }
           </div>
         )}

@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { uploadFile } from '../../lib/cloudinary'
 import QuizSession from '../../components/student/QuizSession'
+import QuestionImportModal from '../../components/teacher/QuestionImportModal'
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 const TYPE_LABELS = {
@@ -58,6 +59,8 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
   const [saving, setSaving] = useState(false)
   const [loadingQ, setLoadingQ] = useState(false)
   const [pptxUploading, setPptxUploading] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   async function handlePptxUpload(e) {
     const file = e.target.files?.[0]
@@ -99,7 +102,7 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
       setQuestions(data || [])
       setLoadingQ(false)
     })
-  }, [step, form.grade, filterTopic, filterUnit, filterDiff])
+  }, [step, form.grade, filterTopic, filterUnit, filterDiff, refreshKey])
 
   // Auto-clean stale question_ids once the full (unfiltered) question list is loaded
   useEffect(() => {
@@ -371,7 +374,13 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
                   <option value="medium">Trung bình</option>
                   <option value="hard">Khó</option>
                 </select>
-                <div className="flex items-center gap-1 ml-auto">
+                <div className="flex items-center gap-1 ml-auto flex-wrap">
+                  <button
+                    onClick={() => setShowImport(true)}
+                    className="flex items-center gap-1 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-lg text-sm font-medium transition"
+                  >
+                    <Plus size={13} /> Nhập hàng loạt
+                  </button>
                   <input
                     type="number" min={1} max={50} value={randomCount}
                     onChange={e => setRandomCount(Number(e.target.value))}
@@ -485,6 +494,22 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
           </div>
         </div>
       </div>
+      {showImport && (
+        <QuestionImportModal
+          defaultGrade={form.grade}
+          defaultTopic={form.topic}
+          grades={[]}
+          topics={[]}
+          onClose={() => setShowImport(false)}
+          onSaved={newIds => {
+            setShowImport(false)
+            setRefreshKey(k => k + 1)
+            if (newIds?.length) {
+              setForm(f => ({ ...f, question_ids: [...new Set([...f.question_ids, ...newIds])] }))
+            }
+          }}
+        />
+      )}
     </div>
   )
 }
