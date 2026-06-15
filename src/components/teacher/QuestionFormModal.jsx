@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
 import { useGrades } from '../../hooks/useGrades'
 import { useUnits } from '../../hooks/useUnits'
+import { useLessonTitles } from '../../hooks/useLessonTitles'
 import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
 import { X, Plus, Trash2, Loader2, Image } from 'lucide-react'
@@ -98,6 +99,7 @@ function initFormFromQuestion(q) {
     grade: q.grade || '3',
     topic: q.topic || '',
     unit_id: q.unit_id || '',
+    lesson_title_id: q.lesson_title_id || '',
     difficulty: q.difficulty || 'easy',
     image_url: q.image_url || '',
     audio_url: q.audio_url || '',
@@ -158,6 +160,7 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
     grade: defaultGrade || '3',
     topic: defaultTopic || '',
     unit_id: defaultUnitId || '',
+    lesson_title_id: '',
     difficulty: 'easy',
     image_url: '',
     audio_url: '',
@@ -182,6 +185,7 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
 
   const topicOptions = topics.filter(t => t.grade === form.grade || t.grade === 'all')
   const { units } = useUnits(form.grade, form.topic)
+  const { lessonTitles } = useLessonTitles(form.unit_id)
   const blankCount = (form.question.match(/___/g) || []).length
   const questionRef = useRef(null)
 
@@ -282,6 +286,7 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
       audio_url: form.audio_url || null,
       hint: form.hint.trim() || null,
       unit_id: form.unit_id || null,
+      lesson_title_id: form.lesson_title_id || null,
       ...specific,
     }
     const { error } = isEdit
@@ -402,7 +407,7 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Bài <span className="text-xs font-normal text-gray-400">(tuỳ chọn)</span>
               </label>
-              <select value={form.unit_id} onChange={e => setForm({ ...form, unit_id: e.target.value })}
+              <select value={form.unit_id} onChange={e => setForm({ ...form, unit_id: e.target.value, lesson_title_id: '' })}
                 className="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 disabled={!form.topic || units.length === 0}>
                 <option value="">-- Chọn bài --</option>
@@ -412,6 +417,18 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
                 <p className="text-xs text-gray-400 mt-0.5">Chủ đề này chưa có bài nào</p>
               )}
             </div>
+            {lessonTitles.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tiêu đề <span className="text-xs font-normal text-gray-400">(tuỳ chọn)</span>
+                </label>
+                <select value={form.lesson_title_id} onChange={e => setForm({ ...form, lesson_title_id: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">-- Tất cả tiêu đề --</option>
+                  {lessonTitles.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Multiple choice */}
