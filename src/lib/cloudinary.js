@@ -17,16 +17,14 @@ export async function uploadImage(file) {
   return data.secure_url
 }
 
-// Upload any file type (image → /image, others → /raw)
+// Upload any file type — dùng /auto để Cloudinary tự phân loại
 export async function uploadFile(file) {
-  const isImage = file.type.startsWith('image/')
-  const endpoint = isImage ? 'image' : 'raw'
   const fd = new FormData()
   fd.append('file', file)
   fd.append('upload_preset', UPLOAD_PRESET)
 
   const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${endpoint}/upload`,
+    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`,
     { method: 'POST', body: fd }
   )
 
