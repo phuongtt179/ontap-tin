@@ -517,7 +517,7 @@ export default function LessonSubmissionsPage() {
                               ${reviewed ? 'bg-green-100 text-green-700' : submitted ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
                               <Upload size={9} /> B{i + 1}{submitted ? ' ✓' : ''}
                             </span>
-                            {reviewed && <span className="text-[10px] text-green-600 leading-tight font-medium">đã chấm</span>}
+                            {reviewed && <span className="text-[10px] text-green-600 leading-tight font-medium">{sub?.score != null ? `${sub.score}đ` : 'đã chấm'}</span>}
                           </div>
                         )
                       })}
