@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { uploadImage } from '../../lib/cloudinary'
 import { useAuth } from '../../context/AuthContext'
 import { useUnits } from '../../hooks/useUnits'
+import { useLessonTitles } from '../../hooks/useLessonTitles'
 import toast from 'react-hot-toast'
 import { X, ChevronRight, Save, ImagePlus, Trash2 } from 'lucide-react'
 
@@ -31,8 +32,9 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics, 
   const initialGrade = defaultGrade || grades[0] || ''
   const initialTopics = topicsForGrade(initialGrade)
   const initialTopic = defaultTopic || initialTopics[0] || ''
-  const [meta, setMeta] = useState({ grade: initialGrade, topic: initialTopic, unit_id: defaultUnitId || '', difficulty: 'easy' })
+  const [meta, setMeta] = useState({ grade: initialGrade, topic: initialTopic, unit_id: defaultUnitId || '', lesson_title_id: '', difficulty: 'easy' })
   const { units } = useUnits(meta.grade, meta.topic)
+  const { lessonTitles } = useLessonTitles(meta.unit_id)
 
   const currentTopics = topicsForGrade(meta.grade)
 
@@ -113,6 +115,7 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics, 
         grade: meta.grade,
         topic: meta.topic,
         unit_id: meta.unit_id || null,
+        lesson_title_id: meta.lesson_title_id || null,
         difficulty: meta.difficulty,
         created_by: user.id,
       }))
@@ -170,13 +173,25 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics, 
                   <label className="text-xs font-medium text-gray-600 mb-1 block">
                     Bài <span className="font-normal text-gray-400">(tuỳ chọn)</span>
                   </label>
-                  <select value={meta.unit_id} onChange={e => setMeta({ ...meta, unit_id: e.target.value })}
+                  <select value={meta.unit_id} onChange={e => setMeta({ ...meta, unit_id: e.target.value, lesson_title_id: '' })}
                     className="w-full border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     disabled={units.length === 0}>
                     <option value="">-- Chọn bài --</option>
                     {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                   </select>
                 </div>
+                {lessonTitles.length > 0 && (
+                  <div className="col-span-2">
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">
+                      Tiêu đề <span className="font-normal text-gray-400">(tuỳ chọn)</span>
+                    </label>
+                    <select value={meta.lesson_title_id} onChange={e => setMeta({ ...meta, lesson_title_id: e.target.value })}
+                      className="w-full border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                      <option value="">-- Tất cả / Không chọn --</option>
+                      {lessonTitles.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Paste area */}

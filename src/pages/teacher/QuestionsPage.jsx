@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
 import { useGrades } from '../../hooks/useGrades'
 import { useUnitsByGrade } from '../../hooks/useUnits'
+import { useLessonTitles } from '../../hooks/useLessonTitles'
 import QuestionImportModal from '../../components/teacher/QuestionImportModal'
 import QuestionCard from '../../components/teacher/QuestionCard'
 import QuestionFormModal from '../../components/teacher/QuestionFormModal'
@@ -19,6 +20,7 @@ export default function QuestionsPage() {
   const [selectedGrade, setSelectedGrade] = useState('')
   const [selectedTopic, setSelectedTopic] = useState('')
   const [selectedUnit, setSelectedUnit] = useState(null) // null = tất cả, unit object = lọc theo bài
+  const [selectedLessonTitle, setSelectedLessonTitle] = useState(null)
   const [expandedTopics, setExpandedTopics] = useState({}) // topicName → bool
   const [allQuestions, setAllQuestions] = useState([])
   const [loading, setLoading] = useState(false)
@@ -29,6 +31,7 @@ export default function QuestionsPage() {
   const [showPreview, setShowPreview] = useState(false)
 
   const { units: gradeUnits } = useUnitsByGrade(selectedGrade)
+  const { lessonTitles: unitLessonTitles } = useLessonTitles(selectedUnit?.id)
 
   // Chọn mặc định khi tải xong
   useEffect(() => {
@@ -72,12 +75,14 @@ export default function QuestionsPage() {
     } else {
       setSelectedTopic(topicName)
       setSelectedUnit(null)
+      setSelectedLessonTitle(null)
       setExpandedTopics(prev => ({ ...prev, [topicName]: true }))
     }
   }
 
   function handleUnitClick(unit) {
     setSelectedUnit(prev => prev?.id === unit.id ? null : unit)
+    setSelectedLessonTitle(null)
   }
 
   const gradeTopics = useMemo(
@@ -109,13 +114,22 @@ export default function QuestionsPage() {
     return map
   }, [allQuestions])
 
+  const countByLessonTitle = useMemo(() => {
+    const map = {}
+    allQuestions.forEach(q => {
+      if (q.lesson_title_id) map[q.lesson_title_id] = (map[q.lesson_title_id] || 0) + 1
+    })
+    return map
+  }, [allQuestions])
+
   const displayedQuestions = useMemo(() => {
     let qs = allQuestions
     if (selectedTopic) qs = qs.filter(q => q.topic === selectedTopic)
     if (selectedUnit) qs = qs.filter(q => q.unit_id === selectedUnit.id)
+    if (selectedLessonTitle) qs = qs.filter(q => q.lesson_title_id === selectedLessonTitle.id)
     if (filterType) qs = qs.filter(q => q.type === filterType)
     return qs
-  }, [allQuestions, selectedTopic, selectedUnit, filterType])
+  }, [allQuestions, selectedTopic, selectedUnit, selectedLessonTitle, filterType])
 
   const previewQuestions = useMemo(
     () => allQuestions.filter(q => previewIds.has(q.id)),
@@ -136,9 +150,11 @@ export default function QuestionsPage() {
     else { toast.success('Đã xóa'); fetchQuestions() }
   }
 
-  const panelTitle = selectedUnit
-    ? selectedUnit.name
-    : selectedTopic || 'Tất cả câu hỏi'
+  const panelTitle = selectedLessonTitle
+    ? selectedLessonTitle.name
+    : selectedUnit
+      ? selectedUnit.name
+      : selectedTopic || 'Tất cả câu hỏi'
 
   return (
     <div className="flex h-full min-h-0">
@@ -199,8 +215,8 @@ export default function QuestionsPage() {
                         const uCount = countByUnit[u.id] || 0
                         const uActive = selectedUnit?.id === u.id
                         return (
+                          <div key={u.id}>
                           <button
-                            key={u.id}
                             onClick={() => { setSelectedTopic(t.name); handleUnitClick(u) }}
                             className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs transition
                               ${uActive
@@ -214,6 +230,29 @@ export default function QuestionsPage() {
                               {uCount}
                             </span>
                           </button>
+                          {uActive && unitLessonTitles.length > 0 && (
+                            <div className="ml-4 mt-0.5 space-y-0.5 border-l-2 border-indigo-100 pl-2">
+                              {unitLessonTitles.map(lt => {
+                                const ltActive = selectedLessonTitle?.id === lt.id
+                                const ltCount = countByLessonTitle[lt.id] || 0
+                                return (
+                                  <button
+                                    key={lt.id}
+                                    onClick={() => setSelectedLessonTitle(prev => prev?.id === lt.id ? null : lt)}
+                                    className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left text-xs transition
+                                      ${ltActive ? 'bg-indigo-600 text-white font-medium' : 'text-gray-500 hover:bg-gray-100'}`}
+                                  >
+                                    <span className="flex-1 leading-tight line-clamp-2">{lt.name}</span>
+                                    <span className={`shrink-0 text-xs px-1 py-0.5 rounded-full
+                                      ${ltActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                      {ltCount}
+                                    </span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                          </div>
                         )
                       })}
                     </div>
