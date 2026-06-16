@@ -365,17 +365,22 @@ export default function LearnPage() {
   }, [lessons, selectedTopic])
 
   const groups = useMemo(() => {
-    const seen = {}
-    const result = []
+    // Gom tất cả lesson theo unit_id (không phụ thuộc thứ tự)
+    const unitMap = {}
+    const noUnit = []
     displayedLessons.forEach(l => {
-      const key = l.unit_id || '__no_unit__'
-      if (!seen[key]) {
-        const unit = units.find(u => u.id === key) || null
-        seen[key] = { unit, lessons: [] }
-        result.push(seen[key])
+      if (l.unit_id) {
+        if (!unitMap[l.unit_id]) unitMap[l.unit_id] = []
+        unitMap[l.unit_id].push(l)
+      } else {
+        noUnit.push(l)
       }
-      seen[key].lessons.push(l)
     })
+    // Sắp xếp nhóm theo sort_order của unit
+    const result = units
+      .filter(u => unitMap[u.id])
+      .map(u => ({ unit: u, lessons: unitMap[u.id] }))
+    if (noUnit.length) result.push({ unit: null, lessons: noUnit })
     return result
   }, [displayedLessons, units])
 
