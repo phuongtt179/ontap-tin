@@ -332,7 +332,7 @@ export default function LearnPage() {
     setLoading(true)
     const [{ data: topicsData }, { data: lessonsData }, { data: progressData }, { data: unitsData }] = await Promise.all([
       supabase.from('topics').select('*').in('grade', [selectedGrade, 'all']),
-      supabase.from('lessons').select('*').eq('is_published', true).eq('grade', selectedGrade).order('order', { ascending: true }),
+      supabase.from('lessons').select('*').eq('is_published', true).eq('grade', selectedGrade).order('order', { ascending: true }).order('created_at', { ascending: true }),
       supabase.from('lesson_progress').select('*').eq('user_id', user.id),
       supabase.from('units').select('*').eq('grade', selectedGrade).order('sort_order').order('name'),
     ])

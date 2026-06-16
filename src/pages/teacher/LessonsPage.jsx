@@ -681,7 +681,7 @@ export default function LessonsPage() {
       .select('*')
       .eq('grade', selectedGrade)
       .order('order', { ascending: true })
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
     setAllLessons(data || [])
     setLoading(false)
   }
