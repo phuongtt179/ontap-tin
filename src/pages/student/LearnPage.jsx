@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useSelectedGrade } from '../../hooks/useEnrollments'
-import { CheckCircle, Zap, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
+import { CheckCircle, Zap, ChevronLeft, ChevronRight } from 'lucide-react'
 
 function getProgress(lesson, progress) {
   const hasVideo = !!lesson.video_url
@@ -36,133 +36,127 @@ function getLessonEmoji(lesson) {
   if (t.includes('ôn tập') || t.includes('tổng hợp')) return '📚'
   if (t.includes('kiểm tra') || t.includes('luyện thi')) return '📋'
   if (t.includes('làm quen') || t.includes('giới thiệu')) return '👋'
+  if (t.includes('broadcast')) return '📣'
   if (t.includes('glide') || t.includes('mượt')) return '🎯'
   return '💻'
 }
 
 const COLS = 4
 
-function LearningMap({ lessons, progressMap, navigate, allCompletedCount }) {
-  if (!lessons.length) return (
-    <div className="text-center py-20">
-      <div className="text-6xl mb-4">📖</div>
-      <p className="text-gray-500 font-medium">Chưa có bài học nào</p>
-    </div>
-  )
+// One node in the map
+function LessonNode({ lesson, globalIdx, prog, navigate }) {
+  const { total, done, completed } = getProgress(lesson, prog)
+  const inProgress = done > 0 && !completed
+  const emoji = getLessonEmoji(lesson)
 
-  // Split into rows of COLS
+  return (
+    <button
+      onClick={() => navigate(`/student/learn/${lesson.id}`)}
+      className="flex flex-col items-center group w-14 md:w-16 shrink-0"
+    >
+      {/* Circle */}
+      <div className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl
+        border-[3px] shadow-sm transition-all duration-200 group-hover:scale-110 group-active:scale-95
+        ${completed
+          ? 'border-emerald-400 bg-emerald-50 shadow-emerald-100'
+          : inProgress
+            ? 'border-blue-400 bg-blue-50 shadow-blue-100'
+            : 'border-gray-200 bg-white'
+        }`}>
+        <span className="select-none">{completed ? '✅' : emoji}</span>
+        {/* Number badge */}
+        <span className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-[9px] font-black
+          flex items-center justify-center border-2 border-white shadow-sm
+          ${completed ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
+          {globalIdx + 1}
+        </span>
+        {/* Pulse ring when in progress */}
+        {inProgress && (
+          <span className="absolute inset-0 rounded-full border-4 border-blue-400 animate-ping opacity-20 pointer-events-none" />
+        )}
+      </div>
+
+      {/* Title */}
+      <p className={`text-[9px] md:text-[10px] text-center font-medium mt-1.5 leading-tight line-clamp-2
+        w-14 md:w-16
+        ${completed ? 'text-emerald-700' : inProgress ? 'text-blue-700' : 'text-gray-500'}`}>
+        {lesson.title}
+      </p>
+
+      {/* Progress dots */}
+      {total > 0 && (
+        <div className="flex gap-0.5 mt-1">
+          {Array.from({ length: total }).map((_, i) => (
+            <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < done ? 'bg-blue-400' : 'bg-gray-200'}`} />
+          ))}
+        </div>
+      )}
+    </button>
+  )
+}
+
+// Zigzag path for lessons in a unit
+function UnitPath({ lessons, progressMap, navigate, globalStart }) {
   const rows = []
   for (let i = 0; i < lessons.length; i += COLS) {
     rows.push(lessons.slice(i, i + COLS))
   }
 
-  // Find current (first in-progress or first not-started)
-  const currentIdx = (() => {
-    const inProg = lessons.findIndex(l => {
-      const p = progressMap[l.id]
-      return p && !p.completed
-    })
-    if (inProg !== -1) return inProg
-    const notStarted = lessons.findIndex(l => !progressMap[l.id])
-    return notStarted
+  // Find current lesson in this unit
+  const currentLocalIdx = (() => {
+    const ip = lessons.findIndex(l => { const p = progressMap[l.id]; return p && !p.completed })
+    if (ip !== -1) return ip
+    return lessons.findIndex(l => !progressMap[l.id])
   })()
 
   return (
-    <div className="py-6 px-4 max-w-2xl mx-auto">
+    <div className="space-y-0">
       {rows.map((row, rowIdx) => {
         const isLTR = rowIdx % 2 === 0
-        const globalStart = rowIdx * COLS
-
-        // For RTL rows, reverse display order
         const displayRow = isLTR ? row : [...row].reverse()
 
         return (
           <div key={rowIdx}>
-            {/* Row of nodes */}
-            <div className="flex items-start justify-between gap-1 md:gap-2">
+            {/* Node row */}
+            <div className="flex items-start">
               {displayRow.map((lesson, colIdx) => {
-                // Real index in original (non-reversed) order
                 const realColIdx = isLTR ? colIdx : (row.length - 1 - colIdx)
-                const globalIdx = globalStart + realColIdx
+                const localIdx = rowIdx * COLS + realColIdx
+                const globalIdx = globalStart + localIdx
                 const prog = progressMap[lesson.id]
-                const { total, done, completed } = getProgress(lesson, prog)
-                const inProgress = done > 0 && !completed
-                const isCurrent = globalIdx === currentIdx
                 const isLastInRow = colIdx === displayRow.length - 1
-                const emoji = getLessonEmoji(lesson)
 
                 return (
                   <div key={lesson.id} className="flex items-center flex-1 min-w-0">
-                    {/* Node */}
-                    <button
-                      onClick={() => navigate(`/student/learn/${lesson.id}`)}
-                      className="flex flex-col items-center flex-none w-16 md:w-20 group"
-                    >
-                      {/* Circle */}
-                      <div className={`relative w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center text-2xl md:text-3xl
-                        border-4 shadow-md transition-all duration-200 group-hover:scale-110 group-active:scale-95
-                        ${completed
-                          ? 'border-emerald-400 bg-emerald-50 shadow-emerald-100'
-                          : inProgress
-                            ? 'border-blue-400 bg-blue-50 shadow-blue-200'
-                            : isCurrent
-                              ? 'border-orange-400 bg-orange-50 shadow-orange-100'
-                              : 'border-gray-200 bg-white shadow-gray-100'
-                        }
-                        ${isCurrent ? 'ring-4 ring-orange-200 ring-offset-2' : ''}
-                      `}>
-                        <span className="select-none">
-                          {completed ? '✅' : emoji}
-                        </span>
-                        {/* Number badge */}
-                        <span className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-black
-                          flex items-center justify-center border-2 border-white
-                          ${completed ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
-                          {globalIdx + 1}
-                        </span>
-                        {/* In-progress pulse */}
-                        {(inProgress || isCurrent) && !completed && (
-                          <span className="absolute inset-0 rounded-full border-4 border-blue-400 animate-ping opacity-30" />
-                        )}
-                      </div>
-
-                      {/* Title */}
-                      <p className={`text-center text-[10px] md:text-xs font-medium mt-1.5 leading-tight line-clamp-2 w-16 md:w-20
-                        ${completed ? 'text-emerald-700' : inProgress || isCurrent ? 'text-blue-700' : 'text-gray-500'}`}>
-                        {lesson.title}
-                      </p>
-
-                      {/* Progress dots */}
-                      {total > 0 && (
-                        <div className="flex gap-0.5 mt-1">
-                          {Array.from({ length: total }).map((_, i) => (
-                            <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < done ? 'bg-blue-400' : 'bg-gray-200'}`} />
-                          ))}
-                        </div>
-                      )}
-                    </button>
-
-                    {/* Horizontal connector (not after last node) */}
+                    <LessonNode
+                      lesson={lesson}
+                      globalIdx={globalIdx}
+                      prog={prog}
+                      navigate={navigate}
+                    />
                     {!isLastInRow && (
-                      <div className="flex-1 flex items-center justify-center px-1 pb-6">
-                        <div className={`w-full h-1.5 rounded-full
-                          ${completed && displayRow[colIdx + 1] && getProgress(displayRow[colIdx + 1], progressMap[displayRow[colIdx + 1].id]).completed
-                            ? 'bg-emerald-300'
-                            : 'bg-gray-200'}`}
-                        />
+                      <div className="flex-1 h-1 mx-0.5 rounded-full min-w-[8px]">
+                        <div className={`h-full rounded-full ${
+                          prog?.completed && displayRow[colIdx + 1] && progressMap[displayRow[colIdx + 1].id]?.completed
+                            ? 'bg-emerald-200' : 'bg-gray-200'
+                        }`} />
                       </div>
                     )}
                   </div>
                 )
               })}
+              {/* Pad remaining columns if last row is short */}
+              {row.length < COLS && Array.from({ length: COLS - row.length }).map((_, i) => (
+                <div key={`pad-${i}`} className="flex-1" />
+              ))}
             </div>
 
-            {/* Vertical connector between rows */}
+            {/* Vertical connector */}
             {rowIdx < rows.length - 1 && (
-              <div className={`flex ${isLTR ? 'justify-end pr-6 md:pr-8' : 'justify-start pl-6 md:pl-8'}`}>
-                <div className="flex flex-col items-center gap-0.5 py-1">
-                  {[0,1,2,3].map(i => (
-                    <div key={i} className="w-1.5 h-2 rounded-full bg-gray-200" />
+              <div className={`flex ${isLTR ? 'justify-end pr-5 md:pr-6' : 'justify-start pl-5 md:pl-6'}`}>
+                <div className="flex flex-col gap-0.5 py-0.5">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="w-1 h-1.5 rounded-full bg-gray-200" />
                   ))}
                 </div>
               </div>
@@ -170,12 +164,92 @@ function LearningMap({ lessons, progressMap, navigate, allCompletedCount }) {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// One unit card
+function UnitCard({ unit, lessons, progressMap, navigate, unitIndex, globalStart }) {
+  const doneCount = lessons.filter(l => progressMap[l.id]?.completed).length
+  const allDone = doneCount === lessons.length
+  const anyStarted = doneCount > 0 || lessons.some(l => { const p = progressMap[l.id]; return p && !p.completed })
+
+  return (
+    <div className={`mx-3 md:mx-4 rounded-2xl border-2 overflow-hidden shadow-sm
+      ${allDone
+        ? 'border-emerald-200 bg-emerald-50/60'
+        : anyStarted
+          ? 'border-blue-100 bg-blue-50/40'
+          : 'border-gray-100 bg-white'}`}>
+
+      {/* Unit header */}
+      <div className={`flex items-center gap-2.5 px-4 py-2.5 border-b
+        ${allDone ? 'border-emerald-200 bg-emerald-100/60' : anyStarted ? 'border-blue-100 bg-blue-100/40' : 'border-gray-100 bg-gray-50'}`}>
+        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0
+          ${allDone ? 'bg-emerald-500 text-white' : anyStarted ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+          {allDone ? '✓' : unitIndex + 1}
+        </div>
+        <span className={`font-bold text-sm flex-1 ${allDone ? 'text-emerald-800' : anyStarted ? 'text-blue-800' : 'text-gray-700'}`}>
+          {unit?.name || 'Bài học'}
+        </span>
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full
+          ${allDone ? 'bg-emerald-200 text-emerald-700' : anyStarted ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+          {doneCount}/{lessons.length}
+        </span>
+      </div>
+
+      {/* Path */}
+      <div className="p-3 md:p-4">
+        <UnitPath
+          lessons={lessons}
+          progressMap={progressMap}
+          navigate={navigate}
+          globalStart={globalStart}
+        />
+      </div>
+    </div>
+  )
+}
+
+// Full learning map grouped by unit
+function LearningMap({ groups, progressMap, navigate, allLessonsCount, completedCount }) {
+  if (!allLessonsCount) return (
+    <div className="text-center py-20">
+      <div className="text-6xl mb-4">📖</div>
+      <p className="text-gray-500 font-medium">Chưa có bài học nào</p>
+    </div>
+  )
+
+  let globalStart = 0
+
+  return (
+    <div className="py-4 space-y-3 max-w-2xl mx-auto">
+      {groups.map((group, i) => {
+        const start = globalStart
+        globalStart += group.lessons.length
+        return (
+          <div key={group.unit?.id || `__no_unit_${i}`}>
+            <UnitCard
+              unit={group.unit}
+              lessons={group.lessons}
+              progressMap={progressMap}
+              navigate={navigate}
+              unitIndex={i}
+              globalStart={start}
+            />
+          </div>
+        )
+      })}
 
       {/* Finish flag */}
-      <div className="flex justify-center mt-4">
-        <div className={`flex flex-col items-center gap-1 ${allCompletedCount === lessons.length ? 'opacity-100' : 'opacity-30'}`}>
-          <div className="text-3xl">🏁</div>
-          <p className="text-xs font-bold text-gray-500">HOÀN THÀNH!</p>
+      <div className="flex justify-center pt-4 pb-6">
+        <div className={`flex flex-col items-center gap-1.5 transition-all duration-500
+          ${completedCount === allLessonsCount ? 'opacity-100 scale-110' : 'opacity-20 scale-100'}`}>
+          <div className="text-5xl">🏁</div>
+          <p className="text-xs font-black text-gray-500 tracking-widest">HOÀN THÀNH!</p>
+          {completedCount === allLessonsCount && (
+            <p className="text-emerald-600 text-xs font-semibold mt-1">🎉 Xuất sắc!</p>
+          )}
         </div>
       </div>
     </div>
@@ -239,8 +313,6 @@ function ChipRow({ items, selected, onSelect, getKey, getLabel, getCount }) {
   )
 }
 
-let completedLessons = 0 // module-level for LearningMap access
-
 export default function LearnPage() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
@@ -251,10 +323,9 @@ export default function LearnPage() {
   const [progressMap, setProgressMap] = useState({})
   const [loading, setLoading] = useState(false)
   const [selectedTopic, setSelectedTopic] = useState('__all__')
-  const [selectedUnit, setSelectedUnit] = useState('__all__')
 
   useEffect(() => {
-    if (selectedGrade && user) { setSelectedTopic('__all__'); setSelectedUnit('__all__'); loadData() }
+    if (selectedGrade && user) { setSelectedTopic('__all__'); loadData() }
   }, [selectedGrade, user?.id])
 
   async function loadData() {
@@ -274,6 +345,7 @@ export default function LearnPage() {
     setLoading(false)
   }
 
+  // Group lessons by topic for chip counts
   const grouped = useMemo(() => {
     const g = {}
     lessons.forEach(l => { const k = l.topic || '__no_topic__'; if (!g[k]) g[k] = []; g[k].push(l) })
@@ -286,26 +358,26 @@ export default function LearnPage() {
     return from
   }, [topics, lessons])
 
-  const unitsByTopic = useMemo(() => {
-    const map = {}
-    units.forEach(u => { if (!map[u.topic]) map[u.topic] = []; map[u.topic].push(u) })
-    return map
-  }, [units])
-
-  const countByUnit = useMemo(() => {
-    const map = {}
-    lessons.forEach(l => { if (l.unit_id) map[l.unit_id] = (map[l.unit_id] || 0) + 1 })
-    return map
-  }, [lessons])
-
-  const currentUnits = selectedTopic !== '__all__' ? (unitsByTopic[selectedTopic] || []) : []
-
+  // Filter lessons then group by unit
   const displayedLessons = useMemo(() => {
-    let list = lessons
-    if (selectedTopic !== '__all__') list = list.filter(l => (l.topic || '__no_topic__') === selectedTopic)
-    if (selectedUnit !== '__all__') list = list.filter(l => l.unit_id === selectedUnit)
-    return list
-  }, [lessons, selectedTopic, selectedUnit])
+    if (selectedTopic === '__all__') return lessons
+    return lessons.filter(l => (l.topic || '__no_topic__') === selectedTopic)
+  }, [lessons, selectedTopic])
+
+  const groups = useMemo(() => {
+    const seen = {}
+    const result = []
+    displayedLessons.forEach(l => {
+      const key = l.unit_id || '__no_unit__'
+      if (!seen[key]) {
+        const unit = units.find(u => u.id === key) || null
+        seen[key] = { unit, lessons: [] }
+        result.push(seen[key])
+      }
+      seen[key].lessons.push(l)
+    })
+    return result
+  }, [displayedLessons, units])
 
   const totalLessons = lessons.length
   const completedLessons = lessons.filter(l => progressMap[l.id]?.completed).length
@@ -359,7 +431,7 @@ export default function LearnPage() {
                 <span className="text-xs font-semibold">{completedLessons}/{totalLessons} bài hoàn thành</span>
               </div>
             )}
-            {completedLessons > 0 && (
+            {totalLessons > 0 && (
               <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1">
                 <Zap size={13} className="text-yellow-300" />
                 <span className="text-xs font-semibold">{Math.round((completedLessons / totalLessons) * 100)}%</span>
@@ -369,52 +441,40 @@ export default function LearnPage() {
         </div>
       </div>
 
-      {/* Filter chips — sticky */}
+      {/* Topic filter chips — sticky */}
       <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-gray-100 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-2.5 space-y-2">
+        <div className="max-w-2xl mx-auto px-4 py-2.5">
           <ChipRow
             items={['__all__', ...topicChips]}
             selected={selectedTopic}
-            onSelect={k => { setSelectedTopic(k); setSelectedUnit('__all__') }}
+            onSelect={k => setSelectedTopic(k)}
             getKey={k => k}
             getLabel={k => k === '__all__' ? '🏠 Tất cả' : (k === '__no_topic__' ? 'Chưa phân loại' : k)}
             getCount={k => k === '__all__' ? lessons.length : (grouped[k] || []).length}
           />
-          {selectedTopic !== '__all__' && currentUnits.length > 0 && (
-            <ChipRow
-              items={[{ id: '__all__', name: 'Tất cả bài' }, ...currentUnits]}
-              selected={selectedUnit}
-              onSelect={k => setSelectedUnit(k)}
-              getKey={u => u.id}
-              getLabel={u => u.name}
-              getCount={u => u.id === '__all__' ? (grouped[selectedTopic] || []).length : (countByUnit[u.id] || 0)}
-            />
-          )}
         </div>
       </div>
 
       {/* Legend */}
-      <div className="max-w-2xl mx-auto px-4 pt-4 flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-          <div className="w-4 h-4 rounded-full bg-emerald-100 border-2 border-emerald-400" /> Hoàn thành
+      <div className="max-w-2xl mx-auto px-4 pt-3 flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+          <div className="w-3.5 h-3.5 rounded-full bg-emerald-100 border-2 border-emerald-400" /> Hoàn thành
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-          <div className="w-4 h-4 rounded-full bg-blue-50 border-2 border-blue-400" /> Đang học
+        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+          <div className="w-3.5 h-3.5 rounded-full bg-blue-50 border-2 border-blue-400" /> Đang học
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-          <div className="w-4 h-4 rounded-full bg-orange-50 border-2 border-orange-400 ring-2 ring-orange-200" /> Tiếp theo
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-          <div className="w-4 h-4 rounded-full bg-white border-2 border-gray-200" /> Chưa học
+        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+          <div className="w-3.5 h-3.5 rounded-full bg-white border-2 border-gray-200" /> Chưa học
         </div>
       </div>
 
-      {/* Learning Map */}
+      {/* Map */}
       <LearningMap
-        lessons={displayedLessons}
+        groups={groups}
         progressMap={progressMap}
         navigate={navigate}
-        allCompletedCount={completedLessons}
+        allLessonsCount={displayedLessons.length}
+        completedCount={displayedLessons.filter(l => progressMap[l.id]?.completed).length}
       />
     </div>
   )
