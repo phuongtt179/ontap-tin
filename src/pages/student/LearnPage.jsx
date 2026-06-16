@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useSelectedGrade } from '../../hooks/useEnrollments'
-import { CheckCircle, Clock, Zap, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CheckCircle, Zap, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 
 function getProgress(lesson, progress) {
   const hasVideo = !!lesson.video_url
@@ -28,7 +28,7 @@ function getLessonEmoji(lesson) {
   if (t.includes('điều kiện') || t.includes('condition')) return '🔀'
   if (t.includes('event') || t.includes('sự kiện')) return '⚡'
   if (t.includes('sprite') || t.includes('nhân vật')) return '🦸'
-  if (t.includes('backdrop') || t.includes('cảnh nền')) return '🌄'
+  if (t.includes('backdrop') || t.includes('cảnh')) return '🌄'
   if (t.includes('chuyển động') || t.includes('motion')) return '🚀'
   if (t.includes('ngoại hình') || t.includes('looks')) return '👀'
   if (t.includes('cảm biến') || t.includes('sensing')) return '📡'
@@ -40,57 +40,189 @@ function getLessonEmoji(lesson) {
   return '💻'
 }
 
-function ChipRow({ items, selected, onSelect, getLabel, getKey, getCount }) {
+const COLS = 4
+
+function LearningMap({ lessons, progressMap, navigate, allCompletedCount }) {
+  if (!lessons.length) return (
+    <div className="text-center py-20">
+      <div className="text-6xl mb-4">📖</div>
+      <p className="text-gray-500 font-medium">Chưa có bài học nào</p>
+    </div>
+  )
+
+  // Split into rows of COLS
+  const rows = []
+  for (let i = 0; i < lessons.length; i += COLS) {
+    rows.push(lessons.slice(i, i + COLS))
+  }
+
+  // Find current (first in-progress or first not-started)
+  const currentIdx = (() => {
+    const inProg = lessons.findIndex(l => {
+      const p = progressMap[l.id]
+      return p && !p.completed
+    })
+    if (inProg !== -1) return inProg
+    const notStarted = lessons.findIndex(l => !progressMap[l.id])
+    return notStarted
+  })()
+
+  return (
+    <div className="py-6 px-4 max-w-2xl mx-auto">
+      {rows.map((row, rowIdx) => {
+        const isLTR = rowIdx % 2 === 0
+        const globalStart = rowIdx * COLS
+
+        // For RTL rows, reverse display order
+        const displayRow = isLTR ? row : [...row].reverse()
+
+        return (
+          <div key={rowIdx}>
+            {/* Row of nodes */}
+            <div className="flex items-start justify-between gap-1 md:gap-2">
+              {displayRow.map((lesson, colIdx) => {
+                // Real index in original (non-reversed) order
+                const realColIdx = isLTR ? colIdx : (row.length - 1 - colIdx)
+                const globalIdx = globalStart + realColIdx
+                const prog = progressMap[lesson.id]
+                const { total, done, completed } = getProgress(lesson, prog)
+                const inProgress = done > 0 && !completed
+                const isCurrent = globalIdx === currentIdx
+                const isLastInRow = colIdx === displayRow.length - 1
+                const emoji = getLessonEmoji(lesson)
+
+                return (
+                  <div key={lesson.id} className="flex items-center flex-1 min-w-0">
+                    {/* Node */}
+                    <button
+                      onClick={() => navigate(`/student/learn/${lesson.id}`)}
+                      className="flex flex-col items-center flex-none w-16 md:w-20 group"
+                    >
+                      {/* Circle */}
+                      <div className={`relative w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center text-2xl md:text-3xl
+                        border-4 shadow-md transition-all duration-200 group-hover:scale-110 group-active:scale-95
+                        ${completed
+                          ? 'border-emerald-400 bg-emerald-50 shadow-emerald-100'
+                          : inProgress
+                            ? 'border-blue-400 bg-blue-50 shadow-blue-200'
+                            : isCurrent
+                              ? 'border-orange-400 bg-orange-50 shadow-orange-100'
+                              : 'border-gray-200 bg-white shadow-gray-100'
+                        }
+                        ${isCurrent ? 'ring-4 ring-orange-200 ring-offset-2' : ''}
+                      `}>
+                        <span className="select-none">
+                          {completed ? '✅' : emoji}
+                        </span>
+                        {/* Number badge */}
+                        <span className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-black
+                          flex items-center justify-center border-2 border-white
+                          ${completed ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                          {globalIdx + 1}
+                        </span>
+                        {/* In-progress pulse */}
+                        {(inProgress || isCurrent) && !completed && (
+                          <span className="absolute inset-0 rounded-full border-4 border-blue-400 animate-ping opacity-30" />
+                        )}
+                      </div>
+
+                      {/* Title */}
+                      <p className={`text-center text-[10px] md:text-xs font-medium mt-1.5 leading-tight line-clamp-2 w-16 md:w-20
+                        ${completed ? 'text-emerald-700' : inProgress || isCurrent ? 'text-blue-700' : 'text-gray-500'}`}>
+                        {lesson.title}
+                      </p>
+
+                      {/* Progress dots */}
+                      {total > 0 && (
+                        <div className="flex gap-0.5 mt-1">
+                          {Array.from({ length: total }).map((_, i) => (
+                            <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < done ? 'bg-blue-400' : 'bg-gray-200'}`} />
+                          ))}
+                        </div>
+                      )}
+                    </button>
+
+                    {/* Horizontal connector (not after last node) */}
+                    {!isLastInRow && (
+                      <div className="flex-1 flex items-center justify-center px-1 pb-6">
+                        <div className={`w-full h-1.5 rounded-full
+                          ${completed && displayRow[colIdx + 1] && getProgress(displayRow[colIdx + 1], progressMap[displayRow[colIdx + 1].id]).completed
+                            ? 'bg-emerald-300'
+                            : 'bg-gray-200'}`}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Vertical connector between rows */}
+            {rowIdx < rows.length - 1 && (
+              <div className={`flex ${isLTR ? 'justify-end pr-6 md:pr-8' : 'justify-start pl-6 md:pl-8'}`}>
+                <div className="flex flex-col items-center gap-0.5 py-1">
+                  {[0,1,2,3].map(i => (
+                    <div key={i} className="w-1.5 h-2 rounded-full bg-gray-200" />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {/* Finish flag */}
+      <div className="flex justify-center mt-4">
+        <div className={`flex flex-col items-center gap-1 ${allCompletedCount === lessons.length ? 'opacity-100' : 'opacity-30'}`}>
+          <div className="text-3xl">🏁</div>
+          <p className="text-xs font-bold text-gray-500">HOÀN THÀNH!</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Chip scroll row
+function ChipRow({ items, selected, onSelect, getKey, getLabel, getCount }) {
   const ref = useRef(null)
   const [canLeft, setCanLeft] = useState(false)
   const [canRight, setCanRight] = useState(false)
 
   function checkScroll() {
-    const el = ref.current
-    if (!el) return
+    const el = ref.current; if (!el) return
     setCanLeft(el.scrollLeft > 4)
     setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
   }
-
   useEffect(() => {
     checkScroll()
-    const el = ref.current
-    if (!el) return
+    const el = ref.current; if (!el) return
     el.addEventListener('scroll', checkScroll, { passive: true })
     return () => el.removeEventListener('scroll', checkScroll)
   }, [items])
 
-  function scroll(dir) {
-    ref.current?.scrollBy({ left: dir * 200, behavior: 'smooth' })
-  }
-
   return (
     <div className="relative flex items-center gap-1">
       {canLeft && (
-        <button onClick={() => scroll(-1)}
-          className="shrink-0 w-7 h-7 rounded-full bg-white shadow border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 z-10">
-          <ChevronLeft size={14} />
+        <button onClick={() => ref.current?.scrollBy({ left: -160, behavior: 'smooth' })}
+          className="shrink-0 w-6 h-6 rounded-full bg-white shadow border border-gray-200 flex items-center justify-center text-gray-500">
+          <ChevronLeft size={13} />
         </button>
       )}
-      <div ref={ref}
-        className="flex gap-2 overflow-x-auto scroll-smooth pb-1"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <div ref={ref} className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
         {items.map(item => {
           const key = getKey(item)
-          const label = getLabel(item)
-          const count = getCount?.(item)
           const active = selected === key
           return (
             <button key={key} onClick={() => onSelect(key)}
-              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap
                 ${active
                   ? 'bg-[#0066CC] text-white shadow-md shadow-blue-200'
                   : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-600'}`}>
-              {label}
-              {count != null && (
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold
+              {getLabel(item)}
+              {getCount && (
+                <span className={`text-[10px] px-1 py-0.5 rounded-full font-bold
                   ${active ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                  {count}
+                  {getCount(item)}
                 </span>
               )}
             </button>
@@ -98,14 +230,16 @@ function ChipRow({ items, selected, onSelect, getLabel, getKey, getCount }) {
         })}
       </div>
       {canRight && (
-        <button onClick={() => scroll(1)}
-          className="shrink-0 w-7 h-7 rounded-full bg-white shadow border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 z-10">
-          <ChevronRight size={14} />
+        <button onClick={() => ref.current?.scrollBy({ left: 160, behavior: 'smooth' })}
+          className="shrink-0 w-6 h-6 rounded-full bg-white shadow border border-gray-200 flex items-center justify-center text-gray-500">
+          <ChevronRight size={13} />
         </button>
       )}
     </div>
   )
 }
+
+let completedLessons = 0 // module-level for LearningMap access
 
 export default function LearnPage() {
   const navigate = useNavigate()
@@ -120,11 +254,7 @@ export default function LearnPage() {
   const [selectedUnit, setSelectedUnit] = useState('__all__')
 
   useEffect(() => {
-    if (selectedGrade && user) {
-      setSelectedTopic('__all__')
-      setSelectedUnit('__all__')
-      loadData()
-    }
+    if (selectedGrade && user) { setSelectedTopic('__all__'); setSelectedUnit('__all__'); loadData() }
   }, [selectedGrade, user?.id])
 
   async function loadData() {
@@ -144,38 +274,23 @@ export default function LearnPage() {
     setLoading(false)
   }
 
-  // Group by topic
   const grouped = useMemo(() => {
     const g = {}
-    lessons.forEach(l => {
-      const k = l.topic || '__no_topic__'
-      if (!g[k]) g[k] = []
-      g[k].push(l)
-    })
+    lessons.forEach(l => { const k = l.topic || '__no_topic__'; if (!g[k]) g[k] = []; g[k].push(l) })
     return g
   }, [lessons])
 
-  // Topic chips list
   const topicChips = useMemo(() => {
-    const fromDB = topics.map(t => t.name)
-    lessons.forEach(l => {
-      const k = l.topic || '__no_topic__'
-      if (!fromDB.includes(k)) fromDB.push(k)
-    })
-    return fromDB
+    const from = topics.map(t => t.name)
+    lessons.forEach(l => { const k = l.topic || '__no_topic__'; if (!from.includes(k)) from.push(k) })
+    return from
   }, [topics, lessons])
 
-  // Units for selected topic
   const unitsByTopic = useMemo(() => {
     const map = {}
-    units.forEach(u => {
-      if (!map[u.topic]) map[u.topic] = []
-      map[u.topic].push(u)
-    })
+    units.forEach(u => { if (!map[u.topic]) map[u.topic] = []; map[u.topic].push(u) })
     return map
   }, [units])
-
-  const currentUnits = selectedTopic !== '__all__' ? (unitsByTopic[selectedTopic] || []) : []
 
   const countByUnit = useMemo(() => {
     const map = {}
@@ -183,7 +298,8 @@ export default function LearnPage() {
     return map
   }, [lessons])
 
-  // Filtered lessons
+  const currentUnits = selectedTopic !== '__all__' ? (unitsByTopic[selectedTopic] || []) : []
+
   const displayedLessons = useMemo(() => {
     let list = lessons
     if (selectedTopic !== '__all__') list = list.filter(l => (l.topic || '__no_topic__') === selectedTopic)
@@ -193,11 +309,6 @@ export default function LearnPage() {
 
   const totalLessons = lessons.length
   const completedLessons = lessons.filter(l => progressMap[l.id]?.completed).length
-
-  function handleTopicSelect(key) {
-    setSelectedTopic(key)
-    setSelectedUnit('__all__')
-  }
 
   if (enrollLoading || loading) {
     return (
@@ -224,21 +335,17 @@ export default function LearnPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50">
-      {/* Hero banner */}
+      {/* Hero */}
       <div className="bg-gradient-to-r from-[#003d8f] via-[#0055bb] to-[#0077dd] text-white px-5 py-5 md:px-8 md:py-6 relative overflow-hidden">
-        <div className="absolute right-0 top-0 bottom-0 flex items-center pr-6 opacity-10 select-none pointer-events-none text-9xl">
-          💻
-        </div>
-        <div className="relative max-w-4xl mx-auto">
-          <div className="flex items-center gap-3 mb-1">
-            <img src="/logo-bnp.png" alt="BNP" className="w-8 h-8 object-contain rounded-lg hidden md:block"
+        <div className="absolute right-0 top-0 bottom-0 flex items-center pr-6 opacity-10 select-none pointer-events-none text-9xl">🗺️</div>
+        <div className="relative max-w-2xl mx-auto">
+          <div className="flex items-center gap-2 mb-1">
+            <img src="/logo-bnp.png" alt="BNP" className="w-7 h-7 object-contain rounded hidden md:block"
               onError={e => { e.target.style.display = 'none' }} />
-            <p className="text-blue-200 text-sm">Xin chào 👋</p>
+            <p className="text-blue-200 text-sm">Bản đồ học tập 🗺️</p>
           </div>
           <h2 className="text-xl md:text-2xl font-bold">{profile?.full_name || 'Học sinh'}</h2>
-
-          <div className="flex items-center gap-3 mt-3 flex-wrap">
-            {/* Grade pills */}
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
             {grades.map(g => (
               <button key={g} onClick={() => setSelectedGrade(g)}
                 className={`px-3 py-1 rounded-full text-xs font-semibold transition
@@ -247,40 +354,32 @@ export default function LearnPage() {
               </button>
             ))}
             {totalLessons > 0 && (
-              <>
-                <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1">
-                  <CheckCircle size={13} className="text-yellow-300" />
-                  <span className="text-xs font-semibold">{completedLessons}/{totalLessons} bài</span>
-                </div>
-                {completedLessons > 0 && (
-                  <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1">
-                    <Zap size={13} className="text-yellow-300" />
-                    <span className="text-xs font-semibold">{Math.round((completedLessons / totalLessons) * 100)}%</span>
-                  </div>
-                )}
-              </>
+              <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1">
+                <CheckCircle size={13} className="text-yellow-300" />
+                <span className="text-xs font-semibold">{completedLessons}/{totalLessons} bài hoàn thành</span>
+              </div>
+            )}
+            {completedLessons > 0 && (
+              <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1">
+                <Zap size={13} className="text-yellow-300" />
+                <span className="text-xs font-semibold">{Math.round((completedLessons / totalLessons) * 100)}%</span>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filter chips — sticky */}
       <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-gray-100 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-3 space-y-2">
-          {/* Topic chips */}
+        <div className="max-w-2xl mx-auto px-4 py-2.5 space-y-2">
           <ChipRow
             items={['__all__', ...topicChips]}
             selected={selectedTopic}
-            onSelect={handleTopicSelect}
+            onSelect={k => { setSelectedTopic(k); setSelectedUnit('__all__') }}
             getKey={k => k}
             getLabel={k => k === '__all__' ? '🏠 Tất cả' : (k === '__no_topic__' ? 'Chưa phân loại' : k)}
-            getCount={k => {
-              if (k === '__all__') return lessons.length
-              return (grouped[k] || []).length
-            }}
+            getCount={k => k === '__all__' ? lessons.length : (grouped[k] || []).length}
           />
-
-          {/* Unit chips — only when topic selected and has units */}
           {selectedTopic !== '__all__' && currentUnits.length > 0 && (
             <ChipRow
               items={[{ id: '__all__', name: 'Tất cả bài' }, ...currentUnits]}
@@ -294,98 +393,29 @@ export default function LearnPage() {
         </div>
       </div>
 
-      {/* Cards */}
-      <div className="max-w-4xl mx-auto px-4 py-5">
-        {displayedLessons.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="text-6xl mb-4">📖</div>
-            <p className="text-gray-500 font-medium">Chưa có bài học nào</p>
-            <p className="text-gray-400 text-sm mt-1">Giáo viên chưa xuất bản bài học cho mục này</p>
-          </div>
-        ) : (
-          <>
-            <p className="text-xs text-gray-400 mb-3">{displayedLessons.length} bài học</p>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-              {displayedLessons.map((lesson, idx) => {
-                const prog = progressMap[lesson.id]
-                const { total, done, completed } = getProgress(lesson, prog)
-                const inProgress = done > 0 && !completed
-                const emoji = getLessonEmoji(lesson)
-
-                const headerBg = completed
-                  ? 'from-emerald-400 to-green-500'
-                  : inProgress
-                    ? 'from-orange-400 to-amber-500'
-                    : 'from-[#0066CC] to-[#00AAFF]'
-
-                return (
-                  <div key={lesson.id}
-                    onClick={() => navigate(`/student/learn/${lesson.id}`)}
-                    className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer group border border-blue-100 hover:border-blue-300 hover:-translate-y-0.5 active:scale-95">
-
-                    {/* Card header */}
-                    <div className={`bg-gradient-to-br ${headerBg} h-24 md:h-28 flex items-center justify-between px-3 md:px-4 relative`}>
-                      <span className="text-4xl md:text-5xl group-hover:scale-110 transition-transform duration-200 select-none">
-                        {emoji}
-                      </span>
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="bg-white/25 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                          #{idx + 1}
-                        </span>
-                        {completed && (
-                          <span className="bg-white text-emerald-600 text-xs font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                            <CheckCircle size={9} /> Xong
-                          </span>
-                        )}
-                        {inProgress && (
-                          <span className="bg-white text-orange-500 text-xs font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                            <Clock size={9} /> Đang học
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Card body */}
-                    <div className="p-3 md:p-4">
-                      <h3 className="font-bold text-gray-800 leading-snug line-clamp-2 text-xs md:text-sm group-hover:text-blue-700 transition-colors">
-                        {lesson.title}
-                      </h3>
-
-                      {/* Tags */}
-                      <div className="flex gap-1 mt-2 flex-wrap">
-                        {lesson.video_url && (
-                          <span className="text-xs bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded-full">📹</span>
-                        )}
-                        {lesson.question_ids?.length > 0 && (
-                          <span className="text-xs bg-purple-50 text-purple-500 px-1.5 py-0.5 rounded-full">
-                            📝 {lesson.question_ids.length}
-                          </span>
-                        )}
-                        {lesson.has_practice && (
-                          <span className="text-xs bg-orange-50 text-orange-500 px-1.5 py-0.5 rounded-full">🎯</span>
-                        )}
-                      </div>
-
-                      {/* Progress bar */}
-                      {total > 0 && (
-                        <div className="mt-2.5">
-                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-1.5 rounded-full transition-all duration-500 ${completed ? 'bg-emerald-500' : 'bg-blue-500'}`}
-                              style={{ width: `${(done / total) * 100}%` }}
-                            />
-                          </div>
-                          <p className="text-xs text-gray-400 mt-1">{done}/{total} bước</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </>
-        )}
+      {/* Legend */}
+      <div className="max-w-2xl mx-auto px-4 pt-4 flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+          <div className="w-4 h-4 rounded-full bg-emerald-100 border-2 border-emerald-400" /> Hoàn thành
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+          <div className="w-4 h-4 rounded-full bg-blue-50 border-2 border-blue-400" /> Đang học
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+          <div className="w-4 h-4 rounded-full bg-orange-50 border-2 border-orange-400 ring-2 ring-orange-200" /> Tiếp theo
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+          <div className="w-4 h-4 rounded-full bg-white border-2 border-gray-200" /> Chưa học
+        </div>
       </div>
+
+      {/* Learning Map */}
+      <LearningMap
+        lessons={displayedLessons}
+        progressMap={progressMap}
+        navigate={navigate}
+        allCompletedCount={completedLessons}
+      />
     </div>
   )
 }
