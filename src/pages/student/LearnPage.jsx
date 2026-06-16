@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabase'
 import { useSelectedGrade } from '../../hooks/useEnrollments'
 import { CheckCircle, Zap, ChevronLeft, ChevronRight } from 'lucide-react'
 
+// ── Helpers ──────────────────────────────────────────────────────
+
 function getProgress(lesson, progress) {
   const hasVideo = !!lesson.video_url
   const hasQuiz = lesson.question_ids?.length > 0
@@ -19,31 +21,177 @@ function getProgress(lesson, progress) {
 
 function getLessonEmoji(lesson) {
   const t = (lesson.title + ' ' + (lesson.topic || '')).toLowerCase()
-  if (t.includes('scratch')) return '🐱'
-  if (t.includes('python')) return '🐍'
-  if (t.includes('game')) return '🎮'
-  if (t.includes('animation') || t.includes('hoạt hình')) return '🎬'
-  if (t.includes('âm thanh') || t.includes('sound')) return '🎵'
-  if (t.includes('vòng lặp') || t.includes('loop')) return '🔁'
-  if (t.includes('điều kiện') || t.includes('condition')) return '🔀'
-  if (t.includes('event') || t.includes('sự kiện')) return '⚡'
-  if (t.includes('sprite') || t.includes('nhân vật')) return '🦸'
-  if (t.includes('backdrop') || t.includes('cảnh')) return '🌄'
-  if (t.includes('chuyển động') || t.includes('motion')) return '🚀'
-  if (t.includes('ngoại hình') || t.includes('looks')) return '👀'
-  if (t.includes('cảm biến') || t.includes('sensing')) return '📡'
-  if (t.includes('project') || t.includes('dự án')) return '🏆'
-  if (t.includes('ôn tập') || t.includes('tổng hợp')) return '📚'
-  if (t.includes('kiểm tra') || t.includes('luyện thi')) return '📋'
   if (t.includes('làm quen') || t.includes('giới thiệu')) return '👋'
-  if (t.includes('broadcast')) return '📣'
-  if (t.includes('glide') || t.includes('mượt')) return '🎯'
-  return '💻'
+  if (t.includes('chuyển động') || t.includes('motion')) return '🚀'
+  if (t.includes('ngoại hình') || t.includes('looks') || t.includes('trang phục')) return '🎨'
+  if (t.includes('âm thanh') || t.includes('sound') || t.includes('nhạc')) return '🎵'
+  if (t.includes('broadcast') || t.includes('tin nhắn')) return '📣'
+  if (t.includes('sự kiện') || t.includes('event')) return '⚡'
+  if (t.includes('vòng lặp') || t.includes('loop') || t.includes('lặp lại')) return '🔁'
+  if (t.includes('điều kiện') || t.includes('if') || t.includes('rẽ nhánh')) return '🔀'
+  if (t.includes('biến') || t.includes('variable')) return '📦'
+  if (t.includes('toán tử') || t.includes('phép tính') || t.includes('operator')) return '🔢'
+  if (t.includes('danh sách') || t.includes('list')) return '📋'
+  if (t.includes('bút') || t.includes('pen') || t.includes('vẽ đường')) return '🖊️'
+  if (t.includes('nhân vật') || t.includes('sprite')) return '🦸'
+  if (t.includes('backdrop') || t.includes('cảnh nền') || t.includes('sân khấu')) return '🌄'
+  if (t.includes('game') || t.includes('trò chơi')) return '🎮'
+  if (t.includes('animation') || t.includes('hoạt hình')) return '🎬'
+  if (t.includes('cảm biến') || t.includes('sensing')) return '📡'
+  if (t.includes('clone') || t.includes('nhân bản')) return '🪞'
+  if (t.includes('project') || t.includes('dự án') || t.includes('sản phẩm')) return '🏆'
+  if (t.includes('ôn tập') || t.includes('tổng hợp') || t.includes('tổng kết')) return '📚'
+  if (t.includes('bài tập') || t.includes('luyện tập')) return '✏️'
+  if (t.includes('kiểm tra') || t.includes('test')) return '📝'
+  if (t.includes('gõ phím') || t.includes('typing')) return '⌨️'
+  if (t.includes('chuột') || t.includes('mouse')) return '🖱️'
+  if (t.includes('paint') || t.includes('vẽ')) return '🎨'
+  if (t.includes('internet') || t.includes('web')) return '🌐'
+  if (t.includes('an toàn')) return '🛡️'
+  if (t.includes('word') || t.includes('văn bản')) return '📝'
+  if (t.includes('excel') || t.includes('bảng tính')) return '📊'
+  if (t.includes('glide') || t.includes('trượt')) return '⛷️'
+  if (t.includes('python')) return '🐍'
+  if (t.includes('scratch')) return '🐱'
+  // Deterministic fallback per lesson title
+  const hash = lesson.title.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+  return ['💡', '🔧', '⚙️', '🎯', '🌟', '🧩', '🔬', '🎪', '🖥️', '🏅', '🎁', '🌈'][hash % 12]
 }
 
-const COLS = 4
+function getTopicEmoji(topic) {
+  const t = topic.toLowerCase()
+  if (t.includes('scratch')) return '🐱'
+  if (t.includes('gõ phím') || t.includes('bàn phím') || t.includes('typing')) return '⌨️'
+  if (t.includes('paint') || t.includes('vẽ')) return '🎨'
+  if (t.includes('python')) return '🐍'
+  if (t.includes('máy tính') || t.includes('computer')) return '🖥️'
+  if (t.includes('internet') || t.includes('mạng') || t.includes('web')) return '🌐'
+  if (t.includes('word') || t.includes('văn bản')) return '📝'
+  if (t.includes('excel') || t.includes('bảng tính')) return '📊'
+  if (t.includes('game')) return '🎮'
+  if (t.includes('an toàn')) return '🛡️'
+  if (t.includes('nền tảng')) return '🏗️'
+  if (t.includes('sự kiện') || t.includes('event')) return '⚡'
+  if (t.includes('chuyển động') || t.includes('motion')) return '🚀'
+  if (t.includes('animation') || t.includes('hoạt hình')) return '🎬'
+  if (t.includes('âm thanh') || t.includes('sound')) return '🎵'
+  const hash = topic.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+  return ['📚', '💡', '🎯', '🏆', '🧩', '🌟', '🔬', '🎪'][hash % 8]
+}
 
-// One node in the map
+// ── Topic card colors ─────────────────────────────────────────────
+const CARD_COLORS = [
+  { gradient: 'from-blue-500 to-blue-600', border: 'border-blue-200', bg: 'bg-blue-50', text: 'text-blue-700', badge: 'bg-blue-100', bar: 'bg-blue-500' },
+  { gradient: 'from-violet-500 to-violet-600', border: 'border-violet-200', bg: 'bg-violet-50', text: 'text-violet-700', badge: 'bg-violet-100', bar: 'bg-violet-500' },
+  { gradient: 'from-emerald-500 to-emerald-600', border: 'border-emerald-200', bg: 'bg-emerald-50', text: 'text-emerald-700', badge: 'bg-emerald-100', bar: 'bg-emerald-500' },
+  { gradient: 'from-orange-500 to-orange-600', border: 'border-orange-200', bg: 'bg-orange-50', text: 'text-orange-700', badge: 'bg-orange-100', bar: 'bg-orange-500' },
+  { gradient: 'from-pink-500 to-pink-600', border: 'border-pink-200', bg: 'bg-pink-50', text: 'text-pink-700', badge: 'bg-pink-100', bar: 'bg-pink-500' },
+  { gradient: 'from-cyan-500 to-cyan-600', border: 'border-cyan-200', bg: 'bg-cyan-50', text: 'text-cyan-700', badge: 'bg-cyan-100', bar: 'bg-cyan-500' },
+  { gradient: 'from-amber-500 to-amber-600', border: 'border-amber-200', bg: 'bg-amber-50', text: 'text-amber-700', badge: 'bg-amber-100', bar: 'bg-amber-500' },
+  { gradient: 'from-teal-500 to-teal-600', border: 'border-teal-200', bg: 'bg-teal-50', text: 'text-teal-700', badge: 'bg-teal-100', bar: 'bg-teal-500' },
+  { gradient: 'from-rose-500 to-rose-600', border: 'border-rose-200', bg: 'bg-rose-50', text: 'text-rose-700', badge: 'bg-rose-100', bar: 'bg-rose-500' },
+]
+
+// ── Topic cards scrollable row ────────────────────────────────────
+function TopicCards({ topicKeys, lessons, progressMap, grouped, selected, onSelect }) {
+  const ref = useRef(null)
+  const [canLeft, setCanLeft] = useState(false)
+  const [canRight, setCanRight] = useState(false)
+
+  function checkScroll() {
+    const el = ref.current; if (!el) return
+    setCanLeft(el.scrollLeft > 4)
+    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+  }
+  useEffect(() => {
+    checkScroll()
+    const el = ref.current; if (!el) return
+    el.addEventListener('scroll', checkScroll, { passive: true })
+    return () => el.removeEventListener('scroll', checkScroll)
+  }, [topicKeys])
+
+  const items = [
+    { key: '__all__', label: 'Tất cả', emoji: '🏠', list: lessons, colorIdx: -1 },
+    ...topicKeys.map((k, i) => ({
+      key: k,
+      label: k === '__no_topic__' ? 'Chưa phân loại' : k,
+      emoji: getTopicEmoji(k),
+      list: grouped[k] || [],
+      colorIdx: i,
+    }))
+  ]
+
+  return (
+    <div className="relative flex items-center">
+      {canLeft && (
+        <button onClick={() => ref.current?.scrollBy({ left: -200, behavior: 'smooth' })}
+          className="absolute left-1 z-10 w-7 h-7 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50">
+          <ChevronLeft size={14} />
+        </button>
+      )}
+
+      <div ref={ref} onScroll={checkScroll}
+        className="flex gap-3 overflow-x-auto px-4 py-3"
+        style={{ scrollbarWidth: 'none' }}>
+        {items.map(({ key, label, emoji, list, colorIdx }) => {
+          const active = selected === key
+          const done = list.filter(l => progressMap[l.id]?.completed).length
+          const pct = list.length ? (done / list.length) * 100 : 0
+          const c = colorIdx >= 0 ? CARD_COLORS[colorIdx % CARD_COLORS.length] : CARD_COLORS[0]
+
+          return (
+            <button key={key} onClick={() => onSelect(key)}
+              className={`shrink-0 w-36 rounded-2xl p-3 text-left transition-all duration-200 border-2
+                ${active
+                  ? `bg-gradient-to-br ${c.gradient} border-transparent shadow-xl shadow-black/15 scale-[1.05]`
+                  : `bg-white ${c.border} hover:shadow-md hover:${c.bg} hover:scale-[1.02] hover:border-opacity-60`
+                }`}>
+
+              {/* Emoji + count */}
+              <div className="flex items-start justify-between mb-2">
+                <span className="text-2xl leading-none">{emoji}</span>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full leading-tight
+                  ${active ? 'bg-white/25 text-white' : `${c.badge} ${c.text}`}`}>
+                  {list.length}
+                </span>
+              </div>
+
+              {/* Topic name */}
+              <p className={`text-[11px] font-bold leading-tight line-clamp-2 min-h-[2rem]
+                ${active ? 'text-white' : 'text-gray-700'}`}>
+                {label}
+              </p>
+
+              {/* Progress */}
+              {list.length > 0 && (
+                <div className="mt-2.5">
+                  <div className={`h-1.5 rounded-full overflow-hidden ${active ? 'bg-white/25' : 'bg-gray-100'}`}>
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${active ? 'bg-white' : c.bar}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <p className={`text-[9px] mt-1 font-medium ${active ? 'text-white/80' : 'text-gray-400'}`}>
+                    {done > 0 ? `✓ ${done}/${list.length} hoàn thành` : `${list.length} bài học`}
+                  </p>
+                </div>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {canRight && (
+        <button onClick={() => ref.current?.scrollBy({ left: 200, behavior: 'smooth' })}
+          className="absolute right-1 z-10 w-7 h-7 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50">
+          <ChevronRight size={14} />
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── Lesson node ───────────────────────────────────────────────────
 function LessonNode({ lesson, globalIdx, prog, navigate }) {
   const { total, done, completed } = getProgress(lesson, prog)
   const inProgress = done > 0 && !completed
@@ -54,36 +202,30 @@ function LessonNode({ lesson, globalIdx, prog, navigate }) {
       onClick={() => navigate(`/student/learn/${lesson.id}`)}
       className="flex flex-col items-center group w-14 md:w-16 shrink-0"
     >
-      {/* Circle */}
       <div className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl
         border-[3px] shadow-sm transition-all duration-200 group-hover:scale-110 group-active:scale-95
         ${completed
           ? 'border-emerald-400 bg-emerald-50 shadow-emerald-100'
           : inProgress
             ? 'border-blue-400 bg-blue-50 shadow-blue-100'
-            : 'border-gray-200 bg-white'
-        }`}>
+            : 'border-gray-200 bg-white'}`}>
         <span className="select-none">{completed ? '✅' : emoji}</span>
-        {/* Number badge */}
         <span className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-[9px] font-black
           flex items-center justify-center border-2 border-white shadow-sm
           ${completed ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
           {globalIdx + 1}
         </span>
-        {/* Pulse ring when in progress */}
         {inProgress && (
           <span className="absolute inset-0 rounded-full border-4 border-blue-400 animate-ping opacity-20 pointer-events-none" />
         )}
       </div>
 
-      {/* Title */}
       <p className={`text-[9px] md:text-[10px] text-center font-medium mt-1.5 leading-tight line-clamp-2
         w-14 md:w-16
         ${completed ? 'text-emerald-700' : inProgress ? 'text-blue-700' : 'text-gray-500'}`}>
         {lesson.title}
       </p>
 
-      {/* Progress dots */}
       {total > 0 && (
         <div className="flex gap-0.5 mt-1">
           {Array.from({ length: total }).map((_, i) => (
@@ -95,19 +237,14 @@ function LessonNode({ lesson, globalIdx, prog, navigate }) {
   )
 }
 
-// Zigzag path for lessons in a unit
+// ── Zigzag path inside a unit ─────────────────────────────────────
+const COLS = 4
+
 function UnitPath({ lessons, progressMap, navigate, globalStart }) {
   const rows = []
   for (let i = 0; i < lessons.length; i += COLS) {
     rows.push(lessons.slice(i, i + COLS))
   }
-
-  // Find current lesson in this unit
-  const currentLocalIdx = (() => {
-    const ip = lessons.findIndex(l => { const p = progressMap[l.id]; return p && !p.completed })
-    if (ip !== -1) return ip
-    return lessons.findIndex(l => !progressMap[l.id])
-  })()
 
   return (
     <div className="space-y-0">
@@ -117,47 +254,35 @@ function UnitPath({ lessons, progressMap, navigate, globalStart }) {
 
         return (
           <div key={rowIdx}>
-            {/* Node row */}
             <div className="flex items-start">
               {displayRow.map((lesson, colIdx) => {
                 const realColIdx = isLTR ? colIdx : (row.length - 1 - colIdx)
-                const localIdx = rowIdx * COLS + realColIdx
-                const globalIdx = globalStart + localIdx
+                const globalIdx = globalStart + rowIdx * COLS + realColIdx
                 const prog = progressMap[lesson.id]
                 const isLastInRow = colIdx === displayRow.length - 1
 
                 return (
                   <div key={lesson.id} className="flex items-center flex-1 min-w-0">
-                    <LessonNode
-                      lesson={lesson}
-                      globalIdx={globalIdx}
-                      prog={prog}
-                      navigate={navigate}
-                    />
+                    <LessonNode lesson={lesson} globalIdx={globalIdx} prog={prog} navigate={navigate} />
                     {!isLastInRow && (
-                      <div className="flex-1 h-1 mx-0.5 rounded-full min-w-[8px]">
-                        <div className={`h-full rounded-full ${
-                          prog?.completed && displayRow[colIdx + 1] && progressMap[displayRow[colIdx + 1].id]?.completed
-                            ? 'bg-emerald-200' : 'bg-gray-200'
-                        }`} />
+                      <div className="flex-1 h-1 mx-0.5 rounded-full min-w-[6px]">
+                        <div className={`h-full rounded-full
+                          ${prog?.completed && displayRow[colIdx + 1] && progressMap[displayRow[colIdx + 1].id]?.completed
+                            ? 'bg-emerald-200' : 'bg-gray-200'}`} />
                       </div>
                     )}
                   </div>
                 )
               })}
-              {/* Pad remaining columns if last row is short */}
               {row.length < COLS && Array.from({ length: COLS - row.length }).map((_, i) => (
                 <div key={`pad-${i}`} className="flex-1" />
               ))}
             </div>
 
-            {/* Vertical connector */}
             {rowIdx < rows.length - 1 && (
               <div className={`flex ${isLTR ? 'justify-end pr-5 md:pr-6' : 'justify-start pl-5 md:pl-6'}`}>
                 <div className="flex flex-col gap-0.5 py-0.5">
-                  {[0, 1, 2].map(i => (
-                    <div key={i} className="w-1 h-1.5 rounded-full bg-gray-200" />
-                  ))}
+                  {[0, 1, 2].map(i => <div key={i} className="w-1 h-1.5 rounded-full bg-gray-200" />)}
                 </div>
               </div>
             )}
@@ -168,7 +293,7 @@ function UnitPath({ lessons, progressMap, navigate, globalStart }) {
   )
 }
 
-// One unit card
+// ── Unit card ─────────────────────────────────────────────────────
 function UnitCard({ unit, lessons, progressMap, navigate, unitIndex, globalStart }) {
   const doneCount = lessons.filter(l => progressMap[l.id]?.completed).length
   const allDone = doneCount === lessons.length
@@ -176,42 +301,40 @@ function UnitCard({ unit, lessons, progressMap, navigate, unitIndex, globalStart
 
   return (
     <div className={`mx-3 md:mx-4 rounded-2xl border-2 overflow-hidden shadow-sm
-      ${allDone
-        ? 'border-emerald-200 bg-emerald-50/60'
-        : anyStarted
-          ? 'border-blue-100 bg-blue-50/40'
-          : 'border-gray-100 bg-white'}`}>
+      ${allDone ? 'border-emerald-200 bg-emerald-50/60'
+        : anyStarted ? 'border-blue-100 bg-blue-50/40'
+        : 'border-gray-100 bg-white'}`}>
 
-      {/* Unit header */}
       <div className={`flex items-center gap-2.5 px-4 py-2.5 border-b
-        ${allDone ? 'border-emerald-200 bg-emerald-100/60' : anyStarted ? 'border-blue-100 bg-blue-100/40' : 'border-gray-100 bg-gray-50'}`}>
+        ${allDone ? 'border-emerald-200 bg-emerald-100/60'
+          : anyStarted ? 'border-blue-100 bg-blue-100/40'
+          : 'border-gray-100 bg-gray-50'}`}>
         <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0
-          ${allDone ? 'bg-emerald-500 text-white' : anyStarted ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+          ${allDone ? 'bg-emerald-500 text-white'
+            : anyStarted ? 'bg-blue-500 text-white'
+            : 'bg-gray-200 text-gray-500'}`}>
           {allDone ? '✓' : unitIndex + 1}
         </div>
-        <span className={`font-bold text-sm flex-1 ${allDone ? 'text-emerald-800' : anyStarted ? 'text-blue-800' : 'text-gray-700'}`}>
+        <span className={`font-bold text-sm flex-1
+          ${allDone ? 'text-emerald-800' : anyStarted ? 'text-blue-800' : 'text-gray-700'}`}>
           {unit?.name || 'Bài học'}
         </span>
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full
-          ${allDone ? 'bg-emerald-200 text-emerald-700' : anyStarted ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+          ${allDone ? 'bg-emerald-200 text-emerald-700'
+            : anyStarted ? 'bg-blue-100 text-blue-600'
+            : 'bg-gray-100 text-gray-400'}`}>
           {doneCount}/{lessons.length}
         </span>
       </div>
 
-      {/* Path */}
       <div className="p-3 md:p-4">
-        <UnitPath
-          lessons={lessons}
-          progressMap={progressMap}
-          navigate={navigate}
-          globalStart={globalStart}
-        />
+        <UnitPath lessons={lessons} progressMap={progressMap} navigate={navigate} globalStart={globalStart} />
       </div>
     </div>
   )
 }
 
-// Full learning map grouped by unit
+// ── Full learning map ─────────────────────────────────────────────
 function LearningMap({ groups, progressMap, navigate, allLessonsCount, completedCount }) {
   if (!allLessonsCount) return (
     <div className="text-center py-20">
@@ -228,20 +351,18 @@ function LearningMap({ groups, progressMap, navigate, allLessonsCount, completed
         const start = globalStart
         globalStart += group.lessons.length
         return (
-          <div key={group.unit?.id || `__no_unit_${i}`}>
-            <UnitCard
-              unit={group.unit}
-              lessons={group.lessons}
-              progressMap={progressMap}
-              navigate={navigate}
-              unitIndex={i}
-              globalStart={start}
-            />
-          </div>
+          <UnitCard
+            key={group.unit?.id || `__no_unit_${i}`}
+            unit={group.unit}
+            lessons={group.lessons}
+            progressMap={progressMap}
+            navigate={navigate}
+            unitIndex={i}
+            globalStart={start}
+          />
         )
       })}
 
-      {/* Finish flag */}
       <div className="flex justify-center pt-4 pb-6">
         <div className={`flex flex-col items-center gap-1.5 transition-all duration-500
           ${completedCount === allLessonsCount ? 'opacity-100 scale-110' : 'opacity-20 scale-100'}`}>
@@ -256,63 +377,7 @@ function LearningMap({ groups, progressMap, navigate, allLessonsCount, completed
   )
 }
 
-// Chip scroll row
-function ChipRow({ items, selected, onSelect, getKey, getLabel, getCount }) {
-  const ref = useRef(null)
-  const [canLeft, setCanLeft] = useState(false)
-  const [canRight, setCanRight] = useState(false)
-
-  function checkScroll() {
-    const el = ref.current; if (!el) return
-    setCanLeft(el.scrollLeft > 4)
-    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
-  }
-  useEffect(() => {
-    checkScroll()
-    const el = ref.current; if (!el) return
-    el.addEventListener('scroll', checkScroll, { passive: true })
-    return () => el.removeEventListener('scroll', checkScroll)
-  }, [items])
-
-  return (
-    <div className="relative flex items-center gap-1">
-      {canLeft && (
-        <button onClick={() => ref.current?.scrollBy({ left: -160, behavior: 'smooth' })}
-          className="shrink-0 w-6 h-6 rounded-full bg-white shadow border border-gray-200 flex items-center justify-center text-gray-500">
-          <ChevronLeft size={13} />
-        </button>
-      )}
-      <div ref={ref} className="flex gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
-        {items.map(item => {
-          const key = getKey(item)
-          const active = selected === key
-          return (
-            <button key={key} onClick={() => onSelect(key)}
-              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap
-                ${active
-                  ? 'bg-[#0066CC] text-white shadow-md shadow-blue-200'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-600'}`}>
-              {getLabel(item)}
-              {getCount && (
-                <span className={`text-[10px] px-1 py-0.5 rounded-full font-bold
-                  ${active ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                  {getCount(item)}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-      {canRight && (
-        <button onClick={() => ref.current?.scrollBy({ left: 160, behavior: 'smooth' })}
-          className="shrink-0 w-6 h-6 rounded-full bg-white shadow border border-gray-200 flex items-center justify-center text-gray-500">
-          <ChevronRight size={13} />
-        </button>
-      )}
-    </div>
-  )
-}
-
+// ── Main page ─────────────────────────────────────────────────────
 export default function LearnPage() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
@@ -332,7 +397,8 @@ export default function LearnPage() {
     setLoading(true)
     const [{ data: topicsData }, { data: lessonsData }, { data: progressData }, { data: unitsData }] = await Promise.all([
       supabase.from('topics').select('*').in('grade', [selectedGrade, 'all']),
-      supabase.from('lessons').select('*').eq('is_published', true).eq('grade', selectedGrade).order('order', { ascending: true }).order('created_at', { ascending: true }),
+      supabase.from('lessons').select('*').eq('is_published', true).eq('grade', selectedGrade)
+        .order('order', { ascending: true }).order('created_at', { ascending: true }),
       supabase.from('lesson_progress').select('*').eq('user_id', user.id),
       supabase.from('units').select('*').eq('grade', selectedGrade).order('sort_order').order('name'),
     ])
@@ -345,7 +411,6 @@ export default function LearnPage() {
     setLoading(false)
   }
 
-  // Group lessons by topic for chip counts
   const grouped = useMemo(() => {
     const g = {}
     lessons.forEach(l => { const k = l.topic || '__no_topic__'; if (!g[k]) g[k] = []; g[k].push(l) })
@@ -358,14 +423,12 @@ export default function LearnPage() {
     return from
   }, [topics, lessons])
 
-  // Filter lessons then group by unit
   const displayedLessons = useMemo(() => {
     if (selectedTopic === '__all__') return lessons
     return lessons.filter(l => (l.topic || '__no_topic__') === selectedTopic)
   }, [lessons, selectedTopic])
 
   const groups = useMemo(() => {
-    // Gom tất cả lesson theo unit_id (không phụ thuộc thứ tự)
     const unitMap = {}
     const noUnit = []
     displayedLessons.forEach(l => {
@@ -376,10 +439,7 @@ export default function LearnPage() {
         noUnit.push(l)
       }
     })
-    // Sắp xếp nhóm theo sort_order của unit
-    const result = units
-      .filter(u => unitMap[u.id])
-      .map(u => ({ unit: u, lessons: unitMap[u.id] }))
+    const result = units.filter(u => unitMap[u.id]).map(u => ({ unit: u, lessons: unitMap[u.id] }))
     if (noUnit.length) result.push({ unit: null, lessons: noUnit })
     return result
   }, [displayedLessons, units])
@@ -433,7 +493,7 @@ export default function LearnPage() {
             {totalLessons > 0 && (
               <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1">
                 <CheckCircle size={13} className="text-yellow-300" />
-                <span className="text-xs font-semibold">{completedLessons}/{totalLessons} bài hoàn thành</span>
+                <span className="text-xs font-semibold">{completedLessons}/{totalLessons} hoàn thành</span>
               </div>
             )}
             {totalLessons > 0 && (
@@ -446,18 +506,16 @@ export default function LearnPage() {
         </div>
       </div>
 
-      {/* Topic filter chips — sticky */}
-      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-gray-100 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-2.5">
-          <ChipRow
-            items={['__all__', ...topicChips]}
-            selected={selectedTopic}
-            onSelect={k => setSelectedTopic(k)}
-            getKey={k => k}
-            getLabel={k => k === '__all__' ? '🏠 Tất cả' : (k === '__no_topic__' ? 'Chưa phân loại' : k)}
-            getCount={k => k === '__all__' ? lessons.length : (grouped[k] || []).length}
-          />
-        </div>
+      {/* Topic cards — sticky */}
+      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
+        <TopicCards
+          topicKeys={topicChips}
+          lessons={lessons}
+          progressMap={progressMap}
+          grouped={grouped}
+          selected={selectedTopic}
+          onSelect={k => setSelectedTopic(k)}
+        />
       </div>
 
       {/* Legend */}
