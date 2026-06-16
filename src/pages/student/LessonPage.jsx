@@ -565,11 +565,11 @@ function SubmittedFile({ url }) {
 }
 
 /* ── LessonQuiz ────────────────────────────────────────────── */
-function LessonQuiz({ questions, onSubmit }) {
-  const [current, setCurrent] = useState(0)
+function LessonQuiz({ questions, onSubmit, initialCurrent = 0, initialCorrectCount = 0, onProgress }) {
+  const [current, setCurrent] = useState(initialCurrent)
   const [answer, setAnswer] = useState(null)
   const [confirmed, setConfirmed] = useState(false)
-  const [correctCount, setCorrectCount] = useState(0)
+  const [correctCount, setCorrectCount] = useState(initialCorrectCount)
   const [done, setDone] = useState(false)
 
   const q = questions[current]
@@ -594,10 +594,12 @@ function LessonQuiz({ questions, onSubmit }) {
       setDone(true)
       onSubmit({ correct: newCorrect, total, passed })
     } else {
+      const newIdx = current + 1
       setCorrectCount(newCorrect)
-      setCurrent(c => c + 1)
+      setCurrent(newIdx)
       setAnswer(null)
       setConfirmed(false)
+      onProgress?.(newIdx, newCorrect)
     }
   }
 
@@ -612,6 +614,7 @@ function LessonQuiz({ questions, onSubmit }) {
     setConfirmed(false)
     setCorrectCount(0)
     setDone(false)
+    onProgress?.(0, 0)
   }
 
   if (done) {
@@ -804,6 +807,8 @@ export default function LessonPage() {
   const [resubmitTask, setResubmitTask] = useState(null)       // task index in resubmit mode
   const [loading, setLoading] = useState(true)
   const [quizActive, setQuizActive] = useState(false)
+  const [quizInitIdx, setQuizInitIdx] = useState(0)
+  const [quizInitCorrect, setQuizInitCorrect] = useState(0)
   const [videoMarking, setVideoMarking] = useState(false)
   const [pptxMarking, setPptxMarking] = useState(false)
 
@@ -875,8 +880,20 @@ export default function LessonPage() {
     else toast.success('Đã đánh dấu xem bài giảng')
   }
 
+  function startQuiz(fromScratch = false) {
+    if (!fromScratch && progress?.quiz_current_idx > 0 && !progress?.quiz_passed) {
+      setQuizInitIdx(progress.quiz_current_idx)
+      setQuizInitCorrect(progress.quiz_correct || 0)
+    } else {
+      setQuizInitIdx(0)
+      setQuizInitCorrect(0)
+      if (fromScratch) upsertProgress({ quiz_current_idx: 0, quiz_correct: 0 })
+    }
+    setQuizActive(true)
+  }
+
   async function handleQuizSubmit({ correct, total, passed }) {
-    await upsertProgress({ quiz_correct: correct, quiz_total: total, quiz_passed: passed })
+    await upsertProgress({ quiz_correct: correct, quiz_total: total, quiz_passed: passed, quiz_current_idx: 0 })
     if (passed) toast.success('Chúc mừng! Bạn đã đạt bài tập')
     else toast('Chưa đạt, hãy thử lại nhé!', { icon: '📖' })
   }
@@ -1127,15 +1144,38 @@ export default function LessonPage() {
                   </button>
                 </div>
               ) : !quizActive ? (
-                <button
-                  onClick={() => setQuizActive(true)}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-                >
-                  <BookOpen size={15} /> Bắt đầu làm bài
-                </button>
+                (() => {
+                  const hasResume = progress?.quiz_current_idx > 0 && !progress?.quiz_passed
+                  return hasResume ? (
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => startQuiz(false)}
+                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                      >
+                        <BookOpen size={15} /> Tiếp tục từ câu {progress.quiz_current_idx + 1}/{questions.length}
+                      </button>
+                      <button
+                        onClick={() => startQuiz(true)}
+                        className="text-xs text-gray-400 hover:text-gray-600 underline text-left"
+                      >
+                        Làm lại từ đầu
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => startQuiz()}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                    >
+                      <BookOpen size={15} /> Bắt đầu làm bài
+                    </button>
+                  )
+                })()
               ) : (
                 <LessonQuiz
                   questions={questions}
+                  initialCurrent={quizInitIdx}
+                  initialCorrectCount={quizInitCorrect}
+                  onProgress={(idx, correct) => upsertProgress({ quiz_current_idx: idx, quiz_correct: correct })}
                   onSubmit={({ correct, total, passed }) => {
                     handleQuizSubmit({ correct, total, passed })
                     if (passed) setQuizActive(false)
