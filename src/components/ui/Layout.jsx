@@ -88,25 +88,51 @@ export default function Layout({ children }) {
     )
   }
 
+  const sidebarBg = isTeacher ? 'bg-indigo-700' : 'bg-gradient-to-b from-[#003d8f] to-[#0066cc]'
+  const sidebarBorder = isTeacher ? 'border-indigo-600' : 'border-white/20'
+
+  function SidebarHeader() {
+    return isTeacher ? (
+      <div className={`flex items-center gap-2 px-5 py-5 border-b ${sidebarBorder}`}>
+        <BookOpen size={22} />
+        <span className="font-bold text-lg">Ôn Tập Tin</span>
+      </div>
+    ) : (
+      <div className={`flex items-center gap-3 px-4 py-4 border-b ${sidebarBorder}`}>
+        <div className="w-9 h-9 shrink-0">
+          <img src="/logo-bnp.png" alt="BNP" className="w-9 h-9 object-contain rounded-lg"
+            onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }} />
+          <div className="w-9 h-9 bg-white rounded-lg items-center justify-center hidden">
+            <span className="text-blue-700 font-black text-xs">BNP</span>
+          </div>
+        </div>
+        <div>
+          <div className="text-white font-bold text-sm leading-tight">Lập Trình Sáng Tạo</div>
+          <div className="text-blue-200 text-xs">BNP</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
       {/* Mobile top bar */}
-      <header className="md:hidden bg-indigo-700 text-white flex items-center justify-between px-4 py-3 shrink-0">
+      <header className={`md:hidden ${sidebarBg} text-white flex items-center justify-between px-4 py-3 shrink-0`}>
         <div className="flex items-center gap-2">
-          <BookOpen size={20} />
-          <span className="font-bold">Ôn Tập Tin</span>
+          {isTeacher ? <BookOpen size={20} /> : (
+            <img src="/logo-bnp.png" alt="BNP" className="w-6 h-6 object-contain rounded"
+              onError={e => { e.target.style.display='none' }} />
+          )}
+          <span className="font-bold">{isTeacher ? 'Ôn Tập Tin' : 'Lập Trình Sáng Tạo BNP'}</span>
         </div>
-        <button onClick={() => setSidebarOpen(true)} className="text-indigo-200 hover:text-white p-1">
+        <button onClick={() => setSidebarOpen(true)} className="text-white/70 hover:text-white p-1">
           <Menu size={22} />
         </button>
       </header>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-56 bg-indigo-700 text-white flex-col shrink-0">
-        <div className="flex items-center gap-2 px-5 py-5 border-b border-indigo-600">
-          <BookOpen size={22} />
-          <span className="font-bold text-lg">Ôn Tập Tin</span>
-        </div>
+      <aside className={`hidden md:flex w-56 ${sidebarBg} text-white flex-col shrink-0`}>
+        <SidebarHeader />
         <NavLinks />
         <UserFooter />
       </aside>
@@ -114,13 +140,10 @@ export default function Layout({ children }) {
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
-          <aside className="w-64 bg-indigo-700 text-white flex flex-col h-full">
-            <div className="flex items-center justify-between px-5 py-5 border-b border-indigo-600">
-              <div className="flex items-center gap-2">
-                <BookOpen size={22} />
-                <span className="font-bold text-lg">Ôn Tập Tin</span>
-              </div>
-              <button onClick={() => setSidebarOpen(false)} className="text-indigo-200 hover:text-white">
+          <aside className={`w-64 ${sidebarBg} text-white flex flex-col h-full`}>
+            <div className={`flex items-center justify-between px-5 py-5 border-b ${sidebarBorder}`}>
+              <SidebarHeader />
+              <button onClick={() => setSidebarOpen(false)} className="text-white/70 hover:text-white ml-2">
                 <X size={20} />
               </button>
             </div>
