@@ -33,13 +33,7 @@ export default function Layout({ children }) {
         ...(profile?.role === 'teacher' ? [{ to: '/teacher/assistants', icon: <Users size={18} />, label: 'Trợ giảng' }] : []),
       ]
     : [
-        { to: '/student', icon: <LayoutDashboard size={18} />, label: 'Trang chủ' },
-        { to: '/student/courses', icon: <LibraryBig size={18} />, label: 'Khoá học' },
-        { to: '/student/learn', icon: <BookMarked size={18} />, label: 'Học tập' },
-        { to: '/student/exams', icon: <ClipboardList size={18} />, label: 'Đề thi' },
-        { to: '/student/practice', icon: <PenSquare size={18} />, label: 'Luyện tập' },
-        { to: '/student/history', icon: <BarChart2 size={18} />, label: 'Kết quả' },
-        { to: '/student/notes', icon: <NotebookPen size={18} />, label: 'Ghi chú' },
+        { to: '/student/learn', icon: <BookMarked size={18} />, label: 'Bài học' },
       ]
 
   function NavLinks({ onLinkClick }) {

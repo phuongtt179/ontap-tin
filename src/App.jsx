@@ -34,7 +34,7 @@ function RootRedirect() {
   if (loading) return null
   if (!profile) return <Navigate to="/login" replace />
   if (profile.role === 'teacher' || profile.role === 'assistant') return <Navigate to="/teacher" replace />
-  return <Navigate to="/student" replace />
+  return <Navigate to="/student/learn" replace />
 }
 
 export default function App() {
