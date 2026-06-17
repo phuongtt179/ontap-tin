@@ -11,21 +11,45 @@ export default function MessagesPage() {
   const [sending, setSending] = useState(false)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
+  const lastCreatedAtRef = useRef(null)
 
   useEffect(() => {
     loadMessages()
 
+    // Realtime (nếu Supabase có bật)
     const channel = supabase.channel('student_messages_' + user.id)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'messages',
         filter: `student_id=eq.${user.id}`
       }, payload => {
-        // Tránh trùng nếu optimistic update đã thêm rồi
         setMessages(prev => prev.some(m => m.id === payload.new.id) ? prev : [...prev, payload.new])
+        lastCreatedAtRef.current = payload.new.created_at
       })
       .subscribe()
 
-    return () => supabase.removeChannel(channel)
+    // Polling fallback mỗi 4 giây — chỉ lấy tin mới hơn tin cuối
+    const interval = setInterval(async () => {
+      if (!lastCreatedAtRef.current) return
+      const { data } = await supabase
+        .from('messages').select('*')
+        .eq('student_id', user.id)
+        .gt('created_at', lastCreatedAtRef.current)
+        .order('created_at', { ascending: true })
+      if (data?.length) {
+        setMessages(prev => {
+          const ids = new Set(prev.map(m => m.id))
+          const newMsgs = data.filter(m => !ids.has(m.id))
+          if (!newMsgs.length) return prev
+          lastCreatedAtRef.current = data[data.length - 1].created_at
+          return [...prev, ...newMsgs]
+        })
+      }
+    }, 4000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(interval)
+    }
   }, [user.id])
 
   useEffect(() => {
@@ -38,6 +62,8 @@ export default function MessagesPage() {
       .eq('student_id', user.id)
       .order('created_at', { ascending: true })
     setMessages(data || [])
+    if (data?.length) lastCreatedAtRef.current = data[data.length - 1].created_at
+    else lastCreatedAtRef.current = new Date().toISOString()
     setLoading(false)
     // Đánh dấu đã đọc các tin nhắn từ giáo viên
     supabase.from('messages').update({ is_read: true })
@@ -57,8 +83,8 @@ export default function MessagesPage() {
     if (error) {
       setInput(text)
     } else if (data) {
-      // Hiện ngay không cần đợi Realtime
       setMessages(prev => [...prev, data])
+      lastCreatedAtRef.current = data.created_at
     }
     setSending(false)
     inputRef.current?.focus()

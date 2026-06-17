@@ -13,11 +13,19 @@ export default function MessagesInboxPage() {
   const [search, setSearch] = useState('')
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
+  const lastCreatedAtRef = useRef(null)
 
   useEffect(() => { loadAll() }, [])
 
   useEffect(() => {
     if (!selected) return
+
+    // Set mốc thời gian từ tin cuối cùng của thread hiện tại
+    const msgs = selected.messages
+    lastCreatedAtRef.current = msgs.length
+      ? msgs[msgs.length - 1].created_at
+      : new Date().toISOString()
+
     const channel = supabase.channel('teacher_inbox_' + selected.student.id)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'messages',
@@ -33,9 +41,39 @@ export default function MessagesInboxPage() {
             ? { ...t, messages: [...t.messages, payload.new], lastMsg: payload.new }
             : t
         ))
+        lastCreatedAtRef.current = payload.new.created_at
       })
       .subscribe()
-    return () => supabase.removeChannel(channel)
+
+    // Polling fallback mỗi 4 giây
+    const interval = setInterval(async () => {
+      if (!lastCreatedAtRef.current) return
+      const { data } = await supabase
+        .from('messages').select('*')
+        .eq('student_id', selected.student.id)
+        .gt('created_at', lastCreatedAtRef.current)
+        .order('created_at', { ascending: true })
+      if (data?.length) {
+        setSelected(prev => {
+          if (!prev) return prev
+          const ids = new Set(prev.messages.map(m => m.id))
+          const newMsgs = data.filter(m => !ids.has(m.id))
+          return newMsgs.length ? { ...prev, messages: [...prev.messages, ...newMsgs] } : prev
+        })
+        setThreads(prev => prev.map(t => {
+          if (t.student.id !== selected.student.id) return t
+          const ids = new Set(t.messages.map(m => m.id))
+          const newMsgs = data.filter(m => !ids.has(m.id))
+          return newMsgs.length ? { ...t, messages: [...t.messages, ...newMsgs], lastMsg: data[data.length - 1] } : t
+        }))
+        lastCreatedAtRef.current = data[data.length - 1].created_at
+      }
+    }, 4000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(interval)
+    }
   }, [selected?.student?.id])
 
   useEffect(() => {
