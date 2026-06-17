@@ -539,64 +539,81 @@ export default function LearnPage() {
       <div className="shrink-0 bg-gradient-to-r from-[#003d8f] via-[#0055bb] to-[#0077dd] text-white px-5 py-4 md:px-8 relative overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 flex items-center pr-6 opacity-10 select-none pointer-events-none text-8xl">🗺️</div>
         <div className="relative max-w-2xl mx-auto">
-          <div className="flex items-start justify-between gap-4 mb-1">
-            {/* Left: label + name + streak */}
+          <div className="flex items-start justify-between gap-3 mb-1">
+            {/* Left: label + name */}
             <div className="flex-1 min-w-0">
               <p className="text-blue-200 text-xs mb-1">Bản đồ học tập 🗺️</p>
               <h2 className="text-lg md:text-xl font-bold">{profile?.full_name || 'Học sinh'}</h2>
-              {/* Streak indicator */}
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <span className="text-base" style={{ animation: streakDays > 0 ? 'sticker-float 2s ease-in-out infinite' : undefined }}>
-                  🔥
-                </span>
-                <span className="text-white font-black text-sm">{streakDays}</span>
-                <span className="text-blue-200 text-xs">ngày liên tiếp</span>
-                {streakDays >= 7 && (
-                  <span className="text-[10px] font-bold bg-orange-400/80 text-white px-2 py-0.5 rounded-full ml-1">
-                    {streakDays >= 30 ? '🏆 Pro' : streakDays >= 14 ? '🔥🔥 Xuất sắc' : '🔥 Tuyệt vời'}
-                  </span>
-                )}
-              </div>
             </div>
 
-            {/* Right: Sticker widget */}
-            <button
-              onClick={stickerCount >= STICKER_THRESHOLD ? () => setShowReward(true) : undefined}
-              className={`flex items-center gap-3 rounded-2xl px-4 py-3 shrink-0 transition-all duration-300
-                ${stickerCount >= STICKER_THRESHOLD
-                  ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-xl shadow-orange-500/50 cursor-pointer hover:scale-105 active:scale-95'
-                  : 'bg-white/15 cursor-default'}`}
-            >
-              {/* Icon */}
-              <span className="text-4xl select-none"
-                style={{ filter: 'drop-shadow(0 0 8px rgba(255,220,0,0.9))', display: 'inline-block', animation: 'sticker-float 2.5s ease-in-out infinite' }}>
-                🏆
-              </span>
-              <div className="flex flex-col gap-1">
-                {/* Count */}
-                <div className="flex items-baseline gap-1 leading-none">
-                  <span className="text-white font-black text-2xl">{stickerCount}</span>
-                  <span className="text-white/50 text-xs">/{STICKER_THRESHOLD}</span>
-                </div>
-                {/* Progress bar */}
-                <div className="w-20 h-2 bg-white/25 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
-                    style={{
-                      width: `${Math.min((stickerCount / STICKER_THRESHOLD) * 100, 100)}%`,
-                      background: stickerCount >= STICKER_THRESHOLD
-                        ? 'white'
-                        : 'linear-gradient(90deg,#fde68a,#fb923c)'
-                    }}>
-                    <span className="absolute inset-0 bg-white/30"
-                      style={{ animation: 'node-shimmer 1.8s ease-in-out infinite' }} />
-                  </div>
-                </div>
-                {/* Label */}
-                <span className={`text-[10px] font-bold leading-none ${stickerCount >= STICKER_THRESHOLD ? 'text-white' : 'text-white/60'}`}>
-                  {stickerCount >= STICKER_THRESHOLD ? '🎁 Nhấn đổi quà!' : 'sticker'}
+            {/* Right: Streak + Sticker widgets */}
+            <div className="flex items-center gap-2 shrink-0">
+
+              {/* Streak widget */}
+              <div className="flex items-center gap-2.5 bg-white/15 rounded-2xl px-3 py-2.5">
+                <span className="text-3xl select-none"
+                  style={{ display: 'inline-block', animation: streakDays > 0 ? 'sticker-float 2.8s ease-in-out infinite' : undefined }}>
+                  🔥
                 </span>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-baseline gap-1 leading-none">
+                    <span className="text-white font-black text-2xl">{streakDays}</span>
+                  </div>
+                  <div className="w-14 h-2 bg-white/25 rounded-full overflow-hidden">
+                    {/* Bar đến milestone tiếp theo */}
+                    {(() => {
+                      const milestones = [3, 7, 14, 30]
+                      const next = milestones.find(m => m > streakDays) || 30
+                      const prev = milestones.filter(m => m <= streakDays).pop() || 0
+                      const pct = Math.min(((streakDays - prev) / (next - prev)) * 100, 100)
+                      return (
+                        <div className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
+                          style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#fb923c,#f97316)' }}>
+                          <span className="absolute inset-0 bg-white/30"
+                            style={{ animation: 'node-shimmer 1.8s ease-in-out infinite' }} />
+                        </div>
+                      )
+                    })()}
+                  </div>
+                  <span className="text-[10px] font-bold leading-none text-white/60">
+                    {streakDays >= 30 ? '🏆 Pro!' : streakDays >= 14 ? 'Xuất sắc!' : streakDays >= 7 ? 'Tuyệt vời!' : streakDays >= 3 ? 'Cố lên!' : 'ngày'}
+                  </span>
+                </div>
               </div>
-            </button>
+
+              {/* Sticker widget */}
+              <button
+                onClick={stickerCount >= STICKER_THRESHOLD ? () => setShowReward(true) : undefined}
+                className={`flex items-center gap-2.5 rounded-2xl px-3 py-2.5 shrink-0 transition-all duration-300
+                  ${stickerCount >= STICKER_THRESHOLD
+                    ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-xl shadow-orange-500/50 cursor-pointer hover:scale-105 active:scale-95'
+                    : 'bg-white/15 cursor-default'}`}
+              >
+                <span className="text-3xl select-none"
+                  style={{ filter: 'drop-shadow(0 0 8px rgba(255,220,0,0.9))', display: 'inline-block', animation: 'sticker-float 2.5s ease-in-out infinite' }}>
+                  🏆
+                </span>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-baseline gap-1 leading-none">
+                    <span className="text-white font-black text-2xl">{stickerCount}</span>
+                    <span className="text-white/50 text-xs">/{STICKER_THRESHOLD}</span>
+                  </div>
+                  <div className="w-14 h-2 bg-white/25 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
+                      style={{
+                        width: `${Math.min((stickerCount / STICKER_THRESHOLD) * 100, 100)}%`,
+                        background: stickerCount >= STICKER_THRESHOLD ? 'white' : 'linear-gradient(90deg,#fde68a,#fb923c)'
+                      }}>
+                      <span className="absolute inset-0 bg-white/30"
+                        style={{ animation: 'node-shimmer 1.8s ease-in-out infinite' }} />
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-bold leading-none ${stickerCount >= STICKER_THRESHOLD ? 'text-white' : 'text-white/60'}`}>
+                    {stickerCount >= STICKER_THRESHOLD ? '🎁 Đổi quà!' : 'sticker'}
+                  </span>
+                </div>
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
