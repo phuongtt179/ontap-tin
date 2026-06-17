@@ -23,9 +23,13 @@ export default function MessagesInboxPage() {
         event: 'INSERT', schema: 'public', table: 'messages',
         filter: `student_id=eq.${selected.student.id}`
       }, payload => {
-        setSelected(prev => prev ? { ...prev, messages: [...prev.messages, payload.new] } : prev)
+        setSelected(prev => {
+          if (!prev) return prev
+          if (prev.messages.some(m => m.id === payload.new.id)) return prev
+          return { ...prev, messages: [...prev.messages, payload.new] }
+        })
         setThreads(prev => prev.map(t =>
-          t.student.id === selected.student.id
+          t.student.id === selected.student.id && !t.messages.some(m => m.id === payload.new.id)
             ? { ...t, messages: [...t.messages, payload.new], lastMsg: payload.new }
             : t
         ))
@@ -89,11 +93,19 @@ export default function MessagesInboxPage() {
     if (!text || sending || !selected) return
     setSending(true)
     setInput('')
-    await supabase.from('messages').insert({
+    const { data } = await supabase.from('messages').insert({
       student_id: selected.student.id,
       content: text,
       sender_role: 'teacher',
-    })
+    }).select().single()
+    if (data) {
+      setSelected(prev => prev ? { ...prev, messages: [...prev.messages, data] } : prev)
+      setThreads(prev => prev.map(t =>
+        t.student.id === selected.student.id
+          ? { ...t, messages: [...t.messages, data], lastMsg: data }
+          : t
+      ))
+    }
     setSending(false)
     inputRef.current?.focus()
   }

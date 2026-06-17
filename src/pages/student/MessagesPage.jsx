@@ -20,7 +20,8 @@ export default function MessagesPage() {
         event: 'INSERT', schema: 'public', table: 'messages',
         filter: `student_id=eq.${user.id}`
       }, payload => {
-        setMessages(prev => [...prev, payload.new])
+        // Tránh trùng nếu optimistic update đã thêm rồi
+        setMessages(prev => prev.some(m => m.id === payload.new.id) ? prev : [...prev, payload.new])
       })
       .subscribe()
 
@@ -48,12 +49,17 @@ export default function MessagesPage() {
     if (!text || sending) return
     setSending(true)
     setInput('')
-    const { error } = await supabase.from('messages').insert({
+    const { data, error } = await supabase.from('messages').insert({
       student_id: user.id,
       content: text,
       sender_role: 'student',
-    })
-    if (error) setInput(text)
+    }).select().single()
+    if (error) {
+      setInput(text)
+    } else if (data) {
+      // Hiện ngay không cần đợi Realtime
+      setMessages(prev => [...prev, data])
+    }
     setSending(false)
     inputRef.current?.focus()
   }
