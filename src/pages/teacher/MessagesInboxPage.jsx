@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { Send, Loader2, MessageCircle, Search, Trash2 } from 'lucide-react'
+import { Send, Loader2, MessageCircle, Search, Trash2, Users, X } from 'lucide-react'
 
 export default function MessagesInboxPage() {
   const { user } = useAuth()
-  const [threads, setThreads] = useState([])   // { student, messages, unread }
+  const [threads, setThreads] = useState([])
   const [selected, setSelected] = useState(null)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
@@ -14,6 +14,13 @@ export default function MessagesInboxPage() {
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
   const lastCreatedAtRef = useRef(null)
+
+  // Nhắn tin nhóm lớp
+  const [showGroup, setShowGroup] = useState(false)
+  const [classes, setClasses] = useState([])
+  const [groupClass, setGroupClass] = useState('')
+  const [groupInput, setGroupInput] = useState('')
+  const [groupSending, setGroupSending] = useState(false)
 
   useEffect(() => { loadAll() }, [])
 
@@ -79,6 +86,40 @@ export default function MessagesInboxPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [selected?.messages])
+
+  useEffect(() => {
+    supabase.from('student_enrollments').select('class_name').then(({ data }) => {
+      const cls = [...new Set((data || []).map(e => e.class_name).filter(Boolean))].sort()
+      setClasses(cls)
+      if (cls.length) setGroupClass(cls[0])
+    })
+  }, [])
+
+  async function sendGroupMessage() {
+    const text = groupInput.trim()
+    if (!text || !groupClass || groupSending) return
+    setGroupSending(true)
+    // Lấy tất cả học sinh trong lớp
+    const { data: enrolls } = await supabase
+      .from('student_enrollments').select('user_id').eq('class_name', groupClass).eq('is_approved', true)
+    if (!enrolls?.length) {
+      setGroupSending(false)
+      return
+    }
+    // Insert 1 message cho từng học sinh
+    const rows = enrolls.map(e => ({
+      student_id: e.user_id,
+      sender_role: 'teacher',
+      content: `📢 [Lớp ${groupClass}] ${text}`,
+      is_read: false,
+    }))
+    await supabase.from('messages').insert(rows)
+    setGroupInput('')
+    setGroupSending(false)
+    setShowGroup(false)
+    // Reload danh sách thread
+    loadAll()
+  }
 
   async function loadAll() {
     setLoading(true)
@@ -179,6 +220,10 @@ export default function MessagesInboxPage() {
                 {totalUnread > 9 ? '9+' : totalUnread}
               </span>
             )}
+            <button onClick={() => setShowGroup(true)}
+              className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition">
+              <Users size={12} /> Nhắn lớp
+            </button>
           </div>
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -327,5 +372,48 @@ export default function MessagesInboxPage() {
         )}
       </div>
     </div>
+
+    {/* ── Modal nhắn tin nhóm lớp ── */}
+    {showGroup && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+        onClick={() => setShowGroup(false)}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-5 py-4 rounded-t-2xl flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users size={18} />
+              <span className="font-black text-base">Nhắn tin theo lớp</span>
+            </div>
+            <button onClick={() => setShowGroup(false)} className="text-white/70 hover:text-white"><X size={18} /></button>
+          </div>
+          <div className="p-5 space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Chọn lớp</label>
+              <select value={groupClass} onChange={e => setGroupClass(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                {classes.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Nội dung</label>
+              <textarea value={groupInput} onChange={e => setGroupInput(e.target.value)}
+                rows={4} placeholder="Nhập thông báo gửi đến cả lớp..."
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none" />
+              <p className="text-[11px] text-gray-400 mt-1">Tin sẽ gửi đến tất cả học sinh trong lớp {groupClass}</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={sendGroupMessage} disabled={!groupInput.trim() || groupSending}
+                className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition">
+                {groupSending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                Gửi cho lớp {groupClass}
+              </button>
+              <button onClick={() => setShowGroup(false)}
+                className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50">
+                Hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
   )
 }

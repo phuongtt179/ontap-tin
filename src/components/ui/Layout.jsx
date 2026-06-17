@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useEnrollments } from '../../hooks/useEnrollments'
 import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 
 export default function Layout({ children }) {
   const { profile, user, signOut, isTeacher } = useAuth()
@@ -10,6 +11,20 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [unreadMessages, setUnreadMessages] = useState(0)
+
+  useEffect(() => {
+    if (isTeacher || !user) return
+    async function fetchUnread() {
+      const { count } = await supabase.from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('student_id', user.id).eq('sender_role', 'teacher').eq('is_read', false)
+      setUnreadMessages(count || 0)
+    }
+    fetchUnread()
+    const interval = setInterval(fetchUnread, 15000)
+    return () => clearInterval(interval)
+  }, [user?.id, isTeacher])
 
   async function handleSignOut() {
     await signOut()
@@ -36,7 +51,7 @@ export default function Layout({ children }) {
       ]
     : [
         { to: '/student/learn', icon: <BookMarked size={18} />, label: 'Bài học' },
-        { to: '/student/messages', icon: <MessageCircle size={18} />, label: 'Hỏi giáo viên' },
+        { to: '/student/messages', icon: <MessageCircle size={18} />, label: 'Hỏi giáo viên', badge: unreadMessages },
       ]
 
   function NavLinks({ onLinkClick }) {
@@ -57,6 +72,11 @@ export default function Layout({ children }) {
             >
               {item.icon}
               {item.label}
+              {item.badge > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-[10px] font-black min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                  {item.badge > 99 ? '99+' : item.badge}
+                </span>
+              )}
             </Link>
           )
         )}
@@ -154,12 +174,17 @@ export default function Layout({ children }) {
           <nav className="flex items-center gap-1">
             {navItems.filter(Boolean).map(item => (
               <Link key={item.to} to={item.to}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition
+                className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition
                   ${location.pathname === item.to || location.pathname.startsWith(item.to + '/')
                     ? 'bg-white/25 text-white'
                     : 'text-white/75 hover:bg-white/15 hover:text-white'}`}>
                 {item.icon}
                 {item.label}
+                {item.badge > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] font-black min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
               </Link>
             ))}
           </nav>
