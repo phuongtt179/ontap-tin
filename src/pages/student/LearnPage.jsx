@@ -212,9 +212,11 @@ function LessonNode({ lesson, globalIdx, prog, navigate }) {
   const emoji = getLessonEmoji(lesson)
   const c = NODE_PALETTE[globalIdx % NODE_PALETTE.length]
 
-  const circleStyle = (completed || inProgress)
+  const circleStyle = completed
     ? { background: `linear-gradient(135deg, ${c.from}, ${c.to})`, boxShadow: `0 4px 14px ${c.shadow}` }
-    : { background: '#fff', border: `2.5px dashed ${c.from}70` }
+    : inProgress
+    ? { background: `linear-gradient(135deg, ${c.from}, ${c.to})`, boxShadow: `0 4px 18px ${c.shadow}` }
+    : { background: `linear-gradient(135deg, ${c.from}55, ${c.to}55)`, border: `2.5px dashed ${c.from}` }
 
   return (
     <button
@@ -593,7 +595,7 @@ export default function LearnPage() {
             <div className="w-3.5 h-3.5 rounded-full" style={{ background: 'linear-gradient(135deg,#f472b6,#db2777)' }} /> Hoàn thành / Đang học
           </div>
           <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            <div className="w-3.5 h-3.5 rounded-full bg-white border-2 border-dashed border-gray-300" /> Chưa học
+            <div className="w-3.5 h-3.5 rounded-full border-2 border-dashed border-pink-400" style={{ background: 'rgba(244,114,182,0.3)' }} /> Chưa học
           </div>
         </div>
 
