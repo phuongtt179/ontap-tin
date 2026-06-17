@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -9,6 +9,7 @@ import QuestionText from '../../components/ui/QuestionText'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { CodeBlock, CodeBlockWithBlanks } from '../../components/ui/CodeBlock'
+import StickerModal from '../../components/student/StickerModal'
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5) }
 
@@ -810,6 +811,8 @@ export default function LessonPage() {
   const [quizInitIdx, setQuizInitIdx] = useState(0)
   const [quizInitCorrect, setQuizInitCorrect] = useState(0)
   const [videoMarking, setVideoMarking] = useState(false)
+  const [stickerModal, setStickerModal] = useState(null) // { stickerCount, stickerTotal, threshold, reason }
+  const wasCompleted = useRef(false)
   const [pptxMarking, setPptxMarking] = useState(false)
 
   useEffect(() => {
@@ -834,6 +837,7 @@ export default function LessonPage() {
     const { data: progData } = await supabase.from('lesson_progress')
       .select('*').eq('user_id', user.id).eq('lesson_id', id).maybeSingle()
     setProgress(progData || null)
+    wasCompleted.current = !!progData?.completed // đánh dấu để không hiện modal lại
 
     // 4. Fetch all task submissions
     const tasks = parseTasks(lessonData.practice_instructions)
@@ -852,6 +856,21 @@ export default function LessonPage() {
     setLoading(false)
   }
 
+  async function awardSticker(reason) {
+    // Lấy sticker_count và sticker_total từ profiles, tăng lên
+    const { data: prof } = await supabase
+      .from('profiles').select('sticker_count, sticker_total').eq('id', user.id).single()
+    const threshold = 10 // TODO: lấy từ settings table
+    const currentCount = (prof?.sticker_count ?? 0) + 1
+    const totalCount = (prof?.sticker_total ?? 0) + 1
+    const newCount = currentCount >= threshold ? 0 : currentCount // reset sau khi đủ
+    await supabase.from('profiles').update({
+      sticker_count: newCount,
+      sticker_total: totalCount,
+    }).eq('id', user.id)
+    setStickerModal({ stickerCount: currentCount, stickerTotal: totalCount, threshold, reason })
+  }
+
   async function upsertProgress(updates) {
     const current = progress || {}
     const newData = { ...current, ...updates, user_id: user.id, lesson_id: id }
@@ -860,7 +879,14 @@ export default function LessonPage() {
       { ...newData, completed, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,lesson_id' }
     ).select().single()
-    if (!error && data) setProgress(data)
+    if (!error && data) {
+      setProgress(data)
+      // Phát sticker khi bài hoàn thành lần đầu
+      if (completed && !wasCompleted.current) {
+        wasCompleted.current = true
+        await awardSticker('Hoàn thành bài học: ' + (lesson?.title || ''))
+      }
+    }
     return { data, error }
   }
 
@@ -985,6 +1011,17 @@ export default function LessonPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
+      {/* Sticker modal */}
+      {stickerModal && (
+        <StickerModal
+          stickerCount={stickerModal.stickerCount}
+          stickerTotal={stickerModal.stickerTotal}
+          threshold={stickerModal.threshold}
+          reason={stickerModal.reason}
+          onClose={() => setStickerModal(null)}
+        />
+      )}
+
       {/* Back button */}
       <button
         onClick={() => navigate('/student/learn')}
