@@ -108,14 +108,33 @@ export default function Layout({ children }) {
     )
   }
 
+  function LogoBlock({ size = 9 }) {
+    return (
+      <div className="flex items-center gap-3">
+        <div className={`w-${size} h-${size} bg-white rounded-xl flex items-center justify-center shadow-md shrink-0`}>
+          <img src="/logo-bnp.png" alt="BNP" className={`w-${size - 2} h-${size - 2} object-contain`}
+            onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='block' }} />
+          <span className="text-blue-700 font-black text-xs hidden">BNP</span>
+        </div>
+        <div>
+          <div className="text-white font-bold text-sm leading-tight">Lập Trình Sáng Tạo</div>
+          <div className="text-blue-200 text-xs">BNP</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="h-screen overflow-hidden bg-gray-50 flex flex-col md:flex-row">
-      {/* Mobile top bar */}
+    <div className={`h-screen overflow-hidden bg-gray-50 flex flex-col ${isTeacher ? 'md:flex-row' : ''}`}>
+
+      {/* ── Mobile top bar (all users) ── */}
       <header className={`md:hidden ${sidebarBg} text-white flex items-center justify-between px-4 py-3 shrink-0`}>
         <div className="flex items-center gap-2">
           {isTeacher ? <BookOpen size={20} /> : (
-            <img src="/logo-bnp.png" alt="BNP" className="w-6 h-6 object-contain rounded"
-              onError={e => { e.target.style.display='none' }} />
+            <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow-sm shrink-0">
+              <img src="/logo-bnp.png" alt="BNP" className="w-5 h-5 object-contain"
+                onError={e => { e.target.style.display='none' }} />
+            </div>
           )}
           <span className="font-bold">{isTeacher ? 'Ôn Tập Tin' : 'Lập Trình Sáng Tạo BNP'}</span>
         </div>
@@ -124,19 +143,40 @@ export default function Layout({ children }) {
         </button>
       </header>
 
-      {/* Desktop sidebar */}
-      <aside className={`hidden md:flex w-56 ${sidebarBg} text-white flex-col shrink-0`}>
-        <SidebarHeader />
-        <NavLinks />
-        <UserFooter />
-      </aside>
+      {/* ── Student desktop top bar (thay sidebar) ── */}
+      {!isTeacher && (
+        <header className={`hidden md:flex ${sidebarBg} text-white items-center justify-between px-6 py-3 shrink-0 border-b border-white/10`}>
+          <LogoBlock size={9} />
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <div className="text-white text-sm font-semibold leading-tight">{profile?.full_name}</div>
+              <div className="text-blue-200 text-xs">
+                {enrollments.length > 0 ? enrollments.map(e => e.class_name || e.grade).join(' · ') : 'Học sinh'}
+              </div>
+            </div>
+            <button onClick={handleSignOut}
+              className="flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white text-sm font-medium px-3 py-2 rounded-xl transition">
+              <LogOut size={15} /> Đăng xuất
+            </button>
+          </div>
+        </header>
+      )}
 
-      {/* Mobile sidebar overlay */}
+      {/* ── Teacher desktop sidebar ── */}
+      {isTeacher && (
+        <aside className={`hidden md:flex w-56 ${sidebarBg} text-white flex-col shrink-0`}>
+          <SidebarHeader />
+          <NavLinks />
+          <UserFooter />
+        </aside>
+      )}
+
+      {/* ── Mobile sidebar overlay ── */}
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <aside className={`w-64 ${sidebarBg} text-white flex flex-col h-full`}>
-            <div className={`flex items-center justify-between px-5 py-5 border-b ${sidebarBorder}`}>
-              <SidebarHeader />
+            <div className={`flex items-center justify-between px-4 py-4 border-b ${sidebarBorder}`}>
+              {isTeacher ? <SidebarHeader /> : <LogoBlock size={8} />}
               <button onClick={() => setSidebarOpen(false)} className="text-white/70 hover:text-white ml-2">
                 <X size={20} />
               </button>
@@ -148,8 +188,8 @@ export default function Layout({ children }) {
         </div>
       )}
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto">
+      {/* ── Main content ── */}
+      <main className="flex-1 overflow-auto min-h-0">
         {children}
       </main>
     </div>

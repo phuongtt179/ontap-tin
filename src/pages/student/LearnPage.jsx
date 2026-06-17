@@ -535,40 +535,51 @@ export default function LearnPage() {
       <div className="shrink-0 bg-gradient-to-r from-[#003d8f] via-[#0055bb] to-[#0077dd] text-white px-5 py-4 md:px-8 relative overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 flex items-center pr-6 opacity-10 select-none pointer-events-none text-8xl">🗺️</div>
         <div className="relative max-w-2xl mx-auto">
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <div className="flex items-center gap-2">
-              <img src="/logo-bnp.png" alt="BNP" className="w-6 h-6 object-contain rounded hidden md:block"
-                onError={e => { e.target.style.display = 'none' }} />
-              <p className="text-blue-200 text-xs">Bản đồ học tập 🗺️</p>
+          <div className="flex items-start justify-between gap-4 mb-1">
+            {/* Left: label + name */}
+            <div className="flex-1 min-w-0">
+              <p className="text-blue-200 text-xs mb-1">Bản đồ học tập 🗺️</p>
+              <h2 className="text-lg md:text-xl font-bold">{profile?.full_name || 'Học sinh'}</h2>
             </div>
-            {/* Sticker badge + đổi quà */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-2.5 py-1">
-                <span className="text-sm">⭐</span>
-                <span className="text-xs font-black">{stickerCount}</span>
-                {stickerCount >= STICKER_THRESHOLD && (
-                  <span className="text-[9px] text-yellow-300 font-bold">/{STICKER_THRESHOLD}</span>
-                )}
+
+            {/* Right: Sticker widget */}
+            <button
+              onClick={stickerCount >= STICKER_THRESHOLD ? () => setShowReward(true) : undefined}
+              className={`flex items-center gap-3 rounded-2xl px-4 py-3 shrink-0 transition-all duration-300
+                ${stickerCount >= STICKER_THRESHOLD
+                  ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-xl shadow-orange-500/50 cursor-pointer hover:scale-105 active:scale-95'
+                  : 'bg-white/15 cursor-default'}`}
+            >
+              {/* Icon */}
+              <span className="text-4xl select-none"
+                style={{ filter: 'drop-shadow(0 0 8px rgba(255,220,0,0.9))', display: 'inline-block', animation: 'sticker-float 2.5s ease-in-out infinite' }}>
+                🏆
+              </span>
+              <div className="flex flex-col gap-1">
+                {/* Count */}
+                <div className="flex items-baseline gap-1 leading-none">
+                  <span className="text-white font-black text-2xl">{stickerCount}</span>
+                  <span className="text-white/50 text-xs">/{STICKER_THRESHOLD}</span>
+                </div>
+                {/* Progress bar */}
+                <div className="w-20 h-2 bg-white/25 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
+                    style={{
+                      width: `${Math.min((stickerCount / STICKER_THRESHOLD) * 100, 100)}%`,
+                      background: stickerCount >= STICKER_THRESHOLD
+                        ? 'white'
+                        : 'linear-gradient(90deg,#fde68a,#fb923c)'
+                    }}>
+                    <span className="absolute inset-0 bg-white/30"
+                      style={{ animation: 'node-shimmer 1.8s ease-in-out infinite' }} />
+                  </div>
+                </div>
+                {/* Label */}
+                <span className={`text-[10px] font-bold leading-none ${stickerCount >= STICKER_THRESHOLD ? 'text-white' : 'text-white/60'}`}>
+                  {stickerCount >= STICKER_THRESHOLD ? '🎁 Nhấn đổi quà!' : 'sticker'}
+                </span>
               </div>
-              {stickerCount >= STICKER_THRESHOLD && (
-                <button onClick={() => setShowReward(true)}
-                  className="flex items-center gap-1.5 bg-gradient-to-r from-yellow-400 to-orange-400
-                    text-white text-xs font-black px-3 py-1.5 rounded-full shadow-lg shadow-orange-500/30
-                    hover:scale-105 active:scale-95 transition-all animate-pulse">
-                  <Gift size={12} /> Đổi quà!
-                </button>
-              )}
-            </div>
-          </div>
-
-          <h2 className="text-lg md:text-xl font-bold">{profile?.full_name || 'Học sinh'}</h2>
-
-          {/* Sticker progress bar */}
-          <div className="mt-1.5 mb-2">
-            <div className="h-1.5 bg-white/20 rounded-full overflow-hidden w-32">
-              <div className="h-full bg-gradient-to-r from-yellow-300 to-orange-400 rounded-full transition-all duration-700"
-                style={{ width: `${Math.min((stickerCount % STICKER_THRESHOLD) / STICKER_THRESHOLD * 100, 100)}%` }} />
-            </div>
+            </button>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
