@@ -978,7 +978,7 @@ export default function LessonPage() {
       if (newSubs.every(s => s !== null)) {
         await upsertProgress({ practice_submitted: true })
       }
-      await awardSticker(3, `Nộp xong bài thực hành ${taskIdx + 1}! 📝`)
+      await awardSticker(1, `Nộp xong bài thực hành ${taskIdx + 1}! 📝`)
     } catch (err) {
       toast.error('Nộp bài thất bại: ' + err.message)
     } finally {
