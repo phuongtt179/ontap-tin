@@ -150,6 +150,19 @@ export default function Layout({ children }) {
       {!isTeacher && (
         <header className={`hidden md:flex ${sidebarBg} text-white items-center justify-between px-6 py-3 shrink-0 border-b border-white/10`}>
           <LogoBlock size={9} />
+          {/* Nav links giữa */}
+          <nav className="flex items-center gap-1">
+            {navItems.filter(Boolean).map(item => (
+              <Link key={item.to} to={item.to}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition
+                  ${location.pathname === item.to || location.pathname.startsWith(item.to + '/')
+                    ? 'bg-white/25 text-white'
+                    : 'text-white/75 hover:bg-white/15 hover:text-white'}`}>
+                {item.icon}
+                {item.label}
+              </Link>
+            ))}
+          </nav>
           <div className="flex items-center gap-4">
             <div className="text-right">
               <div className="text-white text-sm font-semibold leading-tight">{profile?.full_name}</div>
