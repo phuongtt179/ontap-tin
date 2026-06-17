@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useSelectedGrade } from '../../hooks/useEnrollments'
-import { CheckCircle, Zap, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CheckCircle, Zap, ChevronLeft, ChevronRight, Gift } from 'lucide-react'
+import RewardModal from '../../components/student/RewardModal'
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -78,6 +79,19 @@ function getTopicEmoji(topic) {
   const hash = topic.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
   return ['📚', '💡', '🎯', '🏆', '🧩', '🌟', '🔬', '🎪'][hash % 8]
 }
+
+// ── Node color palette ────────────────────────────────────────────
+const NODE_PALETTE = [
+  { from: '#f472b6', to: '#db2777', shadow: 'rgba(244,114,182,0.45)' }, // pink
+  { from: '#fb923c', to: '#ea580c', shadow: 'rgba(251,146,60,0.45)' },  // orange
+  { from: '#a3e635', to: '#65a30d', shadow: 'rgba(163,230,53,0.45)' },  // lime
+  { from: '#34d399', to: '#059669', shadow: 'rgba(52,211,153,0.45)' },  // emerald
+  { from: '#38bdf8', to: '#0284c7', shadow: 'rgba(56,189,248,0.45)' },  // sky
+  { from: '#818cf8', to: '#4338ca', shadow: 'rgba(129,140,248,0.45)' }, // indigo
+  { from: '#c084fc', to: '#7c3aed', shadow: 'rgba(192,132,252,0.45)' }, // violet
+  { from: '#f9a8d4', to: '#be185d', shadow: 'rgba(249,168,212,0.45)' }, // rose
+  { from: '#fcd34d', to: '#d97706', shadow: 'rgba(252,211,77,0.45)' },  // amber
+]
 
 // ── Topic card colors ─────────────────────────────────────────────
 const CARD_COLORS = [
@@ -196,40 +210,52 @@ function LessonNode({ lesson, globalIdx, prog, navigate }) {
   const { total, done, completed } = getProgress(lesson, prog)
   const inProgress = done > 0 && !completed
   const emoji = getLessonEmoji(lesson)
+  const c = NODE_PALETTE[globalIdx % NODE_PALETTE.length]
+
+  const circleStyle = (completed || inProgress)
+    ? { background: `linear-gradient(135deg, ${c.from}, ${c.to})`, boxShadow: `0 4px 14px ${c.shadow}` }
+    : { background: '#fff', border: `2.5px dashed ${c.from}70` }
 
   return (
     <button
       onClick={() => navigate(`/student/learn/${lesson.id}`)}
       className="flex flex-col items-center group w-14 md:w-16 shrink-0"
     >
-      <div className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl
-        border-[3px] shadow-sm transition-all duration-200 group-hover:scale-110 group-active:scale-95
-        ${completed
-          ? 'border-emerald-400 bg-emerald-50 shadow-emerald-100'
-          : inProgress
-            ? 'border-blue-400 bg-blue-50 shadow-blue-100'
-            : 'border-gray-200 bg-white'}`}>
-        <span className="select-none">{completed ? '✅' : emoji}</span>
-        <span className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-[9px] font-black
-          flex items-center justify-center border-2 border-white shadow-sm
-          ${completed ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
+      {/* Circle */}
+      <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl
+        transition-all duration-200 group-hover:scale-110 group-active:scale-95"
+        style={circleStyle}>
+
+        <span className={`select-none ${(completed || inProgress) ? 'text-white drop-shadow-sm' : ''}`}>
+          {completed ? '✅' : emoji}
+        </span>
+
+        {/* Number badge */}
+        <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-[9px] font-black
+          flex items-center justify-center border-2 border-white shadow-sm"
+          style={{ background: (completed || inProgress) ? c.to : '#f3f4f6', color: (completed || inProgress) ? '#fff' : '#9ca3af' }}>
           {globalIdx + 1}
         </span>
+
+        {/* Pulse ring for in-progress */}
         {inProgress && (
-          <span className="absolute inset-0 rounded-full border-4 border-blue-400 animate-ping opacity-20 pointer-events-none" />
+          <span className="absolute inset-0 rounded-full animate-ping opacity-25 pointer-events-none"
+            style={{ background: `linear-gradient(135deg, ${c.from}, ${c.to})` }} />
         )}
       </div>
 
-      <p className={`text-[9px] md:text-[10px] text-center font-medium mt-1.5 leading-tight line-clamp-2
-        w-14 md:w-16
-        ${completed ? 'text-emerald-700' : inProgress ? 'text-blue-700' : 'text-gray-500'}`}>
+      {/* Title */}
+      <p className="text-[9px] md:text-[10px] text-center font-semibold mt-1.5 leading-tight line-clamp-2 w-14 md:w-16"
+        style={{ color: (completed || inProgress) ? c.to : '#9ca3af' }}>
         {lesson.title}
       </p>
 
+      {/* Progress dots */}
       {total > 0 && (
         <div className="flex gap-0.5 mt-1">
           {Array.from({ length: total }).map((_, i) => (
-            <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < done ? 'bg-blue-400' : 'bg-gray-200'}`} />
+            <div key={i} className="w-1.5 h-1.5 rounded-full"
+              style={{ background: i < done ? c.from : '#e5e7eb' }} />
           ))}
         </div>
       )}
@@ -388,6 +414,9 @@ export default function LearnPage() {
   const [progressMap, setProgressMap] = useState({})
   const [loading, setLoading] = useState(false)
   const [selectedTopic, setSelectedTopic] = useState('__all__')
+  const [stickerCount, setStickerCount] = useState(0)
+  const [showReward, setShowReward] = useState(false)
+  const STICKER_THRESHOLD = 10
 
   useEffect(() => {
     if (selectedGrade && user) { setSelectedTopic('__all__'); loadData() }
@@ -395,12 +424,13 @@ export default function LearnPage() {
 
   async function loadData() {
     setLoading(true)
-    const [{ data: topicsData }, { data: lessonsData }, { data: progressData }, { data: unitsData }] = await Promise.all([
+    const [{ data: topicsData }, { data: lessonsData }, { data: progressData }, { data: unitsData }, { data: profData }] = await Promise.all([
       supabase.from('topics').select('*').in('grade', [selectedGrade, 'all']),
       supabase.from('lessons').select('*').eq('is_published', true).eq('grade', selectedGrade)
         .order('order', { ascending: true }).order('created_at', { ascending: true }),
       supabase.from('lesson_progress').select('*').eq('user_id', user.id),
       supabase.from('units').select('*').eq('grade', selectedGrade).order('sort_order').order('name'),
+      supabase.from('profiles').select('sticker_count').eq('id', user.id).single(),
     ])
     setLessons(lessonsData || [])
     setUnits(unitsData || [])
@@ -408,6 +438,7 @@ export default function LearnPage() {
     const map = {}
     ;(progressData || []).forEach(p => { map[p.lesson_id] = p })
     setProgressMap(map)
+    setStickerCount(profData?.sticker_count ?? 0)
     setLoading(false)
   }
 
@@ -474,16 +505,57 @@ export default function LearnPage() {
     <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50">
 
       {/* ① Hero — cố định, không cuộn */}
+      {/* Reward modal */}
+      {showReward && (
+        <RewardModal
+          stickerCount={stickerCount}
+          threshold={STICKER_THRESHOLD}
+          onClose={() => setShowReward(false)}
+          onRedeemed={newCount => setStickerCount(newCount)}
+        />
+      )}
+
+      {/* ① Hero */}
       <div className="shrink-0 bg-gradient-to-r from-[#003d8f] via-[#0055bb] to-[#0077dd] text-white px-5 py-4 md:px-8 relative overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 flex items-center pr-6 opacity-10 select-none pointer-events-none text-8xl">🗺️</div>
         <div className="relative max-w-2xl mx-auto">
-          <div className="flex items-center gap-2 mb-0.5">
-            <img src="/logo-bnp.png" alt="BNP" className="w-6 h-6 object-contain rounded hidden md:block"
-              onError={e => { e.target.style.display = 'none' }} />
-            <p className="text-blue-200 text-xs">Bản đồ học tập 🗺️</p>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-2">
+              <img src="/logo-bnp.png" alt="BNP" className="w-6 h-6 object-contain rounded hidden md:block"
+                onError={e => { e.target.style.display = 'none' }} />
+              <p className="text-blue-200 text-xs">Bản đồ học tập 🗺️</p>
+            </div>
+            {/* Sticker badge + đổi quà */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-2.5 py-1">
+                <span className="text-sm">⭐</span>
+                <span className="text-xs font-black">{stickerCount}</span>
+                {stickerCount >= STICKER_THRESHOLD && (
+                  <span className="text-[9px] text-yellow-300 font-bold">/{STICKER_THRESHOLD}</span>
+                )}
+              </div>
+              {stickerCount >= STICKER_THRESHOLD && (
+                <button onClick={() => setShowReward(true)}
+                  className="flex items-center gap-1.5 bg-gradient-to-r from-yellow-400 to-orange-400
+                    text-white text-xs font-black px-3 py-1.5 rounded-full shadow-lg shadow-orange-500/30
+                    hover:scale-105 active:scale-95 transition-all animate-pulse">
+                  <Gift size={12} /> Đổi quà!
+                </button>
+              )}
+            </div>
           </div>
+
           <h2 className="text-lg md:text-xl font-bold">{profile?.full_name || 'Học sinh'}</h2>
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
+
+          {/* Sticker progress bar */}
+          <div className="mt-1.5 mb-2">
+            <div className="h-1.5 bg-white/20 rounded-full overflow-hidden w-32">
+              <div className="h-full bg-gradient-to-r from-yellow-300 to-orange-400 rounded-full transition-all duration-700"
+                style={{ width: `${Math.min((stickerCount % STICKER_THRESHOLD) / STICKER_THRESHOLD * 100, 100)}%` }} />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
             {grades.map(g => (
               <button key={g} onClick={() => setSelectedGrade(g)}
                 className={`px-3 py-0.5 rounded-full text-xs font-semibold transition
@@ -497,17 +569,11 @@ export default function LearnPage() {
                 <span className="text-xs font-semibold">{completedLessons}/{totalLessons} hoàn thành</span>
               </div>
             )}
-            {totalLessons > 0 && (
-              <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-2.5 py-0.5">
-                <Zap size={12} className="text-yellow-300" />
-                <span className="text-xs font-semibold">{Math.round((completedLessons / totalLessons) * 100)}%</span>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* ② Topic cards — cố định, không cuộn */}
+      {/* ② Topic cards — cố định */}
       <div className="shrink-0 bg-white border-b border-gray-100 shadow-sm">
         <TopicCards
           topicKeys={topicChips}
@@ -524,13 +590,10 @@ export default function LearnPage() {
         {/* Legend */}
         <div className="max-w-2xl mx-auto px-4 pt-3 flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            <div className="w-3.5 h-3.5 rounded-full bg-emerald-100 border-2 border-emerald-400" /> Hoàn thành
+            <div className="w-3.5 h-3.5 rounded-full" style={{ background: 'linear-gradient(135deg,#f472b6,#db2777)' }} /> Hoàn thành / Đang học
           </div>
           <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            <div className="w-3.5 h-3.5 rounded-full bg-blue-50 border-2 border-blue-400" /> Đang học
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            <div className="w-3.5 h-3.5 rounded-full bg-white border-2 border-gray-200" /> Chưa học
+            <div className="w-3.5 h-3.5 rounded-full bg-white border-2 border-dashed border-gray-300" /> Chưa học
           </div>
         </div>
 
