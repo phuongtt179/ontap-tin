@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users, FileText, FileImage, File, ExternalLink, Code, Play, TerminalSquare } from 'lucide-react'
+import MarkdownContent from '../../components/ui/MarkdownContent'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
@@ -370,7 +371,7 @@ export default function LessonSubmissionsPage() {
                   {task.instructions && (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
                       <p className="text-xs font-semibold text-amber-700 mb-1">Đề bài:</p>
-                      <p className="text-sm text-amber-900 whitespace-pre-line leading-relaxed">{task.instructions}</p>
+                      <MarkdownContent text={task.instructions} className="text-amber-900 text-sm" />
                     </div>
                   )}
                   {sub ? (() => {

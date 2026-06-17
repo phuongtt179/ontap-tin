@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code, Lock } from 'lucide-react'
 import { uploadFile } from '../../lib/cloudinary'
 import QuestionText from '../../components/ui/QuestionText'
+import MarkdownContent from '../../components/ui/MarkdownContent'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { CodeBlock, CodeBlockWithBlanks } from '../../components/ui/CodeBlock'
@@ -1402,7 +1403,7 @@ export default function LessonPage() {
                                   <div className="flex items-center gap-1.5 font-bold text-xs mb-2" style={{ color: textCol }}>
                                     📋 Đề bài
                                   </div>
-                                  <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{task.instructions}</p>
+                                  <MarkdownContent text={task.instructions} className="text-gray-800 text-sm" />
                                 </div>
                               )}
 

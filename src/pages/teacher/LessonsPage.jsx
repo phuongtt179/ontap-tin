@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import MarkdownContent from '../../components/ui/MarkdownContent'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
@@ -31,6 +32,59 @@ function parseTasks(instructions) {
 }
 
 /* ── LessonFormModal ───────────────────────────────────────── */
+function TaskEditor({ index, value, onChange, onRemove, autoFocus }) {
+  const [tab, setTab] = useState('edit')
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between bg-gray-50 border-b border-gray-200 px-3 py-2">
+        <span className="text-sm font-semibold text-gray-700">Bài {index + 1}</span>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs">
+            <button type="button" onClick={() => setTab('edit')}
+              className={`px-3 py-1 font-medium transition ${tab === 'edit' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+              Soạn
+            </button>
+            <button type="button" onClick={() => setTab('preview')}
+              className={`px-3 py-1 font-medium transition ${tab === 'preview' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+              Xem trước
+            </button>
+          </div>
+          {onRemove && (
+            <button type="button" onClick={onRemove} className="text-red-400 hover:text-red-600 transition">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+      {/* Content */}
+      {tab === 'edit' ? (
+        <div>
+          <textarea
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            rows={5}
+            autoFocus={autoFocus}
+            placeholder={`Nhập đề bài / hướng dẫn (hỗ trợ Markdown: **đậm**, *nghiêng*, | bảng |, - danh sách...)...`}
+            className="w-full px-3 py-2.5 text-sm focus:outline-none resize-none font-mono"
+          />
+          <div className="bg-gray-50 border-t border-gray-100 px-3 py-1.5 text-[10px] text-gray-400 flex gap-3 flex-wrap">
+            <span>**đậm**</span><span>*nghiêng*</span><span># Tiêu đề</span>
+            <span>- danh sách</span><span>1. đánh số</span>
+            <span>| cột 1 | cột 2 |</span>
+          </div>
+        </div>
+      ) : (
+        <div className="px-4 py-3 min-h-[80px] bg-white">
+          {value.trim()
+            ? <MarkdownContent text={value} />
+            : <p className="text-gray-400 text-sm italic">Chưa có nội dung...</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, onClose, onDone }) {
   const { user } = useAuth()
   const { grades: GRADES } = useGrades()
@@ -447,25 +501,12 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
                 Mỗi bài yêu cầu học sinh nộp 1 file (.pptx · .docx · .sb3).
               </p>
               {form.practice_tasks.map((task, i) => (
-                <div key={i} className="border border-gray-200 rounded-xl p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-gray-700">Bài {i + 1}</span>
-                    {form.practice_tasks.length > 1 && (
-                      <button type="button" onClick={() => removeTask(i)}
-                        className="text-red-400 hover:text-red-600 transition">
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
-                  <textarea
-                    value={task.instructions}
-                    onChange={e => updateTask(i, e.target.value)}
-                    rows={3}
-                    autoFocus={i === form.practice_tasks.length - 1}
-                    placeholder={`Đề bài / hướng dẫn bài ${i + 1}...`}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                  />
-                </div>
+                <TaskEditor key={i} index={i}
+                  value={task.instructions}
+                  onChange={val => updateTask(i, val)}
+                  onRemove={form.practice_tasks.length > 1 ? () => removeTask(i) : null}
+                  autoFocus={i === form.practice_tasks.length - 1}
+                />
               ))}
               <button type="button" onClick={addTask}
                 className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition">
@@ -600,9 +641,9 @@ function LessonPreviewModal({ lesson, onClose }) {
                 <ClipboardList size={13} /> Thực hành
               </p>
               {tasks.map((t, i) => t.instructions && (
-                <div key={i} className="text-sm text-amber-900 whitespace-pre-line">
-                  {tasks.length > 1 && <span className="font-medium">Bài {i + 1}: </span>}
-                  {t.instructions}
+                <div key={i}>
+                  {tasks.length > 1 && <p className="text-xs font-semibold text-amber-700 mb-1">Bài {i + 1}:</p>}
+                  <MarkdownContent text={t.instructions} className="text-amber-900 text-sm" />
                 </div>
               ))}
             </div>
