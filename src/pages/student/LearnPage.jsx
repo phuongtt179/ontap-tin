@@ -206,31 +206,29 @@ function TopicCards({ topicKeys, lessons, progressMap, grouped, selected, onSele
 }
 
 // ── Lesson node ───────────────────────────────────────────────────
-function LessonNode({ lesson, globalIdx, prog, navigate, isNext }) {
+function LessonNode({ lesson, globalIdx, prog, navigate }) {
   const { total, done, completed } = getProgress(lesson, prog)
   const inProgress = done > 0 && !completed
-  const notStarted = !completed && !inProgress
+  const notCompleted = !completed
   const emoji = getLessonEmoji(lesson)
   const c = NODE_PALETTE[globalIdx % NODE_PALETTE.length]
 
   const circleStyle = completed
     ? { background: `linear-gradient(135deg, ${c.from}, ${c.to})`, boxShadow: `0 4px 14px ${c.shadow}` }
     : inProgress
-    ? { background: `linear-gradient(135deg, ${c.from}, ${c.to})`, boxShadow: `0 4px 18px ${c.shadow}` }
-    : isNext
-    ? { background: `linear-gradient(135deg, ${c.from}cc, ${c.to}cc)`, border: `2.5px solid ${c.from}`,
-        boxShadow: `0 0 14px ${c.shadow}`, animation: 'node-breathe 1.6s ease-in-out infinite' }
-    : { background: `linear-gradient(135deg, ${c.from}55, ${c.to}55)`, border: `2.5px dashed ${c.from}`,
-        animation: 'node-breathe 3s ease-in-out infinite' }
+    ? { background: `linear-gradient(135deg, ${c.from}, ${c.to})`, boxShadow: `0 4px 18px ${c.shadow}`,
+        animation: 'node-breathe 1.6s ease-in-out infinite' }
+    : { background: `linear-gradient(135deg, ${c.from}cc, ${c.to}cc)`, border: `2.5px dashed ${c.from}`,
+        animation: 'node-breathe 1.6s ease-in-out infinite' }
 
   return (
     <button
       onClick={() => navigate(`/student/learn/${lesson.id}`)}
       className="relative flex flex-col items-center group w-14 md:w-16 shrink-0"
-      style={{ paddingTop: isNext ? '28px' : undefined }}
+      style={{ paddingTop: notCompleted ? '26px' : undefined }}
     >
-      {/* "Học thôi!" bounce badge */}
-      {isNext && (
+      {/* "Học thôi!" badge — tất cả bài chưa hoàn thành */}
+      {notCompleted && (
         <span className="absolute top-0 left-1/2 whitespace-nowrap z-10
           bg-gradient-to-r from-orange-400 to-pink-500 text-white text-[9px] font-black
           px-2 py-0.5 rounded-full shadow-lg"
@@ -244,49 +242,27 @@ function LessonNode({ lesson, globalIdx, prog, navigate, isNext }) {
         transition-transform duration-200 group-hover:scale-110 group-active:scale-95 overflow-hidden"
         style={circleStyle}>
 
-        {/* Shimmer sweep for next node */}
-        {isNext && (
+        {/* Shimmer sweep */}
+        {notCompleted && (
           <span className="absolute top-0 bottom-0 w-8 bg-white/40 pointer-events-none rounded-full"
             style={{ animation: 'node-shimmer 2s ease-in-out infinite' }} />
         )}
 
-        <span className={`select-none relative z-10
-          ${(completed || inProgress || isNext) ? 'text-white drop-shadow-sm' : ''}`}>
+        <span className="select-none relative z-10 drop-shadow-sm">
           {completed ? '✅' : emoji}
         </span>
 
         {/* Number badge */}
         <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-[9px] font-black
           flex items-center justify-center border-2 border-white shadow-sm z-10"
-          style={{ background: (completed || inProgress || isNext) ? c.to : '#f3f4f6',
-                   color: (completed || inProgress || isNext) ? '#fff' : '#9ca3af' }}>
+          style={{ background: c.to, color: '#fff' }}>
           {globalIdx + 1}
         </span>
-
-        {/* Pulse ring for in-progress */}
-        {inProgress && (
-          <span className="absolute inset-0 rounded-full animate-ping opacity-25 pointer-events-none"
-            style={{ background: `linear-gradient(135deg, ${c.from}, ${c.to})` }} />
-        )}
       </div>
-
-      {/* Glow rings for next lesson */}
-      {isNext && (
-        <>
-          <span className="absolute rounded-full pointer-events-none"
-            style={{ inset: isNext ? '28px 0 0 0' : '0',
-              border: `2px solid ${c.from}`,
-              animation: 'node-glow-ring 1.8s ease-out infinite' }} />
-          <span className="absolute rounded-full pointer-events-none"
-            style={{ inset: isNext ? '28px 0 0 0' : '0',
-              border: `2px solid ${c.to}`,
-              animation: 'node-glow-ring 1.8s ease-out 0.7s infinite' }} />
-        </>
-      )}
 
       {/* Title */}
       <p className="text-[9px] md:text-[10px] text-center font-semibold mt-1.5 leading-tight line-clamp-2 w-14 md:w-16"
-        style={{ color: (completed || inProgress) ? c.to : isNext ? c.from : '#9ca3af' }}>
+        style={{ color: c.to }}>
         {lesson.title}
       </p>
 
@@ -306,7 +282,7 @@ function LessonNode({ lesson, globalIdx, prog, navigate, isNext }) {
 // ── Zigzag path inside a unit ─────────────────────────────────────
 const COLS = 4
 
-function UnitPath({ lessons, progressMap, navigate, globalStart, nextLessonId }) {
+function UnitPath({ lessons, progressMap, navigate, globalStart }) {
   const rows = []
   for (let i = 0; i < lessons.length; i += COLS) {
     rows.push(lessons.slice(i, i + COLS))
@@ -329,7 +305,7 @@ function UnitPath({ lessons, progressMap, navigate, globalStart, nextLessonId })
 
                 return (
                   <div key={lesson.id} className="flex items-center flex-1 min-w-0">
-                    <LessonNode lesson={lesson} globalIdx={globalIdx} prog={prog} navigate={navigate} isNext={lesson.id === nextLessonId} />
+                    <LessonNode lesson={lesson} globalIdx={globalIdx} prog={prog} navigate={navigate} />
                     {!isLastInRow && (
                       <div className="flex-1 h-1 mx-0.5 rounded-full min-w-[6px]">
                         <div className={`h-full rounded-full
@@ -360,7 +336,7 @@ function UnitPath({ lessons, progressMap, navigate, globalStart, nextLessonId })
 }
 
 // ── Unit card ─────────────────────────────────────────────────────
-function UnitCard({ unit, lessons, progressMap, navigate, unitIndex, globalStart, nextLessonId }) {
+function UnitCard({ unit, lessons, progressMap, navigate, unitIndex, globalStart }) {
   const doneCount = lessons.filter(l => progressMap[l.id]?.completed).length
   const allDone = doneCount === lessons.length
   const anyStarted = doneCount > 0 || lessons.some(l => { const p = progressMap[l.id]; return p && !p.completed })
@@ -394,7 +370,7 @@ function UnitCard({ unit, lessons, progressMap, navigate, unitIndex, globalStart
       </div>
 
       <div className="p-3 md:p-4">
-        <UnitPath lessons={lessons} progressMap={progressMap} navigate={navigate} globalStart={globalStart} nextLessonId={nextLessonId} />
+        <UnitPath lessons={lessons} progressMap={progressMap} navigate={navigate} globalStart={globalStart} />
       </div>
     </div>
   )
@@ -408,16 +384,6 @@ function LearningMap({ groups, progressMap, navigate, allLessonsCount, completed
       <p className="text-gray-500 font-medium">Chưa có bài học nào</p>
     </div>
   )
-
-  // Bài tiếp theo được gợi ý = bài đầu tiên chưa hoàn thành
-  const nextLessonId = (() => {
-    for (const g of groups) {
-      for (const l of g.lessons) {
-        if (!progressMap[l.id]?.completed) return l.id
-      }
-    }
-    return null
-  })()
 
   let globalStart = 0
 
@@ -435,7 +401,6 @@ function LearningMap({ groups, progressMap, navigate, allLessonsCount, completed
             navigate={navigate}
             unitIndex={i}
             globalStart={start}
-            nextLessonId={nextLessonId}
           />
         )
       })}
