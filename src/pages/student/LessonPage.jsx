@@ -1398,12 +1398,29 @@ export default function LessonPage() {
                             {/* Scrollable body */}
                             <div className="overflow-y-auto flex-1 p-5 space-y-4">
                               {/* Instructions */}
-                              {task.instructions && (
-                                <div className="rounded-2xl p-4 border" style={{ background: lightBg, borderColor: borderCol }}>
-                                  <div className="flex items-center gap-1.5 font-bold text-xs mb-2" style={{ color: textCol }}>
+                              {(task.instructions || task.instruction_file_url) && (
+                                <div className="rounded-2xl p-4 border space-y-3" style={{ background: lightBg, borderColor: borderCol }}>
+                                  <div className="flex items-center gap-1.5 font-bold text-xs" style={{ color: textCol }}>
                                     📋 Đề bài
                                   </div>
-                                  <MarkdownContent text={task.instructions} className="text-gray-800 text-sm" />
+                                  {task.instructions && (
+                                    <MarkdownContent text={task.instructions} className="text-gray-800 text-sm" />
+                                  )}
+                                  {task.instruction_file_url && (() => {
+                                    const ext = task.instruction_file_url.split('.').pop().toLowerCase().split('?')[0]
+                                    const isOffice = ['doc','docx','ppt','pptx'].includes(ext)
+                                    return isOffice ? (
+                                      <iframe
+                                        src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(task.instruction_file_url)}`}
+                                        width="100%" height="480" frameBorder="0"
+                                        className="rounded-xl border border-gray-200 block w-full" />
+                                    ) : (
+                                      <a href={task.instruction_file_url} target="_blank" rel="noopener noreferrer"
+                                        className="flex items-center gap-2 text-sm text-indigo-600 hover:underline">
+                                        📄 Tải file đề bài
+                                      </a>
+                                    )
+                                  })()}
                                 </div>
                               )}
 

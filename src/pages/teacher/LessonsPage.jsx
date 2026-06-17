@@ -32,8 +32,30 @@ function parseTasks(instructions) {
 }
 
 /* ── LessonFormModal ───────────────────────────────────────── */
-function TaskEditor({ index, value, onChange, onRemove, autoFocus }) {
+function TaskEditor({ index, task, onChange, onRemove, autoFocus }) {
   const [tab, setTab] = useState('edit')
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef(null)
+
+  async function handleFileUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const url = await uploadFile(file)
+      onChange({ ...task, instruction_file_url: url })
+    } catch {
+      toast.error('Upload thất bại')
+    }
+    setUploading(false)
+    e.target.value = ''
+  }
+
+  const fileUrl = task.instruction_file_url || ''
+  const fileExt = fileUrl ? fileUrl.split('.').pop().toLowerCase().split('?')[0] : ''
+  const isOffice = ['doc','docx','ppt','pptx'].includes(fileExt)
+  const fileName = fileUrl ? decodeURIComponent(fileUrl.split('/').pop().split('?')[0]) : ''
+
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden">
       {/* Header */}
@@ -57,28 +79,53 @@ function TaskEditor({ index, value, onChange, onRemove, autoFocus }) {
           )}
         </div>
       </div>
-      {/* Content */}
+
       {tab === 'edit' ? (
         <div>
+          {/* Text instructions */}
           <textarea
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            rows={5}
+            value={task.instructions || ''}
+            onChange={e => onChange({ ...task, instructions: e.target.value })}
+            rows={4}
             autoFocus={autoFocus}
-            placeholder={`Nhập đề bài / hướng dẫn (hỗ trợ Markdown: **đậm**, *nghiêng*, | bảng |, - danh sách...)...`}
+            placeholder="Nhập hướng dẫn ngắn (tùy chọn, hỗ trợ Markdown)..."
             className="w-full px-3 py-2.5 text-sm focus:outline-none resize-none font-mono"
           />
           <div className="bg-gray-50 border-t border-gray-100 px-3 py-1.5 text-[10px] text-gray-400 flex gap-3 flex-wrap">
-            <span>**đậm**</span><span>*nghiêng*</span><span># Tiêu đề</span>
-            <span>- danh sách</span><span>1. đánh số</span>
-            <span>| cột 1 | cột 2 |</span>
+            <span>**đậm**</span><span>*nghiêng*</span><span># Tiêu đề</span><span>- danh sách</span>
+          </div>
+
+          {/* File đề bài */}
+          <div className="border-t border-gray-100 px-3 py-3 space-y-2">
+            <p className="text-xs font-semibold text-gray-600">File đề bài (Word / PPTX — tùy chọn)</p>
+            {fileUrl ? (
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                <FileText size={15} className="text-blue-500 shrink-0" />
+                <span className="text-xs text-blue-700 flex-1 truncate">{fileName}</span>
+                <a href={fileUrl} target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline shrink-0">Xem</a>
+                <button type="button" onClick={() => onChange({ ...task, instruction_file_url: '' })}
+                  className="text-red-400 hover:text-red-600 shrink-0"><X size={13} /></button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                className="flex items-center gap-2 w-full border-2 border-dashed border-gray-300 hover:border-indigo-400 rounded-lg px-3 py-2 text-sm text-gray-500 hover:text-indigo-600 transition disabled:opacity-50">
+                {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                {uploading ? 'Đang upload...' : 'Upload file Word / PPTX'}
+              </button>
+            )}
+            <input ref={fileRef} type="file" accept=".doc,.docx,.ppt,.pptx" className="hidden" onChange={handleFileUpload} />
           </div>
         </div>
       ) : (
-        <div className="px-4 py-3 min-h-[80px] bg-white">
-          {value.trim()
-            ? <MarkdownContent text={value} />
-            : <p className="text-gray-400 text-sm italic">Chưa có nội dung...</p>}
+        <div className="px-4 py-3 min-h-[80px] bg-white space-y-3">
+          {(task.instructions || '').trim()
+            ? <MarkdownContent text={task.instructions} />
+            : !fileUrl && <p className="text-gray-400 text-sm italic">Chưa có nội dung...</p>}
+          {fileUrl && isOffice && (
+            <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`}
+              width="100%" height="400" frameBorder="0" className="rounded-lg border border-gray-200 block" />
+          )}
         </div>
       )}
     </div>
@@ -192,13 +239,13 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
   }
 
   function addTask() {
-    setForm(f => ({ ...f, practice_tasks: [...f.practice_tasks, { instructions: '' }] }))
+    setForm(f => ({ ...f, practice_tasks: [...f.practice_tasks, { instructions: '', instruction_file_url: '' }] }))
   }
   function removeTask(idx) {
     setForm(f => ({ ...f, practice_tasks: f.practice_tasks.filter((_, i) => i !== idx) }))
   }
-  function updateTask(idx, val) {
-    setForm(f => ({ ...f, practice_tasks: f.practice_tasks.map((t, i) => i === idx ? { ...t, instructions: val } : t) }))
+  function updateTask(idx, taskObj) {
+    setForm(f => ({ ...f, practice_tasks: f.practice_tasks.map((t, i) => i === idx ? taskObj : t) }))
   }
 
   async function handleSave() {
@@ -217,7 +264,7 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
       has_practice: form.has_practice,
       practice_type: null,
       practice_instructions: form.has_practice
-        ? JSON.stringify(form.practice_tasks.filter(t => t.instructions.trim()))
+        ? JSON.stringify(form.practice_tasks.filter(t => (t.instructions || '').trim() || t.instruction_file_url))
         : null,
       is_published: form.is_published,
       question_ids: form.question_ids,
@@ -502,8 +549,8 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
               </p>
               {form.practice_tasks.map((task, i) => (
                 <TaskEditor key={i} index={i}
-                  value={task.instructions}
-                  onChange={val => updateTask(i, val)}
+                  task={task}
+                  onChange={taskObj => updateTask(i, taskObj)}
                   onRemove={form.practice_tasks.length > 1 ? () => removeTask(i) : null}
                   autoFocus={i === form.practice_tasks.length - 1}
                 />
