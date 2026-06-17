@@ -856,19 +856,17 @@ export default function LessonPage() {
     setLoading(false)
   }
 
-  async function awardSticker(reason) {
-    // Lấy sticker_count và sticker_total từ profiles, tăng lên
+  async function awardSticker(count = 1, reason) {
     const { data: prof } = await supabase
       .from('profiles').select('sticker_count, sticker_total').eq('id', user.id).single()
-    const threshold = 10 // TODO: lấy từ settings table
-    const currentCount = (prof?.sticker_count ?? 0) + 1
-    const totalCount = (prof?.sticker_total ?? 0) + 1
-    const newCount = currentCount >= threshold ? 0 : currentCount // reset sau khi đủ
+    const threshold = 10
+    const currentCount = (prof?.sticker_count ?? 0) + count
+    const totalCount = (prof?.sticker_total ?? 0) + count
     await supabase.from('profiles').update({
-      sticker_count: newCount,
+      sticker_count: currentCount,
       sticker_total: totalCount,
     }).eq('id', user.id)
-    setStickerModal({ stickerCount: currentCount, stickerTotal: totalCount, threshold, reason })
+    setStickerModal({ stickerCount: currentCount, stickerTotal: totalCount, threshold, reason, count })
   }
 
   async function upsertProgress(updates) {
@@ -881,11 +879,7 @@ export default function LessonPage() {
     ).select().single()
     if (!error && data) {
       setProgress(data)
-      // Phát sticker khi bài hoàn thành lần đầu
-      if (completed && !wasCompleted.current) {
-        wasCompleted.current = true
-        await awardSticker('Hoàn thành bài học: ' + (lesson?.title || ''))
-      }
+      if (completed) wasCompleted.current = true
     }
     return { data, error }
   }
@@ -919,9 +913,17 @@ export default function LessonPage() {
   }
 
   async function handleQuizSubmit({ correct, total, passed }) {
+    const wasAlreadyPassed = progress?.quiz_passed
     await upsertProgress({ quiz_correct: correct, quiz_total: total, quiz_passed: passed, quiz_current_idx: 0 })
-    if (passed) toast.success('Chúc mừng! Bạn đã đạt bài tập')
-    else toast('Chưa đạt, hãy thử lại nhé!', { icon: '📖' })
+    if (passed && !wasAlreadyPassed) {
+      const pct = total > 0 ? correct / total : 0
+      const count = pct >= 1 ? 5 : pct >= 0.9 ? 4 : pct >= 0.85 ? 3 : pct >= 0.75 ? 2 : 1
+      await awardSticker(count, `Vượt qua bài kiểm tra! (${correct}/${total} câu đúng) 🎯`)
+    } else if (passed) {
+      toast.success('Chúc mừng! Bạn đã đạt bài tập')
+    } else {
+      toast('Chưa đạt, hãy thử lại nhé!', { icon: '📖' })
+    }
   }
 
   async function handleTaskResubmit(taskIdx) {
@@ -976,7 +978,7 @@ export default function LessonPage() {
       if (newSubs.every(s => s !== null)) {
         await upsertProgress({ practice_submitted: true })
       }
-      toast.success(`Đã nộp bài ${taskIdx + 1}`)
+      await awardSticker(3, `Nộp xong bài thực hành ${taskIdx + 1}! 📝`)
     } catch (err) {
       toast.error('Nộp bài thất bại: ' + err.message)
     } finally {

@@ -200,10 +200,18 @@ export default function LessonSubmissionsPage() {
     setLoading(false)
   }
 
+  function scoreToBonus(score) {
+    if (score >= 10) return 3
+    if (score >= 8) return 2
+    if (score >= 5) return 1
+    return 0
+  }
+
   async function saveTaskComment(sub) {
     setTaskSaving(prev => ({ ...prev, [sub.id]: true }))
     const scoreRaw = taskScores[sub.id]
     const scoreVal = (scoreRaw !== '' && scoreRaw != null) ? parseFloat(scoreRaw) : null
+    const isFirstGrade = sub.score == null && scoreVal != null && !isNaN(scoreVal)
     const updates = {
       teacher_comment: taskComments[sub.id] ?? '',
       reviewed_at: new Date().toISOString(),
@@ -212,7 +220,24 @@ export default function LessonSubmissionsPage() {
     const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
     setTaskSaving(prev => ({ ...prev, [sub.id]: false }))
     if (error) { toast.error('Lưu thất bại: ' + error.message); return }
-    toast.success(`Đã lưu nhận xét bài ${(selected.submissions.findIndex(s => s.id === sub.id) + 1)}`)
+
+    // Cộng bonus sticker cho học sinh lần đầu chấm điểm
+    if (isFirstGrade) {
+      const bonus = scoreToBonus(scoreVal)
+      if (bonus > 0) {
+        const studentId = selected.student.id
+        const { data: prof } = await supabase
+          .from('profiles').select('sticker_count, sticker_total').eq('id', studentId).single()
+        await supabase.from('profiles').update({
+          sticker_count: (prof?.sticker_count ?? 0) + bonus,
+          sticker_total: (prof?.sticker_total ?? 0) + bonus,
+        }).eq('id', studentId)
+        toast.success(`Đã cộng +${bonus} ⭐ cho ${selected.student.full_name}`)
+      }
+    }
+
+    const idx = selected.submissions.findIndex(s => s.id === sub.id)
+    toast.success(`Đã lưu nhận xét bài ${idx + 1}`)
     const updatedSubs = selected.submissions.map(s => s.id === sub.id ? { ...s, ...updates } : s)
     setSubmissionMap(prev => ({ ...prev, [selected.student.id]: updatedSubs }))
     setSelected(prev => prev ? { ...prev, submissions: updatedSubs } : prev)

@@ -41,10 +41,11 @@ function Confetti({ active }) {
 const STICKER_SETS = ['⭐', '🌟', '🏅', '🎖️', '💎', '🔥', '🦋', '🌈']
 
 export default function StickerModal({
-  stickerCount = 1,      // current stickers earned toward next reward
-  stickerTotal = 1,      // all-time stickers
-  threshold = 10,        // stickers needed for reward
+  stickerCount = 1,
+  stickerTotal = 1,
+  threshold = 10,
   reason = 'Hoàn thành bài học',
+  count = 1,
   onClose,
 }) {
   const [visible, setVisible] = useState(false)
@@ -101,7 +102,7 @@ export default function StickerModal({
 
             {/* +1 badge */}
             <div className="inline-flex items-center gap-1 bg-yellow-400 text-yellow-900 font-black text-sm px-3 py-1 rounded-full mb-3 shadow-md">
-              +1 Sticker!
+              +{count} Sticker{count > 1 ? 's!' : '!'}
             </div>
 
             <h2 className="text-xl font-black text-gray-800 mb-1">Xuất sắc! 🎉</h2>
