@@ -542,7 +542,7 @@ export default function LearnPage() {
           <div className="flex items-center gap-3">
 
             {/* Left: tên + badges khóa học — single row, scroll ngang nếu nhiều grade */}
-            <div className="flex-1 min-w-0 overflow-hidden">
+            <div className="flex-1 min-w-0 relative">
               <div className="flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
                 <h2 className="font-black text-base whitespace-nowrap shrink-0">{profile?.full_name || 'Học sinh'}</h2>
                 <span className="text-white/30 shrink-0">·</span>
@@ -560,6 +560,9 @@ export default function LearnPage() {
                   </div>
                 )}
               </div>
+              {/* Fade hint báo còn nội dung bên phải */}
+              <div className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none"
+                style={{ background: 'linear-gradient(to right, transparent, #0055bb)' }} />
             </div>
 
             {/* Right: Streak + Sticker widgets compact */}
