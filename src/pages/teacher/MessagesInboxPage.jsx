@@ -22,6 +22,10 @@ export default function MessagesInboxPage() {
   const [groupInput, setGroupInput] = useState('')
   const [groupSending, setGroupSending] = useState(false)
 
+  // Filters
+  const [filterClass, setFilterClass] = useState('')
+  const [filterUnread, setFilterUnread] = useState(false)
+
   useEffect(() => { loadAll() }, [])
 
   useEffect(() => {
@@ -200,10 +204,13 @@ export default function MessagesInboxPage() {
     }))
   }
 
-  const filteredThreads = threads.filter(t =>
-    t.student.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    (t.student.class_name || '').toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredThreads = threads.filter(t => {
+    const matchSearch = t.student.full_name.toLowerCase().includes(search.toLowerCase()) ||
+      (t.student.class_name || '').toLowerCase().includes(search.toLowerCase())
+    const matchClass = !filterClass || t.student.class_name === filterClass
+    const matchUnread = !filterUnread || t.unread > 0
+    return matchSearch && matchClass && matchUnread
+  })
   const totalUnread = threads.reduce((s, t) => s + t.unread, 0)
 
   return (
@@ -231,6 +238,38 @@ export default function MessagesInboxPage() {
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Tìm học sinh..."
               className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-gray-50" />
+          </div>
+
+          {/* Filter chips */}
+          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+            <button onClick={() => setFilterUnread(v => !v)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition border
+                ${filterUnread
+                  ? 'bg-red-500 text-white border-red-500'
+                  : 'bg-white text-gray-500 border-gray-200 hover:border-red-300 hover:text-red-500'}`}>
+              Chưa đọc
+              {threads.filter(t => t.unread > 0).length > 0 && (
+                <span className={`text-[10px] font-black ${filterUnread ? 'text-white/80' : 'text-red-400'}`}>
+                  ({threads.filter(t => t.unread > 0).length})
+                </span>
+              )}
+            </button>
+            <button onClick={() => setFilterClass('')}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition border
+                ${!filterClass
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'bg-white text-gray-500 border-gray-200 hover:border-indigo-300 hover:text-indigo-500'}`}>
+              Tất cả
+            </button>
+            {classes.map(c => (
+              <button key={c} onClick={() => setFilterClass(filterClass === c ? '' : c)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition border whitespace-nowrap
+                  ${filterClass === c
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-indigo-300 hover:text-indigo-500'}`}>
+                {c}
+              </button>
+            ))}
           </div>
         </div>
 
