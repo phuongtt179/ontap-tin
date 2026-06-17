@@ -18,7 +18,7 @@ const PIECES = Array.from({ length: 60 }, (_, i) => ({
 function Confetti({ active }) {
   if (!active) return null
   return (
-    <div className="fixed inset-0 pointer-events-none z-[60] overflow-hidden">
+    <div className="fixed inset-0 pointer-events-none z-[80] overflow-hidden">
       {PIECES.map(p => (
         <div key={p.id} style={{
           position: 'absolute',
@@ -72,7 +72,7 @@ export default function StickerModal({
 
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300
+        className={`fixed inset-0 z-[70] flex items-center justify-center p-4 transition-all duration-300
           ${visible ? 'bg-black/50 backdrop-blur-sm' : 'bg-transparent'}`}
         onClick={handleClose}
       >
