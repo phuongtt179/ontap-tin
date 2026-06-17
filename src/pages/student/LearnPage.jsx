@@ -145,8 +145,9 @@ function TopicCards({ topicKeys, lessons, progressMap, grouped, selected, onSele
       )}
 
       <div ref={ref} onScroll={checkScroll}
-        className="flex gap-3 overflow-x-auto px-4 py-3 justify-center"
+        className="flex-1 overflow-x-auto px-4 py-3"
         style={{ scrollbarWidth: 'none' }}>
+        <div className="flex gap-3 justify-center min-w-full w-max">
         {items.map(({ key, label, emoji, list, colorIdx }) => {
           const active = selected === key
           const done = list.filter(l => progressMap[l.id]?.completed).length
@@ -193,6 +194,7 @@ function TopicCards({ topicKeys, lessons, progressMap, grouped, selected, onSele
             </button>
           )
         })}
+        </div>
       </div>
 
       {canRight && (
