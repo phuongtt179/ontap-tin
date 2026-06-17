@@ -1069,10 +1069,9 @@ export default function LessonPage() {
   const totalSteps = [hasVideo, hasPptx, hasQuiz, hasPractice].filter(Boolean).length
   const doneSteps = [videoOk && hasVideo, pptxOk && hasPptx, quizOk && hasQuiz, practiceOk && hasPractice].filter(Boolean).length
 
-  // Lock states theo thứ tự: video → pptx → quiz → practice
-  const pptxLocked = hasVideo && !videoOk
-  const quizLocked = (hasVideo && !videoOk) || (hasPptx && !pptxOk)
-  const practiceLocked = (hasVideo && !videoOk) || (hasPptx && !pptxOk) || (hasQuiz && !quizOk)
+  const pptxLocked = false
+  const quizLocked = false
+  const practiceLocked = false
 
   const steps = [
     hasVideo && { key: 'video', label: 'Video', icon: <PlayCircle size={16} />, done: videoOk, locked: false },
