@@ -416,7 +416,7 @@ export default function LearnPage() {
   const [selectedTopic, setSelectedTopic] = useState('__all__')
   const [stickerCount, setStickerCount] = useState(0)
   const [showReward, setShowReward] = useState(false)
-  const STICKER_THRESHOLD = 10
+  const STICKER_THRESHOLD = 50
 
   useEffect(() => {
     if (selectedGrade && user) { setSelectedTopic('__all__'); loadData() }

@@ -43,7 +43,7 @@ const STICKER_SETS = ['⭐', '🌟', '🏅', '🎖️', '💎', '🔥', '🦋', 
 export default function StickerModal({
   stickerCount = 1,
   stickerTotal = 1,
-  threshold = 10,
+  threshold = 50,
   reason = 'Hoàn thành bài học',
   count = 1,
   onClose,

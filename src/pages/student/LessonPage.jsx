@@ -859,7 +859,7 @@ export default function LessonPage() {
   async function awardSticker(count = 1, reason) {
     const { data: prof } = await supabase
       .from('profiles').select('sticker_count, sticker_total').eq('id', user.id).single()
-    const threshold = 10
+    const threshold = 50
     const currentCount = (prof?.sticker_count ?? 0) + count
     const totalCount = (prof?.sticker_total ?? 0) + count
     await supabase.from('profiles').update({
