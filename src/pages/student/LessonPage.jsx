@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
-import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code } from 'lucide-react'
+import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code, Lock } from 'lucide-react'
 import { uploadFile } from '../../lib/cloudinary'
 import QuestionText from '../../components/ui/QuestionText'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -792,6 +792,63 @@ function LessonQuiz({ questions, onSubmit, initialCurrent = 0, initialCorrectCou
   )
 }
 
+/* ── Helper UI components ──────────────────────────────────── */
+function DoneChip({ label }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-sm text-green-700 font-semibold bg-green-100 px-4 py-2 rounded-xl">
+      <CheckCircle size={16} /> {label}
+    </span>
+  )
+}
+
+function ActionButton({ onClick, disabled, loading, color = 'indigo', children }) {
+  const colors = {
+    indigo: 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200',
+    blue:   'bg-blue-500 hover:bg-blue-600 shadow-blue-200',
+    orange: 'bg-orange-500 hover:bg-orange-600 shadow-orange-200',
+    emerald:'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200',
+  }
+  return (
+    <button onClick={onClick} disabled={disabled}
+      className={`flex items-center gap-2 ${colors[color]} text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-md transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100`}>
+      {loading && <Loader2 size={15} className="animate-spin" />}
+      {children}
+    </button>
+  )
+}
+
+function SectionCard({ icon, iconBg, iconColor, title, badge, done, locked, lockMessage, children }) {
+  return (
+    <section className={`relative bg-white rounded-2xl shadow-sm border overflow-hidden transition-all duration-300
+      ${done ? 'border-green-200' : locked ? 'border-gray-100' : 'border-indigo-100 shadow-indigo-50'}`}>
+      {/* Header */}
+      <div className={`flex items-center gap-3 px-5 py-4 border-b
+        ${done ? 'border-green-100 bg-green-50/50' : locked ? 'border-gray-100 bg-gray-50/50' : 'border-indigo-50 bg-indigo-50/30'}`}>
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${done ? 'bg-green-100' : locked ? 'bg-gray-100' : iconBg}`}>
+          <span className={done ? 'text-green-600' : locked ? 'text-gray-300' : iconColor}>{icon}</span>
+        </div>
+        <h2 className={`font-bold text-sm flex-1 ${locked ? 'text-gray-400' : 'text-gray-800'}`}>{title}</h2>
+        {badge && !done && !locked && (
+          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full font-medium">{badge}</span>
+        )}
+        {done && <CheckCircle size={18} className="text-green-500 shrink-0" />}
+        {locked && <Lock size={16} className="text-gray-300 shrink-0" />}
+      </div>
+      {/* Body */}
+      {locked ? (
+        <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+          <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+            <Lock size={24} className="text-gray-300" />
+          </div>
+          <p className="text-sm text-gray-400 font-medium">{lockMessage}</p>
+        </div>
+      ) : (
+        <div className="p-5">{children}</div>
+      )}
+    </section>
+  )
+}
+
 /* ── LessonPage ────────────────────────────────────────────── */
 export default function LessonPage() {
   const { id } = useParams()
@@ -1011,8 +1068,20 @@ export default function LessonPage() {
   const totalSteps = [hasVideo, hasPptx, hasQuiz, hasPractice].filter(Boolean).length
   const doneSteps = [videoOk && hasVideo, pptxOk && hasPptx, quizOk && hasQuiz, practiceOk && hasPractice].filter(Boolean).length
 
+  // Lock states theo thứ tự: video → pptx → quiz → practice
+  const pptxLocked = hasVideo && !videoOk
+  const quizLocked = (hasVideo && !videoOk) || (hasPptx && !pptxOk)
+  const practiceLocked = (hasVideo && !videoOk) || (hasPptx && !pptxOk) || (hasQuiz && !quizOk)
+
+  const steps = [
+    hasVideo && { key: 'video', label: 'Video', icon: <PlayCircle size={16} />, done: videoOk, locked: false },
+    hasPptx && { key: 'pptx', label: 'Bài giảng', icon: <FileText size={16} />, done: pptxOk, locked: pptxLocked },
+    hasQuiz && { key: 'quiz', label: 'Bài tập', icon: <BookOpen size={16} />, done: quizOk, locked: quizLocked },
+    hasPractice && { key: 'practice', label: 'Thực hành', icon: <Upload size={16} />, done: practiceOk, locked: practiceLocked },
+  ].filter(Boolean)
+
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto">
+    <div className="min-h-full bg-gray-50 flex flex-col">
       {/* Sticker modal */}
       {stickerModal && (
         <StickerModal
@@ -1020,220 +1089,161 @@ export default function LessonPage() {
           stickerTotal={stickerModal.stickerTotal}
           threshold={stickerModal.threshold}
           reason={stickerModal.reason}
+          count={stickerModal.count}
           onClose={() => setStickerModal(null)}
         />
       )}
 
-      {/* Back button */}
-      <button
-        onClick={() => navigate('/student/learn')}
-        className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-5 transition"
-      >
-        <ArrowLeft size={16} /> Học tập
-      </button>
+      {/* ── Hero gradient ── */}
+      <div className="bg-gradient-to-r from-[#003d8f] via-[#0055bb] to-[#0077dd] text-white px-5 pt-5 pb-4 md:px-8 shrink-0">
+        <div className="max-w-3xl mx-auto">
+          <button onClick={() => navigate('/student/learn')}
+            className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm mb-4 transition">
+            <ArrowLeft size={15} /> Bài học
+          </button>
+          <h1 className="text-xl md:text-2xl font-bold leading-tight">{lesson.title}</h1>
+          {lesson.description && <p className="text-blue-200 text-sm mt-1">{lesson.description}</p>}
 
-      {/* Header */}
-      <h1 className="text-xl font-bold text-gray-800 mb-1">{lesson.title}</h1>
-      {lesson.description && <p className="text-gray-500 text-sm mb-4">{lesson.description}</p>}
+          {/* Stepper */}
+          {steps.length > 0 && (
+            <div className="flex items-center mt-6 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+              {steps.map((step, i) => (
+                <div key={step.key} className="flex items-center flex-1 min-w-0">
+                  <div className="flex flex-col items-center shrink-0">
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all duration-300
+                      ${step.done
+                        ? 'bg-green-400 border-green-300 shadow-lg shadow-green-500/40'
+                        : !step.locked
+                        ? 'bg-white border-white shadow-lg'
+                        : 'bg-white/10 border-white/20'}`}
+                      style={!step.done && !step.locked ? { animation: 'node-breathe 2s ease-in-out infinite' } : {}}>
+                      {step.done
+                        ? <CheckCircle size={20} className="text-white" />
+                        : step.locked
+                        ? <Lock size={15} className="text-white/30" />
+                        : <span className="text-indigo-700">{step.icon}</span>}
+                    </div>
+                    <span className={`text-[10px] font-semibold mt-1.5 whitespace-nowrap
+                      ${step.done ? 'text-green-300' : !step.locked ? 'text-white' : 'text-white/30'}`}>
+                      {step.label}
+                    </span>
+                  </div>
+                  {i < steps.length - 1 && (
+                    <div className={`flex-1 h-0.5 mx-2 mb-4 rounded-full min-w-[16px] transition-all duration-500
+                      ${step.done ? 'bg-green-400/70' : 'bg-white/20'}`} />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
-      {/* Progress bar */}
-      {totalSteps > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Tiến độ: {doneSteps}/{totalSteps} bước hoàn thành</span>
-            {doneSteps === totalSteps && (
-              <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full">Hoàn thành ✓</span>
-            )}
-          </div>
-          <div className="w-full bg-gray-100 rounded-full h-2 mb-3">
-            <div
-              className="bg-indigo-500 h-2 rounded-full transition-all"
-              style={{ width: totalSteps > 0 ? `${(doneSteps / totalSteps) * 100}%` : '0%' }}
-            />
-          </div>
-          <div className="flex gap-4 flex-wrap">
-            {hasVideo && (
-              <div className={`flex items-center gap-1.5 text-xs font-medium ${videoOk ? 'text-green-600' : 'text-gray-400'}`}>
-                <PlayCircle size={13} />
-                <span>Video {videoOk ? '✓' : '○'}</span>
-              </div>
-            )}
-            {hasPptx && (
-              <div className={`flex items-center gap-1.5 text-xs font-medium ${pptxOk ? 'text-green-600' : 'text-gray-400'}`}>
-                <FileText size={13} />
-                <span>Bài giảng {pptxOk ? '✓' : '○'}</span>
-              </div>
-            )}
-            {hasQuiz && (
-              <div className={`flex items-center gap-1.5 text-xs font-medium ${quizOk ? 'text-green-600' : 'text-gray-400'}`}>
-                <BookOpen size={13} />
-                <span>Bài tập {quizOk ? '✓' : '○'}</span>
-              </div>
-            )}
-            {hasPractice && (
-              <div className={`flex items-center gap-1.5 text-xs font-medium ${practiceOk ? 'text-green-600' : 'text-gray-400'}`}>
-                <Upload size={13} />
-                <span>Thực hành {practiceOk ? '✓' : `${submittedCount}/${practiceTasks.length}`}</span>
-              </div>
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
+            <span className="text-blue-200 text-xs font-medium">
+              {doneSteps === totalSteps && totalSteps > 0
+                ? '🎉 Hoàn thành bài học!'
+                : `Bước ${Math.min(doneSteps + 1, totalSteps)}/${totalSteps}`}
+            </span>
+            {doneSteps === totalSteps && totalSteps > 0 && (
+              <span className="text-xs bg-green-400/20 text-green-300 font-semibold px-3 py-1 rounded-full">✓ Xong</span>
             )}
           </div>
         </div>
-      )}
+      </div>
 
-      <div className="space-y-6">
-        {/* Section - Video */}
+      {/* ── Content sections ── */}
+      <div className="flex-1 max-w-3xl w-full mx-auto px-4 md:px-8 py-6 space-y-4">
+
+        {/* Video */}
         {hasVideo && (
-          <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-              <PlayCircle size={16} className="text-blue-500" />
-              <h2 className="font-semibold text-gray-800 text-sm">Video bài giảng</h2>
-            </div>
-            <div className="p-4">
-              {embedUrl ? (
-                <div className="w-full aspect-video rounded-lg overflow-hidden bg-black mb-3">
-                  <iframe
-                    src={embedUrl}
-                    title="Lesson video"
-                    className="w-full h-full"
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-              ) : (
-                <div className="mb-3">
-                  <a href={lesson.video_url} target="_blank" rel="noopener noreferrer"
-                    className="text-indigo-600 hover:underline text-sm">{lesson.video_url}</a>
-                </div>
-              )}
-              {progress?.video_watched ? (
-                <span className="inline-flex items-center gap-1.5 text-sm text-green-600 font-medium bg-green-50 px-3 py-1.5 rounded-lg">
-                  <CheckCircle size={15} /> Đã xem ✓
-                </span>
-              ) : (
-                <button
-                  onClick={handleMarkVideoWatched}
-                  disabled={videoMarking}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                >
-                  {videoMarking ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={15} />}
-                  Đánh dấu đã xem video
-                </button>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* Section - PPTX bài giảng */}
-        {hasPptx && (
-          <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-              <FileText size={16} className="text-orange-500" />
-              <h2 className="font-semibold text-gray-800 text-sm">Bài giảng (PowerPoint)</h2>
-            </div>
-            <div className="p-4">
-              <div className="w-full rounded-lg overflow-hidden border border-gray-200 mb-3" style={{ aspectRatio: '16/9' }}>
-                <iframe
-                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(lesson.pptx_url)}`}
-                  width="100%" height="100%" frameBorder="0"
-                  title="Bài giảng PPTX" className="w-full h-full block"
-                  allowFullScreen
-                />
+          <SectionCard icon={<PlayCircle size={18} />} iconBg="bg-blue-100" iconColor="text-blue-600"
+            title="Video bài giảng" done={videoOk} locked={false} lockMessage="">
+            {embedUrl ? (
+              <div className="w-full aspect-video rounded-xl overflow-hidden bg-black mb-4">
+                <iframe src={embedUrl} title="Lesson video" className="w-full h-full"
+                  frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
               </div>
-              {pptxOk ? (
-                <span className="inline-flex items-center gap-1.5 text-sm text-green-600 font-medium bg-green-50 px-3 py-1.5 rounded-lg">
-                  <CheckCircle size={15} /> Đã xem ✓
-                </span>
-              ) : (
-                <button
-                  onClick={handleMarkPptxViewed}
-                  disabled={pptxMarking}
-                  className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                >
-                  {pptxMarking ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={15} />}
+            ) : (
+              <div className="mb-4">
+                <a href={lesson.video_url} target="_blank" rel="noopener noreferrer"
+                  className="text-indigo-600 hover:underline text-sm">{lesson.video_url}</a>
+              </div>
+            )}
+            {videoOk
+              ? <DoneChip label="Đã xem video" />
+              : <ActionButton onClick={handleMarkVideoWatched} disabled={videoMarking} loading={videoMarking} color="blue">
+                  Đánh dấu đã xem video
+                </ActionButton>}
+          </SectionCard>
+        )}
+
+        {/* PPTX */}
+        {hasPptx && (
+          <SectionCard icon={<FileText size={18} />} iconBg="bg-orange-100" iconColor="text-orange-600"
+            title="Bài giảng (PowerPoint)" done={pptxOk} locked={pptxLocked}
+            lockMessage="Xem video trước để mở khóa">
+            <div className="w-full rounded-xl overflow-hidden border border-gray-200 mb-4" style={{ aspectRatio: '16/9' }}>
+              <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(lesson.pptx_url)}`}
+                width="100%" height="100%" frameBorder="0" title="Bài giảng PPTX" className="w-full h-full block" allowFullScreen />
+            </div>
+            {pptxOk
+              ? <DoneChip label="Đã xem bài giảng" />
+              : <ActionButton onClick={handleMarkPptxViewed} disabled={pptxMarking} loading={pptxMarking} color="orange">
                   Đánh dấu đã xem bài giảng
-                </button>
-              )}
-            </div>
-          </section>
+                </ActionButton>}
+          </SectionCard>
         )}
 
-        {/* Section - Quiz */}
+        {/* Quiz */}
         {hasQuiz && (
-          <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-              <BookOpen size={16} className="text-indigo-500" />
-              <h2 className="font-semibold text-gray-800 text-sm">Bài tập</h2>
-              <span className="ml-auto text-xs text-gray-400">{questions.length} câu</span>
-            </div>
-            <div className="p-4">
-              {quizOk && !quizActive ? (
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <span className="inline-flex items-center gap-1.5 text-sm text-green-600 font-medium bg-green-50 px-3 py-1.5 rounded-lg">
-                    <CheckCircle size={15} /> Đạt ✓
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    {progress?.quiz_correct ?? 0}/{progress?.quiz_total ?? questions.length} câu đúng
-                  </span>
-                  <button
-                    onClick={() => setQuizActive(true)}
-                    className="text-xs text-indigo-600 hover:underline"
-                  >
-                    Làm lại
-                  </button>
-                </div>
-              ) : !quizActive ? (
-                (() => {
-                  const hasResume = progress?.quiz_current_idx > 0 && !progress?.quiz_passed
-                  return hasResume ? (
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={() => startQuiz(false)}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-                      >
-                        <BookOpen size={15} /> Tiếp tục từ câu {progress.quiz_current_idx + 1}/{questions.length}
-                      </button>
-                      <button
-                        onClick={() => startQuiz(true)}
-                        className="text-xs text-gray-400 hover:text-gray-600 underline text-left"
-                      >
-                        Làm lại từ đầu
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => startQuiz()}
-                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-                    >
-                      <BookOpen size={15} /> Bắt đầu làm bài
+          <SectionCard icon={<BookOpen size={18} />} iconBg="bg-indigo-100" iconColor="text-indigo-600"
+            title="Bài tập" badge={`${questions.length} câu`}
+            done={quizOk && !quizActive} locked={quizLocked}
+            lockMessage={hasPptx ? 'Xem bài giảng trước để mở khóa' : 'Xem video trước để mở khóa'}>
+            {quizOk && !quizActive ? (
+              <div className="flex items-center gap-4 flex-wrap">
+                <DoneChip label={`Đạt · ${progress?.quiz_correct ?? 0}/${progress?.quiz_total ?? questions.length} câu đúng`} />
+                <button onClick={() => setQuizActive(true)} className="text-xs text-indigo-600 hover:underline font-medium">Làm lại</button>
+              </div>
+            ) : !quizActive ? (
+              (() => {
+                const hasResume = progress?.quiz_current_idx > 0 && !progress?.quiz_passed
+                return hasResume ? (
+                  <div className="flex flex-col gap-3">
+                    <ActionButton onClick={() => startQuiz(false)} color="indigo">
+                      Tiếp tục từ câu {progress.quiz_current_idx + 1}/{questions.length}
+                    </ActionButton>
+                    <button onClick={() => startQuiz(true)} className="text-xs text-gray-400 hover:text-gray-600 underline text-left">
+                      Làm lại từ đầu
                     </button>
-                  )
-                })()
-              ) : (
-                <LessonQuiz
-                  questions={questions}
-                  initialCurrent={quizInitIdx}
-                  initialCorrectCount={quizInitCorrect}
-                  onProgress={(idx, correct) => upsertProgress({ quiz_current_idx: idx, quiz_correct: correct })}
-                  onSubmit={({ correct, total, passed }) => {
-                    handleQuizSubmit({ correct, total, passed })
-                    if (passed) setQuizActive(false)
-                  }}
-                />
-              )}
-            </div>
-          </section>
+                  </div>
+                ) : (
+                  <ActionButton onClick={() => startQuiz()} color="indigo">Bắt đầu làm bài</ActionButton>
+                )
+              })()
+            ) : (
+              <LessonQuiz
+                questions={questions}
+                initialCurrent={quizInitIdx}
+                initialCorrectCount={quizInitCorrect}
+                onProgress={(idx, correct) => upsertProgress({ quiz_current_idx: idx, quiz_correct: correct })}
+                onSubmit={({ correct, total, passed }) => {
+                  handleQuizSubmit({ correct, total, passed })
+                  if (passed) setQuizActive(false)
+                }}
+              />
+            )}
+          </SectionCard>
         )}
 
-        {/* Section - Practice submission */}
+        {/* Practice */}
         {hasPractice && (
-          <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-              <Upload size={16} className="text-orange-500" />
-              <h2 className="font-semibold text-gray-800 text-sm">Nộp bài thực hành</h2>
-              <span className="ml-auto text-xs text-gray-400">{submittedCount}/{practiceTasks.length} bài đã nộp</span>
-            </div>
-            <div className="p-4 space-y-4">
+          <SectionCard icon={<Upload size={18} />} iconBg="bg-emerald-100" iconColor="text-emerald-600"
+            title="Bài thực hành" badge={`${submittedCount}/${practiceTasks.length} đã nộp`}
+            done={practiceOk} locked={practiceLocked}
+            lockMessage={hasQuiz ? 'Hoàn thành bài tập trước để mở khóa'
+              : hasPptx ? 'Xem bài giảng trước để mở khóa'
+              : 'Xem video trước để mở khóa'}>
+            <div className="space-y-4">
               {practiceTasks.map((task, i) => {
                 const sub = taskSubmissions[i]
                 const file = taskFiles[i]
@@ -1357,7 +1367,7 @@ export default function LessonPage() {
                 )
               })}
             </div>
-          </section>
+          </SectionCard>
         )}
       </div>
     </div>

@@ -228,11 +228,16 @@ export default function LessonSubmissionsPage() {
         const studentId = selected.student.id
         const { data: prof } = await supabase
           .from('profiles').select('sticker_count, sticker_total').eq('id', studentId).single()
-        await supabase.from('profiles').update({
+        const { error: stickerErr } = await supabase.from('profiles').update({
           sticker_count: (prof?.sticker_count ?? 0) + bonus,
           sticker_total: (prof?.sticker_total ?? 0) + bonus,
         }).eq('id', studentId)
-        toast.success(`Đã cộng +${bonus} ⭐ cho ${selected.student.full_name}`)
+        if (stickerErr) {
+          console.error('Sticker update error:', stickerErr)
+          toast.error('Không cập nhật được sticker: ' + stickerErr.message)
+        } else {
+          toast.success(`Đã cộng +${bonus} ⭐ cho ${selected.student.full_name}`)
+        }
       }
     }
 
