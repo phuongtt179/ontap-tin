@@ -4,7 +4,16 @@
       "Bash(npm install)",
       "Bash(npm install -D tailwindcss @tailwindcss/vite)",
       "Bash(npm install @supabase/supabase-js react-router-dom react-hot-toast lucide-react)",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(node reset-admin.mjs)",
+      "Bash(Get-ChildItem -Path \"e:\\\\UNG DUNG\\\\ONTAP TIN \\(Tieu hoc\\)\" -Recurse -Name)",
+      "Bash(git config *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(xargs grep -l \"practice\\\\|attachment\\\\|file.*display\\\\|view.*file\\\\|embed\\\\|iframe\")",
+      "Bash(git reset *)"
     ]
   }
 }

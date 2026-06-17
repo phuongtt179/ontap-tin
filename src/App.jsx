@@ -21,6 +21,8 @@ import AssistantsPage from './pages/teacher/AssistantsPage'
 import StudentNotesPage from './pages/teacher/StudentNotesPage'
 import AttendancePage from './pages/teacher/AttendancePage'
 import RewardsPage from './pages/teacher/RewardsPage'
+import MessagesInboxPage from './pages/teacher/MessagesInboxPage'
+import MessagesPage from './pages/student/MessagesPage'
 import StudentDashboard from './pages/student/StudentDashboard'
 import PracticePage from './pages/student/PracticePage'
 import HistoryPage from './pages/student/HistoryPage'
@@ -122,6 +124,18 @@ export default function App() {
           <Route path="/teacher/rewards" element={
             <ProtectedRoute role="teacher">
               <Layout><RewardsPage /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/teacher/messages" element={
+            <ProtectedRoute role="teacher">
+              <Layout><MessagesInboxPage /></Layout>
+            </ProtectedRoute>
+          } />
+
+          {/* Student messages */}
+          <Route path="/student/messages" element={
+            <ProtectedRoute role="student">
+              <Layout><MessagesPage /></Layout>
             </ProtectedRoute>
           } />
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useEnrollments } from '../../hooks/useEnrollments'
-import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift } from 'lucide-react'
+import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle } from 'lucide-react'
 
 export default function Layout({ children }) {
   const { profile, user, signOut, isTeacher } = useAuth()
@@ -31,10 +31,12 @@ export default function Layout({ children }) {
         { to: '/teacher/notes', icon: <NotebookPen size={18} />, label: 'Ghi chú' },
         { to: '/teacher/attendance', icon: <CheckSquare size={18} />, label: 'Điểm danh' },
         { to: '/teacher/rewards', icon: <Gift size={18} />, label: 'Phần thưởng' },
+        { to: '/teacher/messages', icon: <MessageCircle size={18} />, label: 'Tin nhắn' },
         ...(profile?.role === 'teacher' ? [{ to: '/teacher/assistants', icon: <Users size={18} />, label: 'Trợ giảng' }] : []),
       ]
     : [
         { to: '/student/learn', icon: <BookMarked size={18} />, label: 'Bài học' },
+        { to: '/student/messages', icon: <MessageCircle size={18} />, label: 'Hỏi giáo viên' },
       ]
 
   function NavLinks({ onLinkClick }) {

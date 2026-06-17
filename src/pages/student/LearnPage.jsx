@@ -538,98 +538,85 @@ export default function LearnPage() {
       {/* ① Hero */}
       <div className="shrink-0 bg-gradient-to-r from-[#003d8f] via-[#0055bb] to-[#0077dd] text-white px-5 py-4 md:px-8 relative overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 flex items-center pr-6 opacity-10 select-none pointer-events-none text-8xl">🗺️</div>
-        <div className="relative max-w-2xl mx-auto">
-          <div className="flex items-start justify-between gap-3 mb-1">
-            {/* Left: label + name */}
-            <div className="flex-1 min-w-0">
-              <p className="text-blue-200 text-xs mb-1">Bản đồ học tập 🗺️</p>
-              <h2 className="text-lg md:text-xl font-bold">{profile?.full_name || 'Học sinh'}</h2>
+        <div className="relative max-w-4xl mx-auto">
+          <div className="flex items-center gap-3">
+
+            {/* Left: tên + badges khóa học */}
+            <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+              <h2 className="font-black text-base whitespace-nowrap">{profile?.full_name || 'Học sinh'}</h2>
+              <span className="text-white/30 hidden sm:inline">·</span>
+              {grades.map(g => (
+                <button key={g} onClick={() => setSelectedGrade(g)}
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-semibold transition whitespace-nowrap
+                    ${selectedGrade === g ? 'bg-white text-blue-700' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+                  {g}
+                </button>
+              ))}
+              {totalLessons > 0 && (
+                <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5">
+                  <CheckCircle size={11} className="text-yellow-300" />
+                  <span className="text-xs font-semibold">{completedLessons}/{totalLessons}</span>
+                </div>
+              )}
             </div>
 
-            {/* Right: Streak + Sticker widgets */}
+            {/* Right: Streak + Sticker widgets compact */}
             <div className="flex items-center gap-2 shrink-0">
 
-              {/* Streak widget */}
-              <div className="flex items-center gap-2.5 bg-white/15 rounded-2xl px-3 py-2.5">
-                <span className="text-3xl select-none"
+              {/* Streak */}
+              <div className="flex items-center gap-2 bg-white/15 rounded-xl px-2.5 py-2">
+                <span className="text-2xl select-none leading-none"
                   style={{ display: 'inline-block', animation: streakDays > 0 ? 'sticker-float 2.8s ease-in-out infinite' : undefined }}>
                   🔥
                 </span>
                 <div className="flex flex-col gap-0.5">
-                  <div className="flex items-baseline gap-1 leading-none">
-                    <span className="text-white font-black text-2xl">{streakDays}</span>
-                  </div>
-                  <div className="w-14 h-2 bg-white/25 rounded-full overflow-hidden">
-                    {/* Bar đến milestone tiếp theo */}
+                  <span className="text-white font-black text-lg leading-none">{streakDays}</span>
+                  <div className="w-12 h-1.5 bg-white/25 rounded-full overflow-hidden">
                     {(() => {
                       const milestones = [3, 7, 14, 30]
                       const next = milestones.find(m => m > streakDays) || 30
                       const prev = milestones.filter(m => m <= streakDays).pop() || 0
                       const pct = Math.min(((streakDays - prev) / (next - prev)) * 100, 100)
                       return (
-                        <div className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
-                          style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#fb923c,#f97316)' }}>
-                          <span className="absolute inset-0 bg-white/30"
-                            style={{ animation: 'node-shimmer 1.8s ease-in-out infinite' }} />
-                        </div>
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#fb923c,#f97316)' }} />
                       )
                     })()}
                   </div>
-                  <span className="text-[10px] font-bold leading-none text-white/60">
-                    {streakDays >= 30 ? '🏆 Pro!' : streakDays >= 14 ? 'Xuất sắc!' : streakDays >= 7 ? 'Tuyệt vời!' : streakDays >= 3 ? 'Cố lên!' : 'ngày'}
+                  <span className="text-[9px] font-bold leading-none text-white/50">
+                    {streakDays >= 30 ? 'Pro!' : streakDays >= 14 ? 'Xuất sắc' : streakDays >= 7 ? 'Tuyệt!' : streakDays >= 3 ? 'Cố lên' : 'ngày'}
                   </span>
                 </div>
               </div>
 
-              {/* Sticker widget */}
+              {/* Sticker */}
               <button
                 onClick={stickerCount >= STICKER_THRESHOLD ? () => setShowReward(true) : undefined}
-                className={`flex items-center gap-2.5 rounded-2xl px-3 py-2.5 shrink-0 transition-all duration-300
+                className={`flex items-center gap-2 rounded-xl px-2.5 py-2 shrink-0 transition-all duration-300
                   ${stickerCount >= STICKER_THRESHOLD
-                    ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-xl shadow-orange-500/50 cursor-pointer hover:scale-105 active:scale-95'
-                    : 'bg-white/15 cursor-default'}`}
-              >
-                <span className="text-3xl select-none"
-                  style={{ filter: 'drop-shadow(0 0 8px rgba(255,220,0,0.9))', display: 'inline-block', animation: 'sticker-float 2.5s ease-in-out infinite' }}>
+                    ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-lg cursor-pointer hover:scale-105 active:scale-95'
+                    : 'bg-white/15 cursor-default'}`}>
+                <span className="text-2xl select-none leading-none"
+                  style={{ filter: 'drop-shadow(0 0 6px rgba(255,220,0,0.9))', display: 'inline-block', animation: 'sticker-float 2.5s ease-in-out infinite' }}>
                   🏆
                 </span>
                 <div className="flex flex-col gap-0.5">
-                  <div className="flex items-baseline gap-1 leading-none">
-                    <span className="text-white font-black text-2xl">{stickerCount}</span>
-                    <span className="text-white/50 text-xs">/{STICKER_THRESHOLD}</span>
+                  <div className="flex items-baseline gap-0.5 leading-none">
+                    <span className="text-white font-black text-lg">{stickerCount}</span>
+                    <span className="text-white/50 text-[10px]">/{STICKER_THRESHOLD}</span>
                   </div>
-                  <div className="w-14 h-2 bg-white/25 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
+                  <div className="w-12 h-1.5 bg-white/25 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-700"
                       style={{
                         width: `${Math.min((stickerCount / STICKER_THRESHOLD) * 100, 100)}%`,
                         background: stickerCount >= STICKER_THRESHOLD ? 'white' : 'linear-gradient(90deg,#fde68a,#fb923c)'
-                      }}>
-                      <span className="absolute inset-0 bg-white/30"
-                        style={{ animation: 'node-shimmer 1.8s ease-in-out infinite' }} />
-                    </div>
+                      }} />
                   </div>
-                  <span className={`text-[10px] font-bold leading-none ${stickerCount >= STICKER_THRESHOLD ? 'text-white' : 'text-white/60'}`}>
+                  <span className={`text-[9px] font-bold leading-none ${stickerCount >= STICKER_THRESHOLD ? 'text-white' : 'text-white/50'}`}>
                     {stickerCount >= STICKER_THRESHOLD ? '🎁 Đổi quà!' : 'sticker'}
                   </span>
                 </div>
               </button>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            {grades.map(g => (
-              <button key={g} onClick={() => setSelectedGrade(g)}
-                className={`px-3 py-0.5 rounded-full text-xs font-semibold transition
-                  ${selectedGrade === g ? 'bg-white text-blue-700' : 'bg-white/20 text-white hover:bg-white/30'}`}>
-                {g}
-              </button>
-            ))}
-            {totalLessons > 0 && (
-              <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-2.5 py-0.5">
-                <CheckCircle size={12} className="text-yellow-300" />
-                <span className="text-xs font-semibold">{completedLessons}/{totalLessons} hoàn thành</span>
-              </div>
-            )}
           </div>
         </div>
       </div>
