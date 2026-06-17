@@ -207,6 +207,7 @@ export default function MessagesInboxPage() {
   const totalUnread = threads.reduce((s, t) => s + t.unread, 0)
 
   return (
+    <>
     <div className="flex h-full overflow-hidden bg-gray-50">
 
       {/* ── Left: danh sách học sinh ── */}
@@ -415,5 +416,6 @@ export default function MessagesInboxPage() {
         </div>
       </div>
     )}
+    </>
   )
 }
