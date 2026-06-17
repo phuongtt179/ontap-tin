@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { Send, Loader2, MessageCircle } from 'lucide-react'
+import { Send, Loader2, MessageCircle, Trash2 } from 'lucide-react'
 
 export default function MessagesPage() {
   const { user, profile } = useAuth()
@@ -90,6 +90,12 @@ export default function MessagesPage() {
     inputRef.current?.focus()
   }
 
+  async function deleteMessage(msgId) {
+    if (!window.confirm('Xóa tin nhắn này?')) return
+    await supabase.from('messages').delete().eq('id', msgId)
+    setMessages(prev => prev.filter(m => m.id !== msgId))
+  }
+
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
@@ -137,19 +143,27 @@ export default function MessagesPage() {
                       </span>
                     </div>
                   )}
-                  <div className={`flex ${isStudent ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`flex group ${isStudent ? 'justify-end' : 'justify-start'}`}>
                     {!isStudent && (
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xs font-black shrink-0 mr-2 mt-auto mb-1">
                         GV
                       </div>
                     )}
                     <div className={`max-w-[75%] ${isStudent ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                      <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                        isStudent
-                          ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white rounded-br-md shadow-md shadow-indigo-100'
-                          : 'bg-white text-gray-800 rounded-bl-md border border-gray-100 shadow-sm'
-                      }`}>
-                        {msg.content}
+                      <div className="flex items-end gap-1.5">
+                        <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                          isStudent
+                            ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white rounded-br-md shadow-md shadow-indigo-100'
+                            : 'bg-white text-gray-800 rounded-bl-md border border-gray-100 shadow-sm'
+                        }`}>
+                          {msg.content}
+                        </div>
+                        {isStudent && (
+                          <button onClick={() => deleteMessage(msg.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-100 text-red-400 hover:text-red-600 shrink-0 mb-1">
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
                       <span className="text-[10px] text-gray-400 px-1">{time}</span>
                     </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { Send, Loader2, MessageCircle, Search } from 'lucide-react'
+import { Send, Loader2, MessageCircle, Search, Trash2 } from 'lucide-react'
 
 export default function MessagesInboxPage() {
   const { user } = useAuth()
@@ -148,6 +148,17 @@ export default function MessagesInboxPage() {
     inputRef.current?.focus()
   }
 
+  async function deleteMessage(msgId) {
+    if (!window.confirm('Xóa tin nhắn này?')) return
+    await supabase.from('messages').delete().eq('id', msgId)
+    setSelected(prev => prev ? { ...prev, messages: prev.messages.filter(m => m.id !== msgId) } : prev)
+    setThreads(prev => prev.map(t => {
+      if (!t.messages.some(m => m.id === msgId)) return t
+      const remaining = t.messages.filter(m => m.id !== msgId)
+      return { ...t, messages: remaining, lastMsg: remaining[remaining.length - 1] || t.lastMsg }
+    }))
+  }
+
   const filteredThreads = threads.filter(t =>
     t.student.full_name.toLowerCase().includes(search.toLowerCase()) ||
     (t.student.class_name || '').toLowerCase().includes(search.toLowerCase())
@@ -262,19 +273,33 @@ export default function MessagesInboxPage() {
                         <span className="text-[11px] text-gray-400 bg-white border border-gray-100 px-3 py-1 rounded-full shadow-sm">{date}</span>
                       </div>
                     )}
-                    <div className={`flex ${isTeacher ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`flex group ${isTeacher ? 'justify-end' : 'justify-start'}`}>
                       {!isTeacher && (
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xs font-black shrink-0 mr-2 mt-auto mb-1">
                           {selected.student.full_name.charAt(0)}
                         </div>
                       )}
                       <div className={`max-w-[70%] flex flex-col gap-1 ${isTeacher ? 'items-end' : 'items-start'}`}>
-                        <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                          isTeacher
-                            ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white rounded-br-md shadow-md shadow-indigo-100'
-                            : 'bg-white text-gray-800 rounded-bl-md border border-gray-100 shadow-sm'
-                        }`}>
-                          {msg.content}
+                        <div className="flex items-end gap-1.5">
+                          {isTeacher && (
+                            <button onClick={() => deleteMessage(msg.id)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-100 text-red-400 hover:text-red-600 shrink-0 mb-1">
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                          <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                            isTeacher
+                              ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white rounded-br-md shadow-md shadow-indigo-100'
+                              : 'bg-white text-gray-800 rounded-bl-md border border-gray-100 shadow-sm'
+                          }`}>
+                            {msg.content}
+                          </div>
+                          {!isTeacher && (
+                            <button onClick={() => deleteMessage(msg.id)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-red-100 text-red-400 hover:text-red-600 shrink-0 mb-1">
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </div>
                         <span className="text-[10px] text-gray-400 px-1">{time}</span>
                       </div>
