@@ -150,6 +150,7 @@ export default function LessonSubmissionsPage() {
   const [taskComments, setTaskComments] = useState({}) // subId -> string
   const [taskScores, setTaskScores] = useState({})     // subId -> string
   const [taskSaving, setTaskSaving] = useState({})     // subId -> bool
+  const [gradeModal, setGradeModal] = useState(null)  // { student, taskIdx } — popup chấm nhanh
 
   useEffect(() => { loadAll() }, [id])
 
@@ -207,7 +208,9 @@ export default function LessonSubmissionsPage() {
     return 0
   }
 
-  async function saveTaskComment(sub) {
+  async function saveTaskComment(sub, student) {
+    const theStudent = student || selected?.student
+    if (!theStudent) return
     setTaskSaving(prev => ({ ...prev, [sub.id]: true }))
     const scoreRaw = taskScores[sub.id]
     const scoreVal = (scoreRaw !== '' && scoreRaw != null) ? parseFloat(scoreRaw) : null
@@ -221,31 +224,44 @@ export default function LessonSubmissionsPage() {
     setTaskSaving(prev => ({ ...prev, [sub.id]: false }))
     if (error) { toast.error('Lưu thất bại: ' + error.message); return }
 
-    // Cộng bonus sticker cho học sinh lần đầu chấm điểm
     if (isFirstGrade) {
       const bonus = scoreToBonus(scoreVal)
       if (bonus > 0) {
-        const studentId = selected.student.id
         const { data: prof } = await supabase
-          .from('profiles').select('sticker_count, sticker_total').eq('id', studentId).single()
+          .from('profiles').select('sticker_count, sticker_total').eq('id', theStudent.id).single()
         const { error: stickerErr } = await supabase.from('profiles').update({
           sticker_count: (prof?.sticker_count ?? 0) + bonus,
           sticker_total: (prof?.sticker_total ?? 0) + bonus,
-        }).eq('id', studentId)
-        if (stickerErr) {
-          console.error('Sticker update error:', stickerErr)
-          toast.error('Không cập nhật được sticker: ' + stickerErr.message)
-        } else {
-          toast.success(`Đã cộng +${bonus} ⭐ cho ${selected.student.full_name}`)
-        }
+        }).eq('id', theStudent.id)
+        if (stickerErr) toast.error('Không cập nhật được sticker: ' + stickerErr.message)
+        else toast.success(`Đã cộng +${bonus} ⭐ cho ${theStudent.full_name}`)
       }
     }
 
-    const idx = selected.submissions.findIndex(s => s.id === sub.id)
-    toast.success(`Đã lưu nhận xét bài ${idx + 1}`)
-    const updatedSubs = selected.submissions.map(s => s.id === sub.id ? { ...s, ...updates } : s)
-    setSubmissionMap(prev => ({ ...prev, [selected.student.id]: updatedSubs }))
-    setSelected(prev => prev ? { ...prev, submissions: updatedSubs } : prev)
+    const taskIdx = sub.content_json?.task_index ?? 0
+    toast.success(`Đã lưu nhận xét bài ${taskIdx + 1}`)
+
+    // Cập nhật submissionMap
+    setSubmissionMap(prev => {
+      const oldSubs = prev[theStudent.id] || []
+      return { ...prev, [theStudent.id]: oldSubs.map(s => s.id === sub.id ? { ...s, ...updates } : s) }
+    })
+    // Cập nhật selected (nếu đang mở trang chi tiết)
+    setSelected(prev => prev?.student.id === theStudent.id
+      ? { ...prev, submissions: prev.submissions.map(s => s.id === sub.id ? { ...s, ...updates } : s) }
+      : prev)
+    // Cập nhật gradeModal
+    setGradeModal(prev => prev?.student.id === theStudent.id ? { ...prev } : prev)
+  }
+
+  function openGradeModal(e, student, taskIdx) {
+    e.stopPropagation()
+    const subs = submissionMap[student.id] || []
+    const sub = subs.find(s => (s.content_json?.task_index ?? 0) === taskIdx)
+    if (!sub) return // chưa nộp, không mở
+    setGradeModal({ student, taskIdx })
+    setTaskComments(prev => ({ ...prev, [sub.id]: sub.teacher_comment || '' }))
+    setTaskScores(prev => ({ ...prev, [sub.id]: sub.score != null ? String(sub.score) : '' }))
   }
 
   if (loading) {
@@ -442,7 +458,7 @@ export default function LessonSubmissionsPage() {
                           placeholder={`Nhận xét bài ${i + 1}...`}
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none mb-2"
                         />
-                        <button onClick={() => saveTaskComment(subItem)} disabled={!!taskSaving[subItem.id]}
+                        <button onClick={() => saveTaskComment(subItem, selected.student)} disabled={!!taskSaving[subItem.id]}
                           className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 transition">
                           {taskSaving[subItem.id] ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
                           Lưu nhận xét bài {i + 1}
@@ -543,11 +559,15 @@ export default function LessonSubmissionsPage() {
                         const reviewed = !!sub?.reviewed_at
                         return (
                           <div key={i} className="flex flex-col items-center gap-0.5">
-                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5
-                              ${reviewed ? 'bg-green-100 text-green-700' : submitted ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                            <button
+                              onClick={submitted ? (e) => openGradeModal(e, student, i) : e => e.stopPropagation()}
+                              className={`text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5 transition
+                                ${reviewed ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                  : submitted ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                  : 'bg-gray-100 text-gray-400 cursor-default'}`}>
                               <Upload size={9} /> B{i + 1}{submitted ? ' ✓' : ''}
-                            </span>
-                            {reviewed && <span className="text-[10px] text-green-600 leading-tight font-medium">{sub?.score != null ? `${sub.score}đ` : 'đã chấm'}</span>}
+                            </button>
+                            {reviewed && <span className="text-[10px] text-indigo-600 leading-tight font-medium">{sub?.score != null ? `${sub.score}đ` : 'đã chấm'}</span>}
                           </div>
                         )
                       })}
@@ -559,6 +579,133 @@ export default function LessonSubmissionsPage() {
           </div>
         )
       )}
+
+      {/* ── Grade modal popup ── */}
+      {gradeModal && (() => {
+        const { student, taskIdx } = gradeModal
+        const subs = submissionMap[student.id] || []
+        const sub = subs.find(s => (s.content_json?.task_index ?? 0) === taskIdx)
+        const tasks = parseTasks(lesson?.practice_instructions)
+        const task = tasks[taskIdx]
+        if (!sub) return null
+
+        const url = sub.file_url
+        const ext = url ? url.split('.').pop().toLowerCase().split('?')[0] : ''
+        const isImage = ['jpg','jpeg','png','gif','webp'].includes(ext)
+        const isWord = ['doc','docx'].includes(ext)
+        const isPpt = ['ppt','pptx'].includes(ext)
+        const isSb3 = ext === 'sb3'
+        const isCode = ext === 'py' || ext === 'txt'
+        const fileName = url ? decodeURIComponent(url.split('/').pop().split('?')[0]) : ''
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setGradeModal(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-5 py-4 rounded-t-2xl flex items-start justify-between">
+                <div>
+                  <p className="font-black text-base">{student.full_name}</p>
+                  <p className="text-indigo-200 text-sm">{student.class_name || student.grade} · Bài thực hành {taskIdx + 1}</p>
+                </div>
+                <button onClick={() => setGradeModal(null)} className="text-white/70 hover:text-white text-xl leading-none ml-4">✕</button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* Đề bài */}
+                {task?.instructions && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                    <p className="text-xs font-bold text-amber-700 mb-1">Đề bài:</p>
+                    <p className="text-sm text-amber-900 whitespace-pre-line leading-relaxed">{task.instructions}</p>
+                  </div>
+                )}
+
+                {/* File nộp */}
+                <div>
+                  <p className="text-xs text-gray-400 mb-2">Nộp lúc {new Date(sub.submitted_at).toLocaleString('vi-VN')}</p>
+                  {url && (
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
+                      {isImage && <img src={url} alt="" className="w-full max-h-64 object-contain bg-white border-b border-gray-200" />}
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        {isImage ? <FileImage size={18} className="text-blue-400 shrink-0" />
+                          : isWord ? <FileText size={18} className="text-blue-600 shrink-0" />
+                          : isPpt ? <FileText size={18} className="text-orange-500 shrink-0" />
+                          : isSb3 ? <File size={18} className="text-yellow-500 shrink-0" />
+                          : ext === 'py' ? <Code size={18} className="text-green-600 shrink-0" />
+                          : <File size={18} className="text-gray-400 shrink-0" />}
+                        <span className="flex-1 text-sm text-gray-700 truncate">{fileName}</span>
+                        <a href={url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium shrink-0">
+                          <ExternalLink size={12} /> Tải xuống
+                        </a>
+                      </div>
+                      {isCode && (
+                        <div className="border-t border-gray-200 px-4 py-3">
+                          <CodeViewer url={url} ext={ext} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {(isWord || isPpt) && url && (
+                    <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-100 mt-2">
+                      <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`}
+                        width="100%" height="400" frameBorder="0" title="Xem file" className="w-full block" />
+                    </div>
+                  )}
+                  {isSb3 && url && (
+                    <a href={`https://turbowarp.org/editor?project_url=${encodeURIComponent(url)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 justify-center w-full py-2.5 rounded-xl border-2 border-dashed border-yellow-300 bg-yellow-50 text-yellow-700 text-sm font-medium hover:bg-yellow-100 transition mt-2">
+                      <ExternalLink size={14} /> Mở trong TurboWarp
+                    </a>
+                  )}
+                  {sub.text_content && (
+                    <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 whitespace-pre-wrap border mt-2">{sub.text_content}</div>
+                  )}
+                </div>
+
+                {/* Chấm điểm */}
+                <div className="border-t border-gray-100 pt-4 space-y-3">
+                  <p className="text-xs font-bold text-indigo-600 flex items-center gap-1.5">
+                    <MessageSquare size={12} /> Nhận xét & điểm
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-500 shrink-0">Điểm:</label>
+                    <input type="number" min={0} max={10} step={0.5}
+                      value={taskScores[sub.id] ?? ''}
+                      onChange={e => setTaskScores(prev => ({ ...prev, [sub.id]: e.target.value }))}
+                      placeholder="0–10"
+                      className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    {sub.score != null && (
+                      <span className="text-xs text-gray-400">Hiện tại: <b className="text-indigo-600">{sub.score}</b></span>
+                    )}
+                  </div>
+                  <textarea
+                    value={taskComments[sub.id] ?? ''}
+                    onChange={e => setTaskComments(prev => ({ ...prev, [sub.id]: e.target.value }))}
+                    rows={3} placeholder="Nhận xét cho học sinh..."
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+                  <div className="flex gap-2">
+                    <button onClick={() => saveTaskComment(sub, student)} disabled={!!taskSaving[sub.id]}
+                      className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition">
+                      {taskSaving[sub.id] ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                      Lưu nhận xét
+                    </button>
+                    <button onClick={() => setGradeModal(null)}
+                      className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition">
+                      Đóng
+                    </button>
+                  </div>
+                  {sub.reviewed_at && (
+                    <p className="text-xs text-gray-400">Đã nhận xét lúc {new Date(sub.reviewed_at).toLocaleString('vi-VN')}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
