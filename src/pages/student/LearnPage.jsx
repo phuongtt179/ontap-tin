@@ -433,6 +433,7 @@ export default function LearnPage() {
   const [loading, setLoading] = useState(false)
   const [selectedTopic, setSelectedTopic] = useState('__all__')
   const [stickerCount, setStickerCount] = useState(0)
+  const [streakDays, setStreakDays] = useState(0)
   const [showReward, setShowReward] = useState(false)
   const STICKER_THRESHOLD = 50
 
@@ -448,7 +449,7 @@ export default function LearnPage() {
         .order('order', { ascending: true }).order('created_at', { ascending: true }),
       supabase.from('lesson_progress').select('*').eq('user_id', user.id),
       supabase.from('units').select('*').eq('grade', selectedGrade).order('sort_order').order('name'),
-      supabase.from('profiles').select('sticker_count').eq('id', user.id).single(),
+      supabase.from('profiles').select('sticker_count, streak_days').eq('id', user.id).single(),
     ])
     setLessons(lessonsData || [])
     setUnits(unitsData || [])
@@ -457,6 +458,7 @@ export default function LearnPage() {
     ;(progressData || []).forEach(p => { map[p.lesson_id] = p })
     setProgressMap(map)
     setStickerCount(profData?.sticker_count ?? 0)
+    setStreakDays(profData?.streak_days ?? 0)
     setLoading(false)
   }
 
@@ -538,10 +540,23 @@ export default function LearnPage() {
         <div className="absolute right-0 top-0 bottom-0 flex items-center pr-6 opacity-10 select-none pointer-events-none text-8xl">🗺️</div>
         <div className="relative max-w-2xl mx-auto">
           <div className="flex items-start justify-between gap-4 mb-1">
-            {/* Left: label + name */}
+            {/* Left: label + name + streak */}
             <div className="flex-1 min-w-0">
               <p className="text-blue-200 text-xs mb-1">Bản đồ học tập 🗺️</p>
               <h2 className="text-lg md:text-xl font-bold">{profile?.full_name || 'Học sinh'}</h2>
+              {/* Streak indicator */}
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <span className="text-base" style={{ animation: streakDays > 0 ? 'sticker-float 2s ease-in-out infinite' : undefined }}>
+                  🔥
+                </span>
+                <span className="text-white font-black text-sm">{streakDays}</span>
+                <span className="text-blue-200 text-xs">ngày liên tiếp</span>
+                {streakDays >= 7 && (
+                  <span className="text-[10px] font-bold bg-orange-400/80 text-white px-2 py-0.5 rounded-full ml-1">
+                    {streakDays >= 30 ? '🏆 Pro' : streakDays >= 14 ? '🔥🔥 Xuất sắc' : '🔥 Tuyệt vời'}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Right: Sticker widget */}

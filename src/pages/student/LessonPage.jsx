@@ -10,6 +10,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { CodeBlock, CodeBlockWithBlanks } from '../../components/ui/CodeBlock'
 import StickerModal from '../../components/student/StickerModal'
+import { updateStreak, STREAK_MILESTONES } from '../../utils/updateStreak'
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5) }
 
@@ -927,6 +928,19 @@ export default function LessonPage() {
     setStickerModal({ stickerCount: currentCount, stickerTotal: totalCount, threshold, reason, count })
   }
 
+  async function recordActivity() {
+    const result = await updateStreak(user.id)
+    if (!result?.isNew) return
+    if (result.milestone) {
+      const { stickers, emoji, label } = result.milestone
+      await awardSticker(stickers, `${emoji} ${label} Nhận ${stickers} sticker thưởng! 🎉`)
+    } else if (result.streakDays > 1) {
+      toast(`🔥 ${result.streakDays} ngày học liên tiếp!`, { duration: 3000 })
+    } else {
+      toast('🌟 Bắt đầu chuỗi ngày học mới!', { duration: 2500 })
+    }
+  }
+
   async function upsertProgress(updates) {
     const current = progress || {}
     const newData = { ...current, ...updates, user_id: user.id, lesson_id: id }
@@ -947,7 +961,7 @@ export default function LessonPage() {
     const { error } = await upsertProgress({ video_watched: true })
     setVideoMarking(false)
     if (error) toast.error('Có lỗi xảy ra')
-    else toast.success('Đã đánh dấu xem video')
+    else { toast.success('Đã đánh dấu xem video'); recordActivity() }
   }
 
   async function handleMarkPptxViewed() {
@@ -955,7 +969,7 @@ export default function LessonPage() {
     const { error } = await upsertProgress({ pptx_viewed: true })
     setPptxMarking(false)
     if (error) toast.error('Có lỗi xảy ra')
-    else toast.success('Đã đánh dấu xem bài giảng')
+    else { toast.success('Đã đánh dấu xem bài giảng'); recordActivity() }
   }
 
   function startQuiz(fromScratch = false) {
@@ -977,6 +991,7 @@ export default function LessonPage() {
       const pct = total > 0 ? correct / total : 0
       const count = pct >= 1 ? 5 : pct >= 0.9 ? 4 : pct >= 0.85 ? 3 : pct >= 0.75 ? 2 : 1
       await awardSticker(count, `Vượt qua bài kiểm tra! (${correct}/${total} câu đúng) 🎯`)
+      recordActivity()
     } else if (passed) {
       toast.success('Chúc mừng! Bạn đã đạt bài tập')
     } else {
@@ -1037,6 +1052,7 @@ export default function LessonPage() {
         await upsertProgress({ practice_submitted: true })
       }
       await awardSticker(1, `Nộp xong bài thực hành ${taskIdx + 1}! 📝`)
+      recordActivity()
     } catch (err) {
       toast.error('Nộp bài thất bại: ' + err.message)
     } finally {
