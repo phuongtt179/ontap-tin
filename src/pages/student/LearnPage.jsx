@@ -541,27 +541,27 @@ export default function LearnPage() {
         <div className="relative max-w-4xl mx-auto">
           <div className="flex items-center gap-3">
 
-            {/* Left: tên + badges khóa học — single row, scroll ngang nếu nhiều grade */}
-            <div className="flex-1 min-w-0 relative">
-              <div className="flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-                <h2 className="font-black text-base whitespace-nowrap shrink-0">{profile?.full_name || 'Học sinh'}</h2>
-                <span className="text-white/30 shrink-0">·</span>
+            {/* Left: tên + badges khóa học — scroll ngang nếu nhiều grade */}
+            <div className="flex-1 min-w-0 overflow-x-auto relative" style={{ scrollbarWidth: 'none' }}>
+              <div className="flex items-center gap-2 w-max">
+                <h2 className="font-black text-base whitespace-nowrap">{profile?.full_name || 'Học sinh'}</h2>
+                <span className="text-white/30">·</span>
                 {grades.map(g => (
                   <button key={g} onClick={() => setSelectedGrade(g)}
-                    className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-semibold transition whitespace-nowrap
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-semibold transition whitespace-nowrap
                       ${selectedGrade === g ? 'bg-white text-blue-700' : 'bg-white/20 text-white hover:bg-white/30'}`}>
                     {g}
                   </button>
                 ))}
                 {totalLessons > 0 && (
-                  <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5 shrink-0">
+                  <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5">
                     <CheckCircle size={11} className="text-yellow-300" />
                     <span className="text-xs font-semibold">{completedLessons}/{totalLessons}</span>
                   </div>
                 )}
               </div>
               {/* Fade hint báo còn nội dung bên phải */}
-              <div className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none"
+              <div className="absolute right-0 top-0 bottom-0 w-6 pointer-events-none"
                 style={{ background: 'linear-gradient(to right, transparent, #0055bb)' }} />
             </div>
 
