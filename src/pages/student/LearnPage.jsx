@@ -145,7 +145,7 @@ function TopicCards({ topicKeys, lessons, progressMap, grouped, selected, onSele
       )}
 
       <div ref={ref} onScroll={checkScroll}
-        className="flex gap-3 overflow-x-auto px-4 py-3"
+        className="flex gap-3 overflow-x-auto px-4 py-3 justify-center"
         style={{ scrollbarWidth: 'none' }}>
         {items.map(({ key, label, emoji, list, colorIdx }) => {
           const active = selected === key
