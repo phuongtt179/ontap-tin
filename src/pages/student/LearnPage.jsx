@@ -449,7 +449,7 @@ export default function LearnPage() {
 
   if (enrollLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-sky-100 flex items-center justify-center">
+      <div className="h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-sky-100">
         <div className="flex flex-col items-center gap-3">
           <div className="w-12 h-12 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" />
           <p className="text-blue-600 text-sm font-medium">Đang tải...</p>
@@ -460,7 +460,7 @@ export default function LearnPage() {
 
   if (grades.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-sky-100 flex items-center justify-center p-8">
+      <div className="h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-sky-100 p-8">
         <div className="text-center">
           <div className="text-6xl mb-4">📚</div>
           <p className="text-xl font-bold text-gray-700">Bạn chưa tham gia khoá học nào</p>
@@ -471,34 +471,35 @@ export default function LearnPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50">
-      {/* Hero */}
-      <div className="bg-gradient-to-r from-[#003d8f] via-[#0055bb] to-[#0077dd] text-white px-5 py-5 md:px-8 md:py-6 relative overflow-hidden">
-        <div className="absolute right-0 top-0 bottom-0 flex items-center pr-6 opacity-10 select-none pointer-events-none text-9xl">🗺️</div>
+    <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50">
+
+      {/* ① Hero — cố định, không cuộn */}
+      <div className="shrink-0 bg-gradient-to-r from-[#003d8f] via-[#0055bb] to-[#0077dd] text-white px-5 py-4 md:px-8 relative overflow-hidden">
+        <div className="absolute right-0 top-0 bottom-0 flex items-center pr-6 opacity-10 select-none pointer-events-none text-8xl">🗺️</div>
         <div className="relative max-w-2xl mx-auto">
-          <div className="flex items-center gap-2 mb-1">
-            <img src="/logo-bnp.png" alt="BNP" className="w-7 h-7 object-contain rounded hidden md:block"
+          <div className="flex items-center gap-2 mb-0.5">
+            <img src="/logo-bnp.png" alt="BNP" className="w-6 h-6 object-contain rounded hidden md:block"
               onError={e => { e.target.style.display = 'none' }} />
-            <p className="text-blue-200 text-sm">Bản đồ học tập 🗺️</p>
+            <p className="text-blue-200 text-xs">Bản đồ học tập 🗺️</p>
           </div>
-          <h2 className="text-xl md:text-2xl font-bold">{profile?.full_name || 'Học sinh'}</h2>
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
+          <h2 className="text-lg md:text-xl font-bold">{profile?.full_name || 'Học sinh'}</h2>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
             {grades.map(g => (
               <button key={g} onClick={() => setSelectedGrade(g)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition
+                className={`px-3 py-0.5 rounded-full text-xs font-semibold transition
                   ${selectedGrade === g ? 'bg-white text-blue-700' : 'bg-white/20 text-white hover:bg-white/30'}`}>
                 {g}
               </button>
             ))}
             {totalLessons > 0 && (
-              <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1">
-                <CheckCircle size={13} className="text-yellow-300" />
+              <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-2.5 py-0.5">
+                <CheckCircle size={12} className="text-yellow-300" />
                 <span className="text-xs font-semibold">{completedLessons}/{totalLessons} hoàn thành</span>
               </div>
             )}
             {totalLessons > 0 && (
-              <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1">
-                <Zap size={13} className="text-yellow-300" />
+              <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-2.5 py-0.5">
+                <Zap size={12} className="text-yellow-300" />
                 <span className="text-xs font-semibold">{Math.round((completedLessons / totalLessons) * 100)}%</span>
               </div>
             )}
@@ -506,8 +507,8 @@ export default function LearnPage() {
         </div>
       </div>
 
-      {/* Topic cards — sticky */}
-      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
+      {/* ② Topic cards — cố định, không cuộn */}
+      <div className="shrink-0 bg-white border-b border-gray-100 shadow-sm">
         <TopicCards
           topicKeys={topicChips}
           lessons={lessons}
@@ -518,27 +519,29 @@ export default function LearnPage() {
         />
       </div>
 
-      {/* Legend */}
-      <div className="max-w-2xl mx-auto px-4 pt-3 flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <div className="w-3.5 h-3.5 rounded-full bg-emerald-100 border-2 border-emerald-400" /> Hoàn thành
+      {/* ③ Unit cards — CHỈ phần này cuộn */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Legend */}
+        <div className="max-w-2xl mx-auto px-4 pt-3 flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <div className="w-3.5 h-3.5 rounded-full bg-emerald-100 border-2 border-emerald-400" /> Hoàn thành
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <div className="w-3.5 h-3.5 rounded-full bg-blue-50 border-2 border-blue-400" /> Đang học
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <div className="w-3.5 h-3.5 rounded-full bg-white border-2 border-gray-200" /> Chưa học
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <div className="w-3.5 h-3.5 rounded-full bg-blue-50 border-2 border-blue-400" /> Đang học
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <div className="w-3.5 h-3.5 rounded-full bg-white border-2 border-gray-200" /> Chưa học
-        </div>
-      </div>
 
-      {/* Map */}
-      <LearningMap
-        groups={groups}
-        progressMap={progressMap}
-        navigate={navigate}
-        allLessonsCount={displayedLessons.length}
-        completedCount={displayedLessons.filter(l => progressMap[l.id]?.completed).length}
-      />
+        <LearningMap
+          groups={groups}
+          progressMap={progressMap}
+          navigate={navigate}
+          allLessonsCount={displayedLessons.length}
+          completedCount={displayedLessons.filter(l => progressMap[l.id]?.completed).length}
+        />
+      </div>
     </div>
   )
 }
