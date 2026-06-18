@@ -2,115 +2,175 @@ import { useState, useEffect } from 'react'
 import JSZip from 'jszip'
 import { Loader2, ExternalLink } from 'lucide-react'
 
-// Dịch từ vi.json chính thức của Scratch (scratchfoundation/scratch-l10n)
-// %1 %2 %3 là placeholder — bỏ để hiển thị gọn
-const OPCODE_VI = {
-  // Sự kiện
-  event_whenflagclicked:      'Khi bấm cờ xanh',
-  event_whenkeypressed:       'Khi bấm phím',
-  event_whenthisspriteclicked:'Khi bấm vào nhân vật này',
-  event_whenstageclicked:     'Khi bấm vào phông nền',
-  event_whenbroadcastreceived:'Khi nhận tin nhắn',
-  event_whenbackdropswitchesto:'Khi phông nền chuyển thành',
-  event_whengreaterthan:      'Khi ... > ...',
-  event_broadcast:            'Phát tin',
-  event_broadcastandwait:     'Phát tin và đợi',
-  // Điều khiển
-  control_forever:            'Liên tục (lặp mãi)',
-  control_repeat:             'Lặp lại ... lần',
-  control_if:                 'Nếu ... thì',
-  control_if_else:            'Nếu ... thì ... nếu không thì',
-  control_wait:               'Đợi ... giây',
-  control_wait_until:         'Đợi đến khi',
-  control_repeat_until:       'Lặp lại cho đến khi',
-  control_while:              'Trong khi',
-  control_stop:               'Dừng lại',
-  control_start_as_clone:     'Khi tôi bắt đầu là một bản sao',
-  control_create_clone_of:    'Tạo bản sao của',
-  control_delete_this_clone:  'Xóa bản sao này',
-  // Chuyển động
-  motion_movesteps:           'Di chuyển ... bước',
-  motion_turnright:           'Xoay phải ... độ',
-  motion_turnleft:            'Xoay trái ... độ',
-  motion_pointindirection:    'Đặt hướng bằng',
-  motion_pointtowards:        'Hướng về phía đối tượng',
-  motion_goto:                'Đi tới',
-  motion_gotoxy:              'Đi tới điểm x:... y:...',
-  motion_glideto:             'Lướt ... giây tới',
-  motion_glidesecstoxy:       'Lướt ... giây tới điểm x:... y:...',
-  motion_setx:                'Đặt x bằng',
-  motion_sety:                'Đặt y bằng',
-  motion_changexby:           'Thay đổi x một lượng',
-  motion_changeyby:           'Thay đổi y một lượng',
-  motion_ifonedgebounce:      'Bật lại nếu chạm cạnh',
-  motion_setrotationstyle:    'Đặt kiểu xoay',
-  // Hiển thị
-  looks_say:                  'Nói',
-  looks_sayforsecs:           'Nói ... trong ... giây',
-  looks_think:                'Nghĩ',
-  looks_thinkforsecs:         'Nghĩ ... trong ... giây',
-  looks_show:                 'Hiện nhân vật',
-  looks_hide:                 'Ẩn nhân vật',
-  looks_switchcostumeto:      'Chuyển sang trang phục',
-  looks_nextcostume:          'Trang phục kế tiếp',
-  looks_switchbackdropto:     'Đổi phông nền thành',
-  looks_switchbackdroptoandwait: 'Đổi phông nền và đợi',
-  looks_nextbackdrop:         'Phông nền tiếp theo',
-  looks_changeeffectby:       'Thay đổi hiệu ứng một lượng',
-  looks_seteffectto:          'Đặt hiệu ứng bằng',
-  looks_cleargraphiceffects:  'Bỏ các hiệu ứng đồ họa',
-  looks_changesizeby:         'Đổi kích thước một lượng',
-  looks_setsizeto:            'Đặt kích thước thành',
-  looks_gotofrontback:        'Đi tới lớp',
-  looks_goforwardbackwardlayers: 'Đi tới/lùi ... lớp',
-  // Âm thanh
-  sound_play:                 'Bắt đầu âm thanh',
-  sound_playuntildone:        'Phát âm thanh đến hết',
-  sound_stopallsounds:        'Ngừng mọi âm thanh',
-  sound_changevolumeby:       'Thay đổi âm lượng một lượng',
-  sound_setvolumeto:          'Đặt âm lượng',
-  sound_changeeffectby:       'Thay đổi hiệu ứng âm thanh',
-  sound_seteffectto:          'Đặt hiệu ứng âm thanh',
-  sound_cleareffects:         'Xóa hiệu ứng âm thanh',
-  // Cảm biến
-  sensing_touchingobject:     'Đang chạm vào?',
-  sensing_touchingcolor:      'Đang chạm màu?',
-  sensing_coloristouchingcolor: 'Màu ... đang chạm?',
-  sensing_distanceto:         'Khoảng cách đến',
-  sensing_askandwait:         'Hỏi ... và đợi',
-  sensing_keypressed:         'Phím ... được bấm?',
-  sensing_mousedown:          'Chuột được nhấn?',
-  sensing_mousex:             'Tọa độ x con trỏ chuột',
-  sensing_mousey:             'Tọa độ y con trỏ chuột',
-  sensing_setdragmode:        'Đặt chế độ kéo',
-  sensing_resettimer:         'Đặt lại đồng hồ bấm giờ',
-  sensing_of:                 'Thuộc tính của',
-  sensing_current:            'Thời gian hiện tại',
-  // Biến số
-  data_setvariableto:         'Đặt biến thành',
-  data_changevariableby:      'Thay đổi biến một lượng',
-  data_showvariable:          'Hiện biến số',
-  data_hidevariable:          'Ẩn biến số',
-  data_addtolist:             'Thêm phần tử vào danh sách',
-  data_deleteoflist:          'Xóa phần tử của danh sách',
-  data_deletealloflist:       'Xóa hết tất cả trong danh sách',
-  data_insertatlist:          'Thêm phần tử tại vị trí của danh sách',
-  data_replaceitemoflist:     'Thay thế phần tử của danh sách',
-  data_showlist:              'Hiện danh sách',
-  data_hidelist:              'Ẩn danh sách',
-  // Bút vẽ (pen extension)
-  pen_clear:                  'Xóa bút',
-  pen_stamp:                  'Đóng dấu',
-  pen_penDown:                'Hạ bút',
-  pen_penUp:                  'Nâng bút',
-  pen_setPenColorToColor:     'Đặt màu bút',
-  pen_changePenColorParamBy:  'Thay đổi màu bút',
-  pen_setPenColorParamTo:     'Đặt màu bút thành',
-  pen_changePenSizeBy:        'Thay đổi kích thước bút',
-  pen_setPenSizeTo:           'Đặt kích thước bút thành',
-  // Khối của tôi
-  procedures_definition:      'Định nghĩa hàm',
-  procedures_call:            'Gọi hàm',
+// Lấy giá trị từ input của block (literal hoặc sub-block menu)
+function resolveInput(blocks, input) {
+  if (!input) return null
+  const mode = input[0]
+  const inner = input[1]
+
+  if (mode === 1) {
+    if (Array.isArray(inner)) return String(inner[1] ?? '') // literal value
+    if (typeof inner === 'string') {
+      // sub-block (menu dropdown)
+      const sub = blocks[inner]
+      if (sub) {
+        const firstField = Object.values(sub.fields || {})[0]
+        return firstField?.[0] ?? null
+      }
+    }
+  } else if (mode === 3) {
+    if (typeof inner === 'string') {
+      const sub = blocks[inner]
+      if (sub) {
+        const firstField = Object.values(sub.fields || {})[0]
+        if (firstField?.[0]) return firstField[0]
+      }
+    }
+    const fallback = input[2]
+    if (Array.isArray(fallback)) return String(fallback[1] ?? '')
+  } else if (mode === 2) {
+    if (typeof inner === 'string') {
+      const sub = blocks[inner]
+      if (sub) {
+        const firstField = Object.values(sub.fields || {})[0]
+        return firstField?.[0] ?? null
+      }
+    }
+  }
+  return null
+}
+
+const STOP_VI = { all: 'tất cả', 'this script': 'kịch bản này', 'other scripts in sprite': 'kịch bản khác' }
+const ROT_VI = { 'left-right': 'trái-phải', "don't rotate": 'không xoay', 'all around': 'xung quanh' }
+const FB_VI = { front: 'trên cùng', back: 'sau cùng', forward: 'lên trước', backward: 'ra sau' }
+
+function q(s) { return s ? `"${s}"` : '...' }  // quoted or placeholder
+function n(s) { return s ?? '...' }              // number or placeholder
+
+// Format block label với giá trị thực tế
+function formatBlock(blocks, block) {
+  const { opcode, inputs = {}, fields = {} } = block
+  const v = (key) => resolveInput(blocks, inputs[key])
+  const f = (key) => fields[key]?.[0] ?? null
+
+  switch (opcode) {
+    // ── Chuyển động ──
+    case 'motion_movesteps':        return `Di chuyển ${n(v('STEPS'))} bước`
+    case 'motion_turnright':        return `Xoay phải ${n(v('DEGREES'))} độ`
+    case 'motion_turnleft':         return `Xoay trái ${n(v('DEGREES'))} độ`
+    case 'motion_pointindirection': return `Đặt hướng bằng ${n(v('DIRECTION'))}`
+    case 'motion_pointtowards':     return `Hướng về phía ${n(v('TOWARDS'))}`
+    case 'motion_goto':             return `Đi tới ${n(v('TO'))}`
+    case 'motion_gotoxy':           return `Đi tới x:${n(v('X'))} y:${n(v('Y'))}`
+    case 'motion_glideto':          return `Lướt ${n(v('SECS'))} giây tới ${n(v('TO'))}`
+    case 'motion_glidesecstoxy':    return `Lướt ${n(v('SECS'))} giây tới x:${n(v('X'))} y:${n(v('Y'))}`
+    case 'motion_setx':             return `Đặt x = ${n(v('X'))}`
+    case 'motion_sety':             return `Đặt y = ${n(v('Y'))}`
+    case 'motion_changexby':        return `Thay đổi x ${n(v('DX'))}`
+    case 'motion_changeyby':        return `Thay đổi y ${n(v('DY'))}`
+    case 'motion_ifonedgebounce':   return 'Bật lại nếu chạm cạnh'
+    case 'motion_setrotationstyle': return `Đặt kiểu xoay: ${ROT_VI[f('STYLE')] ?? f('STYLE') ?? '...'}`
+
+    // ── Hiển thị ──
+    case 'looks_say':           return `Nói ${q(v('MESSAGE'))}`
+    case 'looks_sayforsecs':    return `Nói ${q(v('MESSAGE'))} trong ${n(v('SECS'))} giây`
+    case 'looks_think':         return `Nghĩ ${q(v('MESSAGE'))}`
+    case 'looks_thinkforsecs':  return `Nghĩ ${q(v('MESSAGE'))} trong ${n(v('SECS'))} giây`
+    case 'looks_show':          return 'Hiện nhân vật'
+    case 'looks_hide':          return 'Ẩn nhân vật'
+    case 'looks_switchcostumeto':  return `Chuyển trang phục: ${q(v('COSTUME') ?? f('COSTUME'))}`
+    case 'looks_nextcostume':      return 'Trang phục kế tiếp'
+    case 'looks_switchbackdropto': return `Đổi phông nền: ${q(v('BACKDROP') ?? f('BACKDROP'))}`
+    case 'looks_switchbackdroptoandwait': return `Đổi phông nền ${q(v('BACKDROP') ?? f('BACKDROP'))} và đợi`
+    case 'looks_nextbackdrop':     return 'Phông nền tiếp theo'
+    case 'looks_changeeffectby':   return `Thay đổi hiệu ứng ${f('EFFECT') ?? '...'} ${n(v('CHANGE'))}`
+    case 'looks_seteffectto':      return `Đặt hiệu ứng ${f('EFFECT') ?? '...'} = ${n(v('VALUE'))}`
+    case 'looks_cleargraphiceffects': return 'Bỏ các hiệu ứng đồ họa'
+    case 'looks_changesizeby':     return `Đổi kích thước ${n(v('CHANGE'))}`
+    case 'looks_setsizeto':        return `Đặt kích thước = ${n(v('SIZE'))}%`
+    case 'looks_gotofrontback':    return `Đi tới lớp ${FB_VI[f('FRONT_BACK')] ?? f('FRONT_BACK') ?? '...'}`
+    case 'looks_goforwardbackwardlayers': return `Đi ${FB_VI[f('FORWARD_BACKWARD')] ?? f('FORWARD_BACKWARD') ?? '...'} ${n(v('NUM'))} lớp`
+
+    // ── Âm thanh ──
+    case 'sound_play':          return `Bắt đầu âm thanh ${q(v('SOUND_MENU') ?? f('SOUND_MENU'))}`
+    case 'sound_playuntildone': return `Phát âm thanh ${q(v('SOUND_MENU') ?? f('SOUND_MENU'))} đến hết`
+    case 'sound_stopallsounds': return 'Ngừng mọi âm thanh'
+    case 'sound_changevolumeby':return `Thay đổi âm lượng ${n(v('VOLUME'))}`
+    case 'sound_setvolumeto':   return `Đặt âm lượng = ${n(v('VOLUME'))}%`
+    case 'sound_changeeffectby':return `Thay đổi hiệu ứng âm thanh ${f('EFFECT') ?? '...'} ${n(v('VALUE'))}`
+    case 'sound_seteffectto':   return `Đặt hiệu ứng âm thanh ${f('EFFECT') ?? '...'} = ${n(v('VALUE'))}`
+    case 'sound_cleareffects':  return 'Xóa hiệu ứng âm thanh'
+
+    // ── Điều khiển ──
+    case 'control_forever':       return 'Liên tục (lặp mãi)'
+    case 'control_repeat':        return `Lặp lại ${n(v('TIMES'))} lần`
+    case 'control_if':            return 'Nếu ... thì'
+    case 'control_if_else':       return 'Nếu ... thì ... nếu không thì'
+    case 'control_wait':          return `Đợi ${n(v('DURATION'))} giây`
+    case 'control_wait_until':    return 'Đợi đến khi ...'
+    case 'control_repeat_until':  return 'Lặp lại cho đến khi ...'
+    case 'control_while':         return 'Trong khi ...'
+    case 'control_stop':          return `Dừng ${STOP_VI[f('STOP_OPTION')] ?? f('STOP_OPTION') ?? '...'}`
+    case 'control_start_as_clone':   return 'Khi tôi bắt đầu là một bản sao'
+    case 'control_create_clone_of':  return `Tạo bản sao của ${n(v('CLONE_OPTION') ?? f('CLONE_OPTION'))}`
+    case 'control_delete_this_clone':return 'Xóa bản sao này'
+
+    // ── Sự kiện ──
+    case 'event_whenflagclicked':       return 'Khi bấm cờ xanh'
+    case 'event_whenkeypressed':        return `Khi bấm phím ${q(f('KEY_OPTION'))}`
+    case 'event_whenthisspriteclicked': return 'Khi bấm vào nhân vật này'
+    case 'event_whenstageclicked':      return 'Khi bấm vào phông nền'
+    case 'event_whenbroadcastreceived': return `Khi nhận ${q(f('BROADCAST_OPTION'))}`
+    case 'event_whenbackdropswitchesto':return `Khi phông nền chuyển thành ${q(f('BACKDROP'))}`
+    case 'event_whengreaterthan':       return `Khi ${f('WHENGREATERTHANMENU') ?? '...'} > ${n(v('VALUE'))}`
+    case 'event_broadcast':             return `Phát tin ${q(v('BROADCAST_INPUT'))}`
+    case 'event_broadcastandwait':      return `Phát tin ${q(v('BROADCAST_INPUT'))} và đợi`
+
+    // ── Cảm biến ──
+    case 'sensing_touchingobject':  return `Đang chạm ${n(v('TOUCHINGOBJECTMENU') ?? f('TOUCHINGOBJECTMENU'))}?`
+    case 'sensing_touchingcolor':   return 'Đang chạm màu?'
+    case 'sensing_distanceto':      return `Khoảng cách đến ${n(v('DISTANCETOMENU') ?? f('DISTANCETOMENU'))}`
+    case 'sensing_askandwait':      return `Hỏi ${q(v('QUESTION'))} và đợi`
+    case 'sensing_keypressed':      return `Phím ${q(f('KEY_OPTION'))} được bấm?`
+    case 'sensing_mousedown':       return 'Chuột được nhấn?'
+    case 'sensing_setdragmode':     return `Đặt chế độ kéo: ${f('DRAG_MODE') ?? '...'}`
+    case 'sensing_resettimer':      return 'Đặt lại đồng hồ bấm giờ'
+
+    // ── Biến số ──
+    case 'data_setvariableto':    return `Đặt ${q(f('VARIABLE'))} = ${n(v('VALUE'))}`
+    case 'data_changevariableby': return `Thay đổi ${q(f('VARIABLE'))} thêm ${n(v('VALUE'))}`
+    case 'data_showvariable':     return `Hiện biến ${q(f('VARIABLE'))}`
+    case 'data_hidevariable':     return `Ẩn biến ${q(f('VARIABLE'))}`
+    case 'data_addtolist':        return `Thêm ${n(v('ITEM'))} vào ${q(f('LIST'))}`
+    case 'data_deleteoflist':     return `Xóa phần tử ${n(v('INDEX'))} của ${q(f('LIST'))}`
+    case 'data_deletealloflist':  return `Xóa tất cả trong ${q(f('LIST'))}`
+    case 'data_insertatlist':     return `Chèn ${n(v('ITEM'))} tại vị trí ${n(v('INDEX'))} của ${q(f('LIST'))}`
+    case 'data_replaceitemoflist':return `Thay phần tử ${n(v('INDEX'))} của ${q(f('LIST'))} bằng ${n(v('ITEM'))}`
+    case 'data_showlist':         return `Hiện danh sách ${q(f('LIST'))}`
+    case 'data_hidelist':         return `Ẩn danh sách ${q(f('LIST'))}`
+
+    // ── Bút vẽ (pen) ──
+    case 'pen_clear':            return 'Xóa bút'
+    case 'pen_stamp':            return 'Đóng dấu'
+    case 'pen_penDown':          return 'Hạ bút'
+    case 'pen_penUp':            return 'Nâng bút'
+    case 'pen_setPenColorToColor': return 'Đặt màu bút'
+    case 'pen_changePenSizeBy':  return `Thay đổi kích thước bút ${n(v('SIZE'))}`
+    case 'pen_setPenSizeTo':     return `Đặt kích thước bút = ${n(v('SIZE'))}`
+
+    // ── Khối của tôi ──
+    case 'procedures_definition': return 'Định nghĩa hàm'
+    case 'procedures_call': {
+      const procCode = block.mutation?.proccode ?? ''
+      const name = procCode.replace(/%[bns]/g, '(...)').trim()
+      return `Gọi: ${name || '...'}`
+    }
+
+    default: {
+      // fallback: tên tiếng Anh dạng readable
+      return opcode.split('_').slice(1).join(' ')
+    }
+  }
 }
 
 const HAT_OPCODES = new Set([
@@ -120,38 +180,31 @@ const HAT_OPCODES = new Set([
 ])
 
 const HAT_COLORS = {
-  event_whenflagclicked:       'bg-yellow-100 text-yellow-800 border-yellow-200',
-  event_whenkeypressed:        'bg-yellow-100 text-yellow-800 border-yellow-200',
-  event_whenthisspriteclicked: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  event_whenstageclicked:      'bg-yellow-100 text-yellow-800 border-yellow-200',
-  event_whenbroadcastreceived: 'bg-orange-100 text-orange-800 border-orange-200',
-  event_whenbackdropswitchesto:'bg-yellow-100 text-yellow-800 border-yellow-200',
-  event_whengreaterthan:       'bg-yellow-100 text-yellow-800 border-yellow-200',
-  control_start_as_clone:      'bg-amber-100 text-amber-800 border-amber-200',
-  procedures_definition:       'bg-red-100 text-red-700 border-red-200',
+  event_whenflagclicked:        'bg-yellow-100 text-yellow-800 border-yellow-200',
+  event_whenkeypressed:         'bg-yellow-100 text-yellow-800 border-yellow-200',
+  event_whenthisspriteclicked:  'bg-yellow-100 text-yellow-800 border-yellow-200',
+  event_whenstageclicked:       'bg-yellow-100 text-yellow-800 border-yellow-200',
+  event_whenbroadcastreceived:  'bg-orange-100 text-orange-800 border-orange-200',
+  event_whenbackdropswitchesto: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  event_whengreaterthan:        'bg-yellow-100 text-yellow-800 border-yellow-200',
+  control_start_as_clone:       'bg-amber-100 text-amber-800 border-amber-200',
+  procedures_definition:        'bg-red-100 text-red-700 border-red-200',
 }
 
 const CATEGORY_COLOR = {
-  event:       'text-yellow-600',
-  control:     'text-amber-600',
-  motion:      'text-blue-600',
-  looks:       'text-purple-600',
+  event:       'text-yellow-500',
+  control:     'text-amber-500',
+  motion:      'text-blue-500',
+  looks:       'text-purple-500',
   sound:       'text-pink-500',
-  sensing:     'text-cyan-600',
+  sensing:     'text-cyan-500',
   data:        'text-orange-500',
-  pen:         'text-teal-600',
+  pen:         'text-teal-500',
   procedures:  'text-red-500',
 }
 
-function getLabel(opcode) {
-  if (OPCODE_VI[opcode]) return OPCODE_VI[opcode]
-  const parts = opcode.split('_')
-  return parts.slice(1).join(' ')
-}
-
 function getCategoryColor(opcode) {
-  const cat = opcode.split('_')[0]
-  return CATEGORY_COLOR[cat] || 'text-gray-500'
+  return CATEGORY_COLOR[opcode.split('_')[0]] || 'text-gray-400'
 }
 
 function getChain(blocks, startId, maxLen = 12) {
@@ -162,7 +215,7 @@ function getChain(blocks, startId, maxLen = 12) {
     visited.add(id)
     const b = blocks[id]
     if (!b) break
-    chain.push({ id, opcode: b.opcode })
+    chain.push({ id, block: b })
     id = b.next
   }
   return chain
@@ -268,26 +321,24 @@ export default function Sb3Viewer({ url }) {
               {isOpen && (
                 <div className="px-3 pb-3 space-y-2 bg-gray-50/60">
                   {entries.map(([hatId]) => {
-                    const hatBlock = target.blocks[hatId]
                     const chain = getChain(target.blocks, hatId)
                     const total = chainLength(target.blocks, hatId)
-                    const hatColor = HAT_COLORS[hatBlock.opcode] || 'bg-gray-100 text-gray-700 border-gray-200'
+                    const hatBlock = target.blocks[hatId]
+                    const hatColor = HAT_COLORS[hatBlock?.opcode] || 'bg-gray-100 text-gray-700 border-gray-200'
 
                     return (
                       <div key={hatId} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                        {chain.map((item, idx) => {
-                          const isHat = idx === 0 && HAT_OPCODES.has(item.opcode)
+                        {chain.map(({ id, block }, idx) => {
+                          const isHat = idx === 0 && HAT_OPCODES.has(block.opcode)
+                          const label = formatBlock(target.blocks, block)
                           return (
-                            <div key={item.id}
+                            <div key={id}
                               className={`flex items-center gap-2 px-3 py-1.5 text-xs border-b border-gray-50 last:border-0
-                                ${isHat ? hatColor + ' font-semibold border-b' : 'text-gray-600'}`}>
-                              <span className={`shrink-0 text-[13px] ${isHat ? '' : getCategoryColor(item.opcode)}`}>
+                                ${isHat ? hatColor + ' font-semibold border-b' : 'text-gray-700'}`}>
+                              <span className={`shrink-0 text-[13px] ${isHat ? '' : getCategoryColor(block.opcode)}`}>
                                 {isHat ? '⚑' : '└'}
                               </span>
-                              <span className="flex-1">{getLabel(item.opcode)}</span>
-                              <span className="text-[9px] text-gray-300 font-mono shrink-0 hidden sm:block">
-                                {item.opcode}
-                              </span>
+                              <span className="flex-1">{label}</span>
                             </div>
                           )
                         })}
