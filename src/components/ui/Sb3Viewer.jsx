@@ -320,44 +320,57 @@ export default function Sb3Viewer({ url }) {
                 <span className="text-gray-300 text-xs ml-1">{isOpen ? '▲' : '▼'}</span>
               </button>
 
-              {isOpen && (
-                <div className="px-3 pb-3 space-y-2 bg-gray-50/60">
-                  {entries.map(([hatId]) => {
-                    const chain = collectChain(target.blocks, hatId)
-                    const hatBlock = target.blocks[hatId]
-                    const hatColor = HAT_COLORS[hatBlock?.opcode] || 'bg-gray-100 text-gray-700 border-gray-200'
+              {isOpen && (() => {
+                const hatEntries = entries.filter(([, b]) => HAT_OPCODES.has(b.opcode))
+                const orphanEntries = entries.filter(([, b]) => !HAT_OPCODES.has(b.opcode))
 
-                    return (
-                      <div key={hatId} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                        {chain.map(({ id, block, depth }, idx) => {
-                          const isHat = idx === 0 && HAT_OPCODES.has(block.opcode)
-                          const isElse = block.opcode === '__else__'
-                          const label = isElse ? 'Nếu không thì' : formatBlock(target.blocks, block)
-                          const indent = 10 + depth * 16
-                          return (
-                            <div key={id}
-                              style={{ paddingLeft: `${indent}px` }}
-                              className={`flex items-center gap-1.5 pr-3 py-1.5 text-xs border-b border-gray-50 last:border-0
-                                ${isHat ? hatColor + ' font-semibold border-b'
-                                  : isElse ? 'bg-gray-50 text-gray-400 italic'
-                                  : 'text-gray-700'}`}>
-                              <span className={`shrink-0 ${isHat ? 'text-[13px]' : 'text-[10px] opacity-40'} ${isHat ? '' : getCategoryColor(block.opcode)}`}>
-                                {isHat ? '⚑' : '└'}
-                              </span>
-                              <span className="flex-1">{label}</span>
-                            </div>
-                          )
-                        })}
-                        {chain.length >= 25 && (
-                          <div className="px-4 py-1.5 text-[10px] text-gray-400 italic bg-gray-50">
-                            ... còn nhiều lệnh hơn
+                function renderChain(startId, isOrphan = false) {
+                  const chain = collectChain(target.blocks, startId)
+                  const hatBlock = target.blocks[startId]
+                  const hatColor = HAT_COLORS[hatBlock?.opcode] || 'bg-gray-100 text-gray-700 border-gray-200'
+                  return (
+                    <div key={startId} className={`bg-white rounded-lg overflow-hidden ${isOrphan ? 'border border-orange-300' : 'border border-gray-200'}`}>
+                      {chain.map(({ id, block, depth }, idx) => {
+                        const isHat = idx === 0 && HAT_OPCODES.has(block.opcode)
+                        const isElse = block.opcode === '__else__'
+                        const label = isElse ? 'Nếu không thì' : formatBlock(target.blocks, block)
+                        const indent = 10 + depth * 16
+                        return (
+                          <div key={id}
+                            style={{ paddingLeft: `${indent}px` }}
+                            className={`flex items-center gap-1.5 pr-3 py-1.5 text-xs border-b border-gray-50 last:border-0
+                              ${isHat ? hatColor + ' font-semibold border-b'
+                                : isElse ? 'bg-gray-50 text-gray-400 italic'
+                                : 'text-gray-700'}`}>
+                            <span className={`shrink-0 ${isHat ? 'text-[13px]' : 'text-[10px] opacity-40'} ${isHat ? '' : getCategoryColor(block.opcode)}`}>
+                              {isHat ? '⚑' : '└'}
+                            </span>
+                            <span className="flex-1">{label}</span>
                           </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                        )
+                      })}
+                      {chain.length >= 25 && (
+                        <div className="px-4 py-1.5 text-[10px] text-gray-400 italic bg-gray-50">... còn nhiều lệnh hơn</div>
+                      )}
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className="px-3 pb-3 space-y-2 bg-gray-50/60">
+                    {hatEntries.map(([id]) => renderChain(id, false))}
+
+                    {orphanEntries.length > 0 && (
+                      <>
+                        <div className="flex items-center gap-1.5 pt-1">
+                          <span className="text-[10px] font-bold text-orange-500 uppercase tracking-wide">⚠ Chưa gắn sự kiện ({orphanEntries.length})</span>
+                        </div>
+                        {orphanEntries.map(([id]) => renderChain(id, true))}
+                      </>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )
         })}
