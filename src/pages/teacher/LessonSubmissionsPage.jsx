@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users, FileText, FileImage, File, ExternalLink, Code, Play, TerminalSquare } from 'lucide-react'
 import MarkdownContent from '../../components/ui/MarkdownContent'
+import Sb3Viewer from '../../components/ui/Sb3Viewer'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
@@ -418,11 +419,7 @@ export default function LessonSubmissionsPage() {
                           </div>
                         )}
                         {isSb3 && url && (
-                          <a href={`https://turbowarp.org/editor?project_url=${encodeURIComponent(url)}`}
-                            target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-2 justify-center w-full py-2.5 rounded-xl border-2 border-dashed border-yellow-300 bg-yellow-50 text-yellow-700 text-sm font-medium hover:bg-yellow-100 transition">
-                            <ExternalLink size={14} /> Mở trong TurboWarp (tab mới)
-                          </a>
+                          <Sb3Viewer url={url} />
                         )}
                         {sub.text_content && (
                           <div className="bg-gray-50 rounded-lg p-2 text-xs text-gray-600 whitespace-pre-wrap border">{sub.text_content}</div>
@@ -663,11 +660,9 @@ export default function LessonSubmissionsPage() {
                     </div>
                   )}
                   {isSb3 && url && (
-                    <a href={`https://turbowarp.org/editor?project_url=${encodeURIComponent(url)}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 justify-center w-full py-2.5 rounded-xl border-2 border-dashed border-yellow-300 bg-yellow-50 text-yellow-700 text-sm font-medium hover:bg-yellow-100 transition mt-2">
-                      <ExternalLink size={14} /> Mở trong TurboWarp
-                    </a>
+                    <div className="mt-2">
+                      <Sb3Viewer url={url} />
+                    </div>
                   )}
                   {sub.text_content && (
                     <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 whitespace-pre-wrap border mt-2">{sub.text_content}</div>
