@@ -207,30 +207,32 @@ function getCategoryColor(opcode) {
   return CATEGORY_COLOR[opcode.split('_')[0]] || 'text-gray-400'
 }
 
-function getChain(blocks, startId, maxLen = 12) {
-  const chain = []
+// Duyệt đệ quy vào SUBSTACK (bên trong vòng lặp / if) và SUBSTACK2 (else)
+function collectChain(blocks, startId, depth = 0, visited = new Set(), result = [], maxLen = 25) {
   let id = startId
-  const visited = new Set()
-  while (id && chain.length < maxLen && !visited.has(id)) {
+  while (id && result.length < maxLen && !visited.has(id)) {
     visited.add(id)
-    const b = blocks[id]
-    if (!b) break
-    chain.push({ id, block: b })
-    id = b.next
-  }
-  return chain
-}
+    const block = blocks[id]
+    if (!block) break
 
-function chainLength(blocks, startId) {
-  let count = 0, id = startId
-  const visited = new Set()
-  while (id && !visited.has(id)) {
-    visited.add(id)
-    const b = blocks[id]
-    if (!b) break
-    count++; id = b.next
+    result.push({ id, block, depth })
+
+    // Bên trong vòng lặp / if (SUBSTACK)
+    const substackId = block.inputs?.SUBSTACK?.[1]
+    if (substackId && typeof substackId === 'string' && result.length < maxLen) {
+      collectChain(blocks, substackId, depth + 1, visited, result, maxLen)
+    }
+
+    // Nhánh else (SUBSTACK2)
+    const substack2Id = block.inputs?.SUBSTACK2?.[1]
+    if (substack2Id && typeof substack2Id === 'string' && result.length < maxLen) {
+      result.push({ id: '__else__' + id, block: { opcode: '__else__' }, depth: depth + 1 })
+      collectChain(blocks, substack2Id, depth + 1, visited, result, maxLen)
+    }
+
+    id = block.next
   }
-  return count
+  return result
 }
 
 export default function Sb3Viewer({ url }) {
@@ -321,30 +323,34 @@ export default function Sb3Viewer({ url }) {
               {isOpen && (
                 <div className="px-3 pb-3 space-y-2 bg-gray-50/60">
                   {entries.map(([hatId]) => {
-                    const chain = getChain(target.blocks, hatId)
-                    const total = chainLength(target.blocks, hatId)
+                    const chain = collectChain(target.blocks, hatId)
                     const hatBlock = target.blocks[hatId]
                     const hatColor = HAT_COLORS[hatBlock?.opcode] || 'bg-gray-100 text-gray-700 border-gray-200'
 
                     return (
                       <div key={hatId} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                        {chain.map(({ id, block }, idx) => {
+                        {chain.map(({ id, block, depth }, idx) => {
                           const isHat = idx === 0 && HAT_OPCODES.has(block.opcode)
-                          const label = formatBlock(target.blocks, block)
+                          const isElse = block.opcode === '__else__'
+                          const label = isElse ? 'Nếu không thì' : formatBlock(target.blocks, block)
+                          const indent = 10 + depth * 16
                           return (
                             <div key={id}
-                              className={`flex items-center gap-2 px-3 py-1.5 text-xs border-b border-gray-50 last:border-0
-                                ${isHat ? hatColor + ' font-semibold border-b' : 'text-gray-700'}`}>
-                              <span className={`shrink-0 text-[13px] ${isHat ? '' : getCategoryColor(block.opcode)}`}>
+                              style={{ paddingLeft: `${indent}px` }}
+                              className={`flex items-center gap-1.5 pr-3 py-1.5 text-xs border-b border-gray-50 last:border-0
+                                ${isHat ? hatColor + ' font-semibold border-b'
+                                  : isElse ? 'bg-gray-50 text-gray-400 italic'
+                                  : 'text-gray-700'}`}>
+                              <span className={`shrink-0 ${isHat ? 'text-[13px]' : 'text-[10px] opacity-40'} ${isHat ? '' : getCategoryColor(block.opcode)}`}>
                                 {isHat ? '⚑' : '└'}
                               </span>
                               <span className="flex-1">{label}</span>
                             </div>
                           )
                         })}
-                        {total > 12 && (
+                        {chain.length >= 25 && (
                           <div className="px-4 py-1.5 text-[10px] text-gray-400 italic bg-gray-50">
-                            ... còn {total - 12} lệnh nữa
+                            ... còn nhiều lệnh hơn
                           </div>
                         )}
                       </div>
