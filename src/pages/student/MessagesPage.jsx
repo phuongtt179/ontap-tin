@@ -66,7 +66,7 @@ export default function MessagesPage() {
     else lastCreatedAtRef.current = new Date().toISOString()
     setLoading(false)
     // Đánh dấu đã đọc các tin nhắn từ giáo viên
-    supabase.from('messages').update({ is_read: true })
+    await supabase.from('messages').update({ is_read: true })
       .eq('student_id', user.id).eq('sender_role', 'teacher').eq('is_read', false)
   }
 
