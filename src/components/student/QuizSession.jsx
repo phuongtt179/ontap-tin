@@ -110,6 +110,7 @@ export default function QuizSession({
   const [selected, setSelected] = useState(null)
   const [confirmed, setConfirmed] = useState(false)
   const [confirmedSet, setConfirmedSet] = useState(new Set())
+  const [skippedSet, setSkippedSet] = useState(new Set())
   const [showResult, setShowResult] = useState(false)
   const [timeLeft, setTimeLeft] = useState(timeLimit ? timeLimit * 60 : null)
 
@@ -157,6 +158,20 @@ export default function QuizSession({
       setCurrent(nextIndex)
       setSelected(answers[nextIndex] || null)
       setConfirmed(false)
+    }
+  }
+
+  function handleSkip() {
+    // Đánh dấu đã "xử lý" câu này (unlock nav) nhưng không lưu đáp án
+    setConfirmedSet(prev => new Set([...prev, current]))
+    setSkippedSet(prev => new Set([...prev, current]))
+    if (isLastQuestion) {
+      handleFinish()
+    } else {
+      const nextIndex = current + 1
+      setCurrent(nextIndex)
+      setSelected(answers[nextIndex] || null)
+      setConfirmed(confirmedSet.has(nextIndex))
     }
   }
 
@@ -247,6 +262,7 @@ export default function QuizSession({
   function renderNavBtn(i) {
     const isCurrent = i === current
     const isDone = confirmedSet.has(i)
+    const isSkipped = skippedSet.has(i)
     const isLocked = practiceMode && !isDone && !isCurrent
 
     let cls = 'w-8 h-8 rounded-full text-xs font-semibold flex items-center justify-center border-2 transition '
@@ -254,6 +270,8 @@ export default function QuizSession({
       cls += 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-110 cursor-pointer'
     } else if (isLocked) {
       cls += 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
+    } else if (isSkipped) {
+      cls += 'bg-orange-100 border-orange-300 text-orange-600 cursor-pointer'
     } else if (isDone) {
       const ans = answers[i]
       const q_i = questions[i]
@@ -421,7 +439,7 @@ export default function QuizSession({
           )}
 
           {/* Nút hành động */}
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto space-y-2">
             {q.type === 'essay' ? (
               <button
                 onClick={handleNext}
@@ -438,20 +456,40 @@ export default function QuizSession({
                 {isLastQuestion ? 'Xem kết quả' : <><span>Câu tiếp theo</span><ChevronRight size={18} /></>}
               </button>
             ) : !confirmed ? (
-              <button
-                onClick={handleConfirm}
-                disabled={!selected}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50"
-              >
-                Xác nhận
-              </button>
+              <>
+                <button
+                  onClick={handleConfirm}
+                  disabled={!selected}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50"
+                >
+                  Xác nhận
+                </button>
+                {practiceMode && (
+                  <button
+                    onClick={handleSkip}
+                    className="w-full border border-gray-300 text-gray-500 hover:bg-gray-50 font-medium py-2.5 rounded-xl transition text-sm flex items-center justify-center gap-1.5"
+                  >
+                    Bỏ qua câu này <ChevronRight size={15} />
+                  </button>
+                )}
+              </>
             ) : (
-              <button
-                onClick={handleNext}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
-              >
-                {isLastQuestion ? 'Xem kết quả' : 'Câu tiếp theo'} <ChevronRight size={18} />
-              </button>
+              <>
+                <button
+                  onClick={handleNext}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+                >
+                  {isLastQuestion ? 'Xem kết quả' : 'Câu tiếp theo'} <ChevronRight size={18} />
+                </button>
+                {practiceMode && !isCorrect && (
+                  <button
+                    onClick={handleSkip}
+                    className="w-full border border-orange-300 text-orange-600 hover:bg-orange-50 font-medium py-2.5 rounded-xl transition text-sm flex items-center justify-center gap-1.5"
+                  >
+                    Bỏ qua câu này <ChevronRight size={15} />
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
