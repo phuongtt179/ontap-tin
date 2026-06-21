@@ -785,10 +785,16 @@ function LessonQuiz({ questions, onSubmit, initialCurrent = 0, initialCorrectCou
           {isLast ? 'Xem kết quả' : 'Câu tiếp theo →'}
         </button>
       ) : (
-        <button onClick={handleRetry}
-          className="w-full bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-medium transition">
-          Thử lại
-        </button>
+        <div className="flex flex-col gap-2">
+          <button onClick={handleRetry}
+            className="w-full bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-medium transition">
+            Thử lại
+          </button>
+          <button onClick={handleNext}
+            className="w-full border border-gray-300 text-gray-500 hover:bg-gray-50 py-2.5 rounded-xl text-sm font-medium transition">
+            Bỏ qua câu này →
+          </button>
+        </div>
       )}
     </div>
   )
