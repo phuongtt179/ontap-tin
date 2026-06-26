@@ -11,6 +11,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { CodeBlock, CodeBlockWithBlanks } from '../../components/ui/CodeBlock'
 import StickerModal from '../../components/student/StickerModal'
+import RewardModal from '../../components/student/RewardModal'
 import { updateStreak, STREAK_MILESTONES } from '../../utils/updateStreak'
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5) }
@@ -878,6 +879,7 @@ export default function LessonPage() {
   const [quizInitCorrect, setQuizInitCorrect] = useState(0)
   const [videoMarking, setVideoMarking] = useState(false)
   const [stickerModal, setStickerModal] = useState(null) // { stickerCount, stickerTotal, threshold, reason }
+  const [showReward, setShowReward] = useState(null)    // { stickerCount, threshold } | null
   const wasCompleted = useRef(false)
   const [pptxMarking, setPptxMarking] = useState(false)
 
@@ -1114,6 +1116,18 @@ export default function LessonPage() {
           reason={stickerModal.reason}
           count={stickerModal.count}
           onClose={() => setStickerModal(null)}
+          onRedeem={stickerModal.stickerCount >= stickerModal.threshold
+            ? () => setShowReward({ stickerCount: stickerModal.stickerCount, threshold: stickerModal.threshold })
+            : undefined}
+        />
+      )}
+      {/* Reward modal */}
+      {showReward && (
+        <RewardModal
+          stickerCount={showReward.stickerCount}
+          threshold={showReward.threshold}
+          onClose={() => { setShowReward(null); setStickerModal(null) }}
+          onRedeemed={() => { setShowReward(null); setStickerModal(null) }}
         />
       )}
 

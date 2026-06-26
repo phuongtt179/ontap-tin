@@ -29,23 +29,30 @@ export default function RewardsPage() {
     const [{ data: itemsData }, { data: reqData }] = await Promise.all([
       supabase.from('reward_items').select('*').order('created_at'),
       supabase.from('reward_requests')
-        .select('*, reward_items(name, emoji), profiles(full_name, id)')
-        .order('created_at', { ascending: false }),
+        .select('*, reward_items(name, emoji)')
+        .order('id', { ascending: false }),
     ])
     setItems(itemsData || [])
 
-    // Join thêm class info
     const reqs = reqData || []
     const studentIds = [...new Set(reqs.map(r => r.student_id))]
+    let profileMap = {}
     let classMap = {}
     if (studentIds.length > 0) {
-      const { data: enrollData } = await supabase
-        .from('student_enrollments')
-        .select('user_id, class_name')
-        .in('user_id', studentIds)
+      const [{ data: profileData }, { data: enrollData }] = await Promise.all([
+        supabase.from('profiles').select('id, full_name').in('id', studentIds),
+        supabase.from('student_enrollments').select('user_id, class_name').in('user_id', studentIds),
+      ])
+      ;(profileData || []).forEach(p => { profileMap[p.id] = p.full_name })
       ;(enrollData || []).forEach(e => { classMap[e.user_id] = e.class_name })
     }
-    setRequests(reqs.map(r => ({ ...r, class_name: classMap[r.student_id] || '' })))
+    setRequests(reqs.map(r => ({
+      ...r,
+      profiles: { full_name: profileMap[r.student_id] || 'Học sinh', id: r.student_id },
+      class_name: classMap[r.student_id] || '',
+      created_at: r.created_at || r.requested_at,
+      fulfilled_at: r.fulfilled_at || r.given_at,
+    })))
     setLoading(false)
   }
 

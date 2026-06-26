@@ -86,6 +86,27 @@ function TaskEditor({ index, task, onChange, onRemove, autoFocus }) {
           <textarea
             value={task.instructions || ''}
             onChange={e => onChange({ ...task, instructions: e.target.value })}
+            onPaste={e => {
+              const text = e.clipboardData.getData('text/plain')
+              const lines = text.trim().split('\n').filter(l => l.trim())
+              if (lines.length >= 2 && lines.some(l => l.includes('\t'))) {
+                e.preventDefault()
+                const rows = lines.map(l => l.split('\t').map(c => c.trim()))
+                const maxCols = Math.max(...rows.map(r => r.length))
+                const pad = r => { while (r.length < maxCols) r.push(''); return r }
+                const padded = rows.map(pad)
+                const header = `| ${padded[0].join(' | ')} |`
+                const sep = `| ${Array(maxCols).fill('---').join(' | ')} |`
+                const body = padded.slice(1).map(r => `| ${r.join(' | ')} |`).join('\n')
+                const md = [header, sep, body].join('\n')
+                const cur = task.instructions || ''
+                const el = e.target
+                const start = el.selectionStart
+                const end = el.selectionEnd
+                const next = cur.slice(0, start) + md + cur.slice(end)
+                onChange({ ...task, instructions: next })
+              }
+            }}
             rows={4}
             autoFocus={autoFocus}
             placeholder="Nhập hướng dẫn ngắn (tùy chọn, hỗ trợ Markdown)..."
@@ -93,6 +114,7 @@ function TaskEditor({ index, task, onChange, onRemove, autoFocus }) {
           />
           <div className="bg-gray-50 border-t border-gray-100 px-3 py-1.5 text-[10px] text-gray-400 flex gap-3 flex-wrap">
             <span>**đậm**</span><span>*nghiêng*</span><span># Tiêu đề</span><span>- danh sách</span>
+            <span className="text-blue-400">| cột1 | cột2 | ← bảng (hoặc copy từ Word/Excel)</span>
           </div>
 
           {/* File đề bài */}

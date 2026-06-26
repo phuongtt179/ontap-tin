@@ -47,6 +47,7 @@ export default function StickerModal({
   reason = 'Hoàn thành bài học',
   count = 1,
   onClose,
+  onRedeem,
 }) {
   const [visible, setVisible] = useState(false)
   const [confetti, setConfetti] = useState(false)
@@ -139,7 +140,7 @@ export default function StickerModal({
 
               <p className={`text-xs mt-2 font-semibold ${rewardReached ? 'text-emerald-600' : 'text-gray-400'}`}>
                 {rewardReached
-                  ? '🎁 Đủ sticker! Hỏi giáo viên để nhận quà nhé!'
+                  ? '🎁 Đủ sticker để đổi quà!'
                   : `Còn ${remaining} sticker nữa → nhận quà 🎁`}
               </p>
             </div>
@@ -147,11 +148,25 @@ export default function StickerModal({
             {/* All-time count */}
             <p className="text-xs text-gray-300 mb-4">Tổng sticker đã nhận: <span className="font-bold text-gray-400">{stickerTotal} ⭐</span></p>
 
-            <button onClick={handleClose}
-              className="w-full py-3 rounded-2xl font-black text-white text-base shadow-lg transition-all active:scale-95
-                bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 shadow-orange-200">
-              Tuyệt vời! 🚀
-            </button>
+            {rewardReached && onRedeem ? (
+              <div className="flex flex-col gap-2">
+                <button onClick={() => { onRedeem?.(); handleClose() }}
+                  className="w-full py-3 rounded-2xl font-black text-white text-base shadow-lg transition-all active:scale-95
+                    bg-gradient-to-r from-orange-400 to-pink-400 hover:opacity-90 shadow-orange-200">
+                  🎁 Đổi quà ngay!
+                </button>
+                <button onClick={handleClose}
+                  className="w-full py-2 rounded-2xl font-semibold text-gray-500 text-sm hover:bg-gray-100 transition-all">
+                  Để sau
+                </button>
+              </div>
+            ) : (
+              <button onClick={handleClose}
+                className="w-full py-3 rounded-2xl font-black text-white text-base shadow-lg transition-all active:scale-95
+                  bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 shadow-orange-200">
+                Tuyệt vời! 🚀
+              </button>
+            )}
           </div>
         </div>
       </div>
