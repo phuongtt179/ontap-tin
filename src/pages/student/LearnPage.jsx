@@ -435,7 +435,7 @@ export default function LearnPage() {
   const [stickerCount, setStickerCount] = useState(0)
   const [streakDays, setStreakDays] = useState(0)
   const [showReward, setShowReward] = useState(false)
-  const STICKER_THRESHOLD = 50
+  const [stickerThreshold, setStickerThreshold] = useState(50)
 
   useEffect(() => {
     if (selectedGrade && user) { setSelectedTopic('__all__'); loadData() }
@@ -443,13 +443,14 @@ export default function LearnPage() {
 
   async function loadData() {
     setLoading(true)
-    const [{ data: topicsData }, { data: lessonsData }, { data: progressData }, { data: unitsData }, { data: profData }] = await Promise.all([
+    const [{ data: topicsData }, { data: lessonsData }, { data: progressData }, { data: unitsData }, { data: profData }, { data: cfgData }] = await Promise.all([
       supabase.from('topics').select('*').in('grade', [selectedGrade, 'all']),
       supabase.from('lessons').select('*').eq('is_published', true).eq('grade', selectedGrade)
         .order('order', { ascending: true }).order('created_at', { ascending: true }),
       supabase.from('lesson_progress').select('*').eq('user_id', user.id),
       supabase.from('units').select('*').eq('grade', selectedGrade).order('sort_order').order('name'),
       supabase.from('profiles').select('sticker_count, streak_days').eq('id', user.id).single(),
+      supabase.from('reward_configs').select('sticker_threshold').eq('grade', selectedGrade).maybeSingle(),
     ])
     setLessons(lessonsData || [])
     setUnits(unitsData || [])
@@ -459,6 +460,7 @@ export default function LearnPage() {
     setProgressMap(map)
     setStickerCount(profData?.sticker_count ?? 0)
     setStreakDays(profData?.streak_days ?? 0)
+    setStickerThreshold(cfgData?.sticker_threshold ?? 50)
     setLoading(false)
   }
 
@@ -529,7 +531,8 @@ export default function LearnPage() {
       {showReward && (
         <RewardModal
           stickerCount={stickerCount}
-          threshold={STICKER_THRESHOLD}
+          threshold={stickerThreshold}
+          grade={selectedGrade}
           onClose={() => setShowReward(false)}
           onRedeemed={newCount => setStickerCount(newCount)}
         />
@@ -597,9 +600,9 @@ export default function LearnPage() {
 
               {/* Sticker */}
               <button
-                onClick={stickerCount >= STICKER_THRESHOLD ? () => setShowReward(true) : undefined}
+                onClick={stickerCount >= stickerThreshold ? () => setShowReward(true) : undefined}
                 className={`flex items-center gap-2 rounded-xl px-2.5 py-2 shrink-0 transition-all duration-300
-                  ${stickerCount >= STICKER_THRESHOLD
+                  ${stickerCount >= stickerThreshold
                     ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-lg cursor-pointer hover:scale-105 active:scale-95'
                     : 'bg-white/15 cursor-default'}`}>
                 <span className="text-2xl select-none leading-none"
@@ -609,17 +612,17 @@ export default function LearnPage() {
                 <div className="flex flex-col gap-0.5">
                   <div className="flex items-baseline gap-0.5 leading-none">
                     <span className="text-white font-black text-lg">{stickerCount}</span>
-                    <span className="text-white/50 text-[10px]">/{STICKER_THRESHOLD}</span>
+                    <span className="text-white/50 text-[10px]">/{stickerThreshold}</span>
                   </div>
                   <div className="w-12 h-1.5 bg-white/25 rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-700"
                       style={{
-                        width: `${Math.min((stickerCount / STICKER_THRESHOLD) * 100, 100)}%`,
-                        background: stickerCount >= STICKER_THRESHOLD ? 'white' : 'linear-gradient(90deg,#fde68a,#fb923c)'
+                        width: `${Math.min((stickerCount / stickerThreshold) * 100, 100)}%`,
+                        background: stickerCount >= stickerThreshold ? 'white' : 'linear-gradient(90deg,#fde68a,#fb923c)'
                       }} />
                   </div>
-                  <span className={`text-[9px] font-bold leading-none ${stickerCount >= STICKER_THRESHOLD ? 'text-white' : 'text-white/50'}`}>
-                    {stickerCount >= STICKER_THRESHOLD ? '🎁 Đổi quà!' : 'sticker'}
+                  <span className={`text-[9px] font-bold leading-none ${stickerCount >= stickerThreshold ? 'text-white' : 'text-white/50'}`}>
+                    {stickerCount >= stickerThreshold ? '🎁 Đổi quà!' : 'sticker'}
                   </span>
                 </div>
               </button>

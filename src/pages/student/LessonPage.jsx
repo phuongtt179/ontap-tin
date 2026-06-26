@@ -880,6 +880,8 @@ export default function LessonPage() {
   const [videoMarking, setVideoMarking] = useState(false)
   const [stickerModal, setStickerModal] = useState(null) // { stickerCount, stickerTotal, threshold, reason }
   const [showReward, setShowReward] = useState(null)    // { stickerCount, threshold } | null
+  const [stickerThreshold, setStickerThreshold] = useState(50)
+  const [studentGrade, setStudentGrade] = useState(null)
   const wasCompleted = useRef(false)
   const [pptxMarking, setPptxMarking] = useState(false)
 
@@ -889,10 +891,18 @@ export default function LessonPage() {
 
   async function loadAll() {
     setLoading(true)
-    // 1. Fetch lesson
+    // 1. Fetch lesson + student grade + threshold
     const { data: lessonData } = await supabase.from('lessons').select('*').eq('id', id).single()
     if (!lessonData) { toast.error('Không tìm thấy bài học'); navigate(-1); return }
     setLesson(lessonData)
+
+    const { data: profGrade } = await supabase.from('profiles').select('grade').eq('id', user.id).single()
+    const grade = profGrade?.grade || null
+    setStudentGrade(grade)
+    if (grade) {
+      const { data: cfgData } = await supabase.from('reward_configs').select('sticker_threshold').eq('grade', grade).maybeSingle()
+      if (cfgData?.sticker_threshold) setStickerThreshold(cfgData.sticker_threshold)
+    }
 
     // 2. Fetch questions if any
     if (lessonData.question_ids?.length > 0) {
@@ -927,7 +937,7 @@ export default function LessonPage() {
   async function awardSticker(count = 1, reason) {
     const { data: prof } = await supabase
       .from('profiles').select('sticker_count, sticker_total').eq('id', user.id).single()
-    const threshold = 50
+    const threshold = stickerThreshold
     const currentCount = (prof?.sticker_count ?? 0) + count
     const totalCount = (prof?.sticker_total ?? 0) + count
     await supabase.from('profiles').update({
@@ -1126,6 +1136,7 @@ export default function LessonPage() {
         <RewardModal
           stickerCount={showReward.stickerCount}
           threshold={showReward.threshold}
+          grade={studentGrade}
           onClose={() => { setShowReward(null); setStickerModal(null) }}
           onRedeemed={() => { setShowReward(null); setStickerModal(null) }}
         />

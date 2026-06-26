@@ -4,11 +4,11 @@ import { useAuth } from '../../context/AuthContext'
 import { X, Gift, CheckCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const SHOW_COUNT = 3 // số quà ngẫu nhiên hiển thị
+const SHOW_COUNT = 3
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5) }
 
-export default function RewardModal({ stickerCount, threshold, onClose, onRedeemed }) {
+export default function RewardModal({ stickerCount, threshold, grade, onClose, onRedeemed }) {
   const { user } = useAuth()
   const [rewards, setRewards] = useState([])
   const [selected, setSelected] = useState(null)
@@ -17,8 +17,8 @@ export default function RewardModal({ stickerCount, threshold, onClose, onRedeem
   const [done, setDone] = useState(false)
   const [visible, setVisible] = useState(false)
 
-  const canRedeem = Math.floor(stickerCount / threshold)  // số lần đổi được
-  const afterRedeem = stickerCount - threshold             // sticker còn lại sau khi đổi 1
+  const canRedeem = Math.floor(stickerCount / threshold)
+  const afterRedeem = stickerCount - threshold
 
   useEffect(() => {
     setTimeout(() => setVisible(true), 30)
@@ -26,12 +26,14 @@ export default function RewardModal({ stickerCount, threshold, onClose, onRedeem
   }, [])
 
   async function loadRewards() {
-    const { data } = await supabase
-      .from('reward_items')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at')
-    // Chọn ngẫu nhiên SHOW_COUNT phần thưởng
+    // Lấy quà chung (grade IS NULL) + quà riêng của khóa này
+    let query = supabase.from('reward_items').select('*').eq('is_active', true).order('created_at')
+    if (grade) {
+      query = query.or(`grade.is.null,grade.eq.${grade}`)
+    } else {
+      query = query.is('grade', null)
+    }
+    const { data } = await query
     const pool = data || []
     setRewards(shuffle(pool).slice(0, SHOW_COUNT))
     setLoading(false)
@@ -41,7 +43,6 @@ export default function RewardModal({ stickerCount, threshold, onClose, onRedeem
     if (!selected) return
     setSubmitting(true)
     try {
-      // 1. Lưu reward request
       const { error: reqErr } = await supabase.from('reward_requests').insert({
         student_id: user.id,
         reward_item_id: selected.id,
@@ -50,7 +51,6 @@ export default function RewardModal({ stickerCount, threshold, onClose, onRedeem
       })
       if (reqErr) throw reqErr
 
-      // 2. Trừ sticker_count, giữ nguyên sticker_total
       const { error: profErr } = await supabase.from('profiles')
         .update({ sticker_count: afterRedeem })
         .eq('id', user.id)
@@ -79,7 +79,7 @@ export default function RewardModal({ stickerCount, threshold, onClose, onRedeem
         ${visible ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`}
         onClick={e => e.stopPropagation()}>
 
-        {/* Rainbow header */}
+        {/* Header */}
         <div className="bg-gradient-to-r from-pink-400 via-orange-400 to-yellow-400 px-6 py-4 text-white relative">
           <button onClick={handleClose} className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30">
             <X size={14} />
@@ -90,13 +90,13 @@ export default function RewardModal({ stickerCount, threshold, onClose, onRedeem
           </div>
           <p className="text-sm text-white/90 mt-0.5">
             Bạn có <span className="font-black">⭐ {stickerCount}</span> sticker
+            {grade && <span className="ml-1.5 bg-white/25 px-1.5 py-0.5 rounded-full text-xs font-bold">Khóa {grade}</span>}
             {canRedeem > 1 && <span className="ml-1 bg-white/25 px-1.5 py-0.5 rounded-full text-xs font-bold">×{canRedeem} lần</span>}
           </p>
         </div>
 
         <div className="px-5 py-4">
           {done ? (
-            /* Màn hình thành công */
             <div className="text-center py-6">
               <div className="text-6xl mb-3">🎉</div>
               <h3 className="text-lg font-black text-gray-800 mb-1">Yêu cầu đã gửi!</h3>
@@ -126,25 +126,20 @@ export default function RewardModal({ stickerCount, threshold, onClose, onRedeem
           ) : (
             <>
               <p className="text-sm text-gray-500 mb-3 text-center">Chọn 1 phần thưởng bạn muốn:</p>
-
-              {/* Reward cards */}
               <div className="grid grid-cols-3 gap-2 mb-4">
                 {rewards.map(r => (
                   <button key={r.id} onClick={() => setSelected(r)}
                     className={`relative flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all duration-200
                       ${selected?.id === r.id
                         ? 'border-orange-400 bg-orange-50 scale-105 shadow-md shadow-orange-100'
-                        : 'border-gray-100 bg-gray-50 hover:border-orange-200 hover:bg-orange-50/50 hover:scale-102'}`}>
-                    {selected?.id === r.id && (
-                      <CheckCircle size={14} className="absolute top-1.5 right-1.5 text-orange-500" />
-                    )}
+                        : 'border-gray-100 bg-gray-50 hover:border-orange-200 hover:bg-orange-50/50'}`}>
+                    {selected?.id === r.id && <CheckCircle size={14} className="absolute top-1.5 right-1.5 text-orange-500" />}
                     <span className="text-3xl">{r.emoji}</span>
                     <span className="text-[10px] font-bold text-gray-700 text-center leading-tight line-clamp-2">{r.name}</span>
                   </button>
                 ))}
               </div>
 
-              {/* Sticker cost info */}
               <div className="bg-gray-50 rounded-2xl px-4 py-2.5 mb-4 flex items-center justify-between">
                 <div className="text-xs text-gray-500">
                   <span className="font-bold text-orange-500">⭐ {threshold}</span> sticker / 1 quà
@@ -154,9 +149,7 @@ export default function RewardModal({ stickerCount, threshold, onClose, onRedeem
                 </div>
               </div>
 
-              <button
-                onClick={handleRedeem}
-                disabled={!selected || submitting}
+              <button onClick={handleRedeem} disabled={!selected || submitting}
                 className={`w-full py-3 rounded-2xl font-black text-base transition-all
                   ${selected
                     ? 'bg-gradient-to-r from-orange-400 to-pink-400 text-white shadow-lg shadow-orange-200 hover:opacity-90 active:scale-95'
