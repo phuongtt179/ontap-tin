@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
-import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users, FileText, FileImage, File, ExternalLink, Code, Play, TerminalSquare } from 'lucide-react'
+import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users, FileText, FileImage, File, ExternalLink, Code, Play, TerminalSquare, Search, Wifi } from 'lucide-react'
 import MarkdownContent from '../../components/ui/MarkdownContent'
 import Sb3Viewer from '../../components/ui/Sb3Viewer'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -146,6 +146,8 @@ export default function LessonSubmissionsPage() {
   const [submissionMap, setSubmissionMap] = useState({}) // userId -> lesson_submission
   const [classes, setClasses] = useState([])
   const [filterClass, setFilterClass] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [realtimeConnected, setRealtimeConnected] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const [selected, setSelected] = useState(null) // { student, submissions }
@@ -155,6 +157,49 @@ export default function LessonSubmissionsPage() {
   const [gradeModal, setGradeModal] = useState(null)  // { student, taskIdx } — popup chấm nhanh
 
   useEffect(() => { loadAll() }, [id])
+
+  // Realtime: tự cập nhật khi học sinh nộp bài hoặc hoàn thành
+  useEffect(() => {
+    const channel = supabase
+      .channel(`lesson-submissions-${id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'lesson_submissions',
+        filter: `lesson_id=eq.${id}`,
+      }, payload => {
+        const newSub = payload.new
+        setSubmissionMap(prev => {
+          const existing = prev[newSub.user_id] || []
+          if (existing.find(s => s.id === newSub.id)) return prev
+          toast.success('Học sinh vừa nộp bài!', { icon: '📩' })
+          return { ...prev, [newSub.user_id]: [...existing, newSub] }
+        })
+      })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'lesson_progress',
+        filter: `lesson_id=eq.${id}`,
+      }, payload => {
+        const p = payload.new
+        setProgressMap(prev => ({ ...prev, [p.user_id]: p }))
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'lesson_progress',
+        filter: `lesson_id=eq.${id}`,
+      }, payload => {
+        const p = payload.new
+        setProgressMap(prev => ({ ...prev, [p.user_id]: p }))
+      })
+      .subscribe(status => {
+        setRealtimeConnected(status === 'SUBSCRIBED')
+      })
+
+    return () => { supabase.removeChannel(channel) }
+  }, [id])
 
   async function loadAll() {
     setLoading(true)
@@ -278,9 +323,14 @@ export default function LessonSubmissionsPage() {
   const hasQuiz = (lesson?.question_ids?.length || 0) > 0
   const hasPractice = lesson?.has_practice
 
-  const displayedStudents = filterClass
-    ? students.filter(s => s.class_name === filterClass)
-    : students
+  const displayedStudents = students.filter(s => {
+    if (filterClass && s.class_name !== filterClass) return false
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      if (!s.full_name.toLowerCase().includes(q)) return false
+    }
+    return true
+  })
 
   // Stats
   const total = displayedStudents.length
@@ -313,7 +363,20 @@ export default function LessonSubmissionsPage() {
           <option value="">Tất cả lớp</option>
           {classes.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Tìm học sinh..."
+            className="border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-44"
+          />
+        </div>
         <span className="text-sm text-gray-500">{total} học sinh</span>
+        <div className={`ml-auto flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${realtimeConnected ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+          <Wifi size={11} className={realtimeConnected ? 'animate-pulse' : ''} />
+          {realtimeConnected ? 'Đang cập nhật tự động' : 'Đang kết nối...'}
+        </div>
       </div>
 
       {/* Summary cards */}
