@@ -381,7 +381,7 @@ export default function LessonSubmissionsPage() {
   const completedCount = displayedStudents.filter(s => progressMap[s.id]?.completed).length
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
+    <div className={selected ? 'p-4 md:p-6 max-w-4xl mx-auto' : 'p-4 md:p-6'}>
       {/* Back */}
       <button
         onClick={() => navigate(-1)}
