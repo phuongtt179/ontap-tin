@@ -597,104 +597,125 @@ export default function LessonSubmissionsPage() {
           </div>
         </div>
       ) : (
-        /* ── Student progress list ── */
+        /* ── Student progress table ── */
         displayedStudents.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <Users size={40} className="mx-auto mb-3 opacity-30" />
             <p>Không có học sinh nào</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {displayedStudents.map(student => {
-              const prog = progressMap[student.id]
-              const subs = submissionMap[student.id] || []
-              const completed = prog?.completed
-              const videoOk = !hasVideo || prog?.video_watched
-              const quizOk = !hasQuiz || prog?.quiz_passed
-              const practiceOk = !hasPractice || subs.length >= taskCount
+          <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="sticky left-0 z-10 bg-gray-50 text-left px-4 py-3 font-semibold text-gray-600 border-r border-gray-200 min-w-[220px] whitespace-nowrap">
+                    Họ và tên
+                  </th>
+                  {hasVideo && (
+                    <th className="px-3 py-3 font-semibold text-gray-600 text-center min-w-[80px] border-r border-gray-100 whitespace-nowrap">
+                      Video
+                    </th>
+                  )}
+                  {hasQuiz && (
+                    <th className="px-3 py-3 font-semibold text-gray-600 text-center min-w-[110px] border-r border-gray-100 whitespace-nowrap">
+                      Câu hỏi
+                    </th>
+                  )}
+                  {hasPractice && Array.from({ length: taskCount }, (_, i) => (
+                    <th key={i} className="px-3 py-3 font-semibold text-gray-600 text-center min-w-[90px] border-r border-gray-100 whitespace-nowrap">
+                      Bài {i + 1}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {displayedStudents.map((student, rowIdx) => {
+                  const prog = progressMap[student.id]
+                  const subs = submissionMap[student.id] || []
+                  const completed = prog?.completed
+                  return (
+                    <tr key={student.id} className={`border-b border-gray-100 transition-colors ${rowIdx % 2 === 1 ? 'bg-gray-50/40' : 'bg-white'} hover:bg-indigo-50/30`}>
+                      {/* Tên học sinh */}
+                      <td className={`sticky left-0 z-10 px-4 py-3 border-r border-gray-200 ${rowIdx % 2 === 1 ? 'bg-gray-50/40' : 'bg-white'} hover:bg-indigo-50/30`}>
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0
+                            ${completed ? 'bg-green-500 text-white' : 'bg-indigo-100 text-indigo-600'}`}>
+                            {student.full_name?.[0]?.toUpperCase() || '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <button
+                              onClick={() => {
+                                if (!hasPractice) return
+                                setSelected({ student, submissions: subs })
+                                const comments = {}; const scores = {}
+                                subs.forEach(s => { comments[s.id] = s.teacher_comment || ''; scores[s.id] = s.score != null ? String(s.score) : '' })
+                                setTaskComments(comments); setTaskScores(scores)
+                              }}
+                              className={`font-medium text-gray-800 text-left leading-tight truncate block max-w-[160px] ${hasPractice ? 'hover:text-indigo-600 cursor-pointer' : 'cursor-default'}`}
+                            >
+                              {student.full_name}
+                            </button>
+                            <span className="text-xs text-gray-400">{student.class_name || student.grade}</span>
+                          </div>
+                        </div>
+                      </td>
 
-              const steps = [hasVideo, hasQuiz, hasPractice].filter(Boolean)
-              const done = [videoOk && hasVideo, quizOk && hasQuiz, practiceOk && hasPractice].filter(Boolean)
-              const pct = steps.length > 0 ? Math.round((done.length / steps.length) * 100) : 0
-
-              return (
-                <div
-                  key={student.id}
-                  onClick={() => {
-                    if (!hasPractice) return
-                    setSelected({ student, submissions: subs })
-                    const comments = {}; const scores = {}
-                    subs.forEach(s => {
-                      comments[s.id] = s.teacher_comment || ''
-                      scores[s.id] = s.score != null ? String(s.score) : ''
-                    })
-                    setTaskComments(comments); setTaskScores(scores)
-                  }}
-                  className={`bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 ${hasPractice ? 'cursor-pointer hover:border-indigo-300 hover:shadow-sm transition' : ''}`}
-                >
-                  {/* Avatar */}
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${completed ? 'bg-green-500 text-white' : 'bg-indigo-100 text-indigo-600'}`}>
-                    {student.full_name?.[0]?.toUpperCase() || '?'}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-gray-800 text-sm">{student.full_name}</span>
-                      <span className="text-xs text-gray-400">{student.class_name || student.grade}</span>
-                    </div>
-
-                    {/* Progress bar */}
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                        <div
-                          className={`h-1.5 rounded-full transition-all ${pct === 100 ? 'bg-green-500' : pct > 0 ? 'bg-indigo-400' : 'bg-gray-200'}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-400 shrink-0 w-8 text-right">{pct}%</span>
-                    </div>
-
-                    {/* Step badges */}
-                    <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                      {/* Video */}
                       {hasVideo && (
-                        <span className={`text-xs px-1.5 py-0.5 rounded flex items-center gap-0.5 font-medium
-                          ${prog?.video_watched ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'}`}>
-                          <PlayCircle size={9} /> Video {prog?.video_watched ? '✓' : '○'}
-                        </span>
+                        <td className="px-3 py-3 text-center border-r border-gray-100">
+                          {prog?.video_watched
+                            ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full"><PlayCircle size={10} />✓</span>
+                            : <span className="text-gray-300 text-sm">—</span>}
+                        </td>
                       )}
+
+                      {/* Câu hỏi */}
                       {hasQuiz && (
-                        <span className={`text-xs px-1.5 py-0.5 rounded flex items-center gap-0.5 font-medium
-                          ${prog?.quiz_passed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
-                          <BookOpen size={9} /> Bài tập {prog?.quiz_passed ? `✓ ${prog.quiz_correct ?? 0}/${prog.quiz_total ?? ''}` : `${prog?.quiz_correct ?? 0}/${lesson?.question_ids?.length ?? 0}`}
-                        </span>
+                        <td className="px-3 py-3 text-center border-r border-gray-100">
+                          {prog?.quiz_passed
+                            ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                ✓ {prog.quiz_correct ?? 0}/{prog.quiz_total ?? lesson?.question_ids?.length ?? 0}
+                              </span>
+                            : (prog?.quiz_correct > 0)
+                            ? <span className="text-xs text-gray-500">{prog.quiz_correct}/{lesson?.question_ids?.length ?? 0}</span>
+                            : <span className="text-gray-300 text-sm">—</span>}
+                        </td>
                       )}
+
+                      {/* Các bài thực hành */}
                       {hasPractice && Array.from({ length: taskCount }, (_, i) => {
                         const sub = subs.find(s => (s.content_json?.task_index ?? 0) === i)
-                        const submitted = !!sub
                         const reviewed = !!sub?.reviewed_at
-                        const waitingResubmit = !!sub?.allow_resubmit
+                        const waiting = !!sub?.allow_resubmit
                         return (
-                          <div key={i} className="flex flex-col items-center gap-0.5">
-                            <button
-                              onClick={submitted ? (e) => openGradeModal(e, student, i) : e => e.stopPropagation()}
-                              className={`text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5 transition
-                                ${waitingResubmit ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                                  : reviewed ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                                  : submitted ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                  : 'bg-gray-100 text-gray-400 cursor-default'}`}>
-                              {waitingResubmit ? <RefreshCw size={9} /> : <Upload size={9} />}
-                              B{i + 1}{submitted ? ' ✓' : ''}
-                            </button>
-                            {waitingResubmit && <span className="text-[10px] text-orange-500 leading-tight font-medium">chờ nộp lại</span>}
-                            {reviewed && !waitingResubmit && <span className="text-[10px] text-indigo-600 leading-tight font-medium">{sub?.score != null ? `${sub.score}đ` : 'đã chấm'}</span>}
-                          </div>
+                          <td key={i} className="px-3 py-3 text-center border-r border-gray-100">
+                            {sub ? (
+                              <button
+                                onClick={e => openGradeModal(e, student, i)}
+                                className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg transition
+                                  ${waiting
+                                    ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                    : reviewed
+                                    ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                    : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
+                              >
+                                {waiting
+                                  ? <><RefreshCw size={10} /> chờ</>
+                                  : reviewed
+                                  ? (sub.score != null ? `${sub.score}đ` : '✓ chấm')
+                                  : '✓ nộp'}
+                              </button>
+                            ) : (
+                              <span className="text-gray-300 text-sm">—</span>
+                            )}
+                          </td>
                         )
                       })}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         )
       )}
