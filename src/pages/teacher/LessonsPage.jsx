@@ -761,6 +761,7 @@ export default function LessonsPage() {
   const [selectedGrade, setSelectedGrade] = useState('')
   const [selectedTopic, setSelectedTopic] = useState('')
   const [selectedUnit, setSelectedUnit] = useState(null)
+  const [selectedLessonTitle, setSelectedLessonTitle] = useState(null)
   const [expandedTopics, setExpandedTopics] = useState({})
   const [allLessons, setAllLessons] = useState([])
   const [loading, setLoading] = useState(false)
@@ -769,6 +770,7 @@ export default function LessonsPage() {
   const [previewLesson, setPreviewLesson] = useState(null)
 
   const { units: gradeUnits } = useUnitsByGrade(selectedGrade)
+  const { lessonTitles: unitLessonTitles } = useLessonTitles(selectedUnit?.id)
 
   useEffect(() => {
     if (GRADES.length > 0 && topics.length > 0 && !selectedGrade) {
@@ -810,12 +812,14 @@ export default function LessonsPage() {
     } else {
       setSelectedTopic(topicName)
       setSelectedUnit(null)
+      setSelectedLessonTitle(null)
       setExpandedTopics(prev => ({ ...prev, [topicName]: true }))
     }
   }
 
   function handleUnitClick(unit) {
     setSelectedUnit(prev => prev?.id === unit.id ? null : unit)
+    setSelectedLessonTitle(null)
   }
 
   const gradeTopics = useMemo(
@@ -846,12 +850,21 @@ export default function LessonsPage() {
     return map
   }, [allLessons])
 
+  const countByLessonTitle = useMemo(() => {
+    const map = {}
+    allLessons.forEach(l => {
+      if (l.lesson_title_id) map[l.lesson_title_id] = (map[l.lesson_title_id] || 0) + 1
+    })
+    return map
+  }, [allLessons])
+
   const displayedLessons = useMemo(() => {
     let ls = allLessons
     if (selectedTopic) ls = ls.filter(l => l.topic === selectedTopic)
     if (selectedUnit) ls = ls.filter(l => l.unit_id === selectedUnit.id)
+    if (selectedLessonTitle) ls = ls.filter(l => l.lesson_title_id === selectedLessonTitle.id)
     return ls
-  }, [allLessons, selectedTopic, selectedUnit])
+  }, [allLessons, selectedTopic, selectedUnit, selectedLessonTitle])
 
   async function handleDelete(id, title) {
     if (!confirm(`Xóa bài học "${title}"?`)) return
@@ -866,9 +879,11 @@ export default function LessonsPage() {
     else fetchLessons()
   }
 
-  const panelTitle = selectedUnit
-    ? selectedUnit.name
-    : selectedTopic || 'Tất cả bài học'
+  const panelTitle = selectedLessonTitle
+    ? selectedLessonTitle.name
+    : selectedUnit
+      ? selectedUnit.name
+      : selectedTopic || 'Tất cả bài học'
 
   return (
     <div className="flex h-full min-h-0">
@@ -921,21 +936,44 @@ export default function LessonsPage() {
                         const uCount = countByUnit[u.id] || 0
                         const uActive = selectedUnit?.id === u.id
                         return (
-                          <button
-                            key={u.id}
-                            onClick={() => { setSelectedTopic(t.name); handleUnitClick(u) }}
-                            className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs transition
-                              ${uActive
-                                ? 'bg-indigo-100 text-indigo-800 font-medium'
-                                : 'text-gray-600 hover:bg-gray-100'}`}
-                          >
-                            <BookOpen size={11} className="shrink-0 opacity-50" />
-                            <span className="flex-1 leading-tight line-clamp-2">{u.name}</span>
-                            <span className={`shrink-0 text-xs px-1 py-0.5 rounded-full
-                              ${uActive ? 'bg-indigo-200 text-indigo-700' : 'bg-gray-100 text-gray-400'}`}>
-                              {uCount}
-                            </span>
-                          </button>
+                          <div key={u.id}>
+                            <button
+                              onClick={() => { setSelectedTopic(t.name); handleUnitClick(u) }}
+                              className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs transition
+                                ${uActive
+                                  ? 'bg-indigo-100 text-indigo-800 font-medium'
+                                  : 'text-gray-600 hover:bg-gray-100'}`}
+                            >
+                              <BookOpen size={11} className="shrink-0 opacity-50" />
+                              <span className="flex-1 leading-tight line-clamp-2">{u.name}</span>
+                              <span className={`shrink-0 text-xs px-1 py-0.5 rounded-full
+                                ${uActive ? 'bg-indigo-200 text-indigo-700' : 'bg-gray-100 text-gray-400'}`}>
+                                {uCount}
+                              </span>
+                            </button>
+                            {uActive && unitLessonTitles.length > 0 && (
+                              <div className="ml-4 mt-0.5 space-y-0.5 border-l-2 border-indigo-100 pl-2">
+                                {unitLessonTitles.map(lt => {
+                                  const ltActive = selectedLessonTitle?.id === lt.id
+                                  const ltCount = countByLessonTitle[lt.id] || 0
+                                  return (
+                                    <button
+                                      key={lt.id}
+                                      onClick={() => setSelectedLessonTitle(prev => prev?.id === lt.id ? null : lt)}
+                                      className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left text-xs transition
+                                        ${ltActive ? 'bg-indigo-600 text-white font-medium' : 'text-gray-500 hover:bg-gray-100'}`}
+                                    >
+                                      <span className="flex-1 leading-tight line-clamp-2">{lt.name}</span>
+                                      <span className={`shrink-0 text-xs px-1 py-0.5 rounded-full
+                                        ${ltActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                        {ltCount}
+                                      </span>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
                         )
                       })}
                     </div>
@@ -952,9 +990,14 @@ export default function LessonsPage() {
         <div className="flex items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-200 shrink-0">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              {selectedUnit && (
+              {selectedLessonTitle ? (
+                <>
+                  <span className="text-xs text-gray-400">{selectedTopic} /</span>
+                  <span className="text-xs text-gray-400">{selectedUnit?.name} /</span>
+                </>
+              ) : selectedUnit ? (
                 <span className="text-xs text-gray-400">{selectedTopic} /</span>
-              )}
+              ) : null}
               <h2 className="font-semibold text-gray-800 truncate">{panelTitle}</h2>
             </div>
             <p className="text-xs text-gray-400 mt-0.5">
