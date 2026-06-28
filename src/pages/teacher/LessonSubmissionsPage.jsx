@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
-import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users, FileText, FileImage, File, ExternalLink, Code, Play, TerminalSquare, Search, Wifi } from 'lucide-react'
+import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users, FileText, FileImage, File, ExternalLink, Code, Play, TerminalSquare, Search, Wifi, RefreshCw } from 'lucide-react'
 import MarkdownContent from '../../components/ui/MarkdownContent'
 import Sb3Viewer from '../../components/ui/Sb3Viewer'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -177,6 +177,26 @@ export default function LessonSubmissionsPage() {
         })
       })
       .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'lesson_submissions',
+        filter: `lesson_id=eq.${id}`,
+      }, payload => {
+        const updated = payload.new
+        setSubmissionMap(prev => {
+          const subs = prev[updated.user_id] || []
+          return { ...prev, [updated.user_id]: subs.map(s => s.id === updated.id ? updated : s) }
+        })
+        setSelected(prev => {
+          if (!prev || prev.student.id !== updated.user_id) return prev
+          return { ...prev, submissions: prev.submissions.map(s => s.id === updated.id ? updated : s) }
+        })
+        // Thông báo khi học sinh nộp lại (cleared reviewed_at)
+        if (!updated.allow_resubmit && !updated.reviewed_at && updated.submitted_at) {
+          toast('Học sinh vừa nộp lại bài!', { icon: '🔄' })
+        }
+      })
+      .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'lesson_progress',
@@ -298,6 +318,26 @@ export default function LessonSubmissionsPage() {
       ? { ...prev, submissions: prev.submissions.map(s => s.id === sub.id ? { ...s, ...updates } : s) }
       : prev)
     // Cập nhật gradeModal
+    setGradeModal(prev => prev?.student.id === theStudent.id ? { ...prev } : prev)
+  }
+
+  async function allowResubmit(sub, student) {
+    const theStudent = student || selected?.student
+    if (!theStudent) return
+    const isAllow = !sub.allow_resubmit
+    const { error } = await supabase.from('lesson_submissions')
+      .update({ allow_resubmit: isAllow })
+      .eq('id', sub.id)
+    if (error) { toast.error('Thất bại: ' + error.message); return }
+    toast.success(isAllow ? `Đã cho phép ${theStudent.full_name} nộp lại` : 'Đã hủy cho phép nộp lại')
+    const updates = { allow_resubmit: isAllow }
+    setSubmissionMap(prev => {
+      const oldSubs = prev[theStudent.id] || []
+      return { ...prev, [theStudent.id]: oldSubs.map(s => s.id === sub.id ? { ...s, ...updates } : s) }
+    })
+    setSelected(prev => prev?.student.id === theStudent.id
+      ? { ...prev, submissions: prev.submissions.map(s => s.id === sub.id ? { ...s, ...updates } : s) }
+      : prev)
     setGradeModal(prev => prev?.student.id === theStudent.id ? { ...prev } : prev)
   }
 
@@ -519,11 +559,25 @@ export default function LessonSubmissionsPage() {
                           placeholder={`Nhận xét bài ${i + 1}...`}
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none mb-2"
                         />
-                        <button onClick={() => saveTaskComment(subItem, selected.student)} disabled={!!taskSaving[subItem.id]}
-                          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 transition">
-                          {taskSaving[subItem.id] ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
-                          Lưu nhận xét bài {i + 1}
-                        </button>
+                        <div className="flex gap-2">
+                          <button onClick={() => saveTaskComment(subItem, selected.student)} disabled={!!taskSaving[subItem.id]}
+                            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 transition">
+                            {taskSaving[subItem.id] ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+                            Lưu nhận xét bài {i + 1}
+                          </button>
+                          {subItem.reviewed_at && (
+                            <button
+                              onClick={() => allowResubmit(subItem, selected.student)}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition
+                                ${subItem.allow_resubmit
+                                  ? 'border-orange-300 bg-orange-50 text-orange-600 hover:bg-orange-100'
+                                  : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                            >
+                              <RefreshCw size={11} />
+                              {subItem.allow_resubmit ? 'Đã cho phép nộp lại' : 'Cho phép nộp lại'}
+                            </button>
+                          )}
+                        </div>
                         {subItem.reviewed_at && (
                           <p className="text-xs text-gray-400 mt-1.5">Đã nhận xét lúc {new Date(subItem.reviewed_at).toLocaleString('vi-VN')}</p>
                         )}
@@ -618,17 +672,21 @@ export default function LessonSubmissionsPage() {
                         const sub = subs.find(s => (s.content_json?.task_index ?? 0) === i)
                         const submitted = !!sub
                         const reviewed = !!sub?.reviewed_at
+                        const waitingResubmit = !!sub?.allow_resubmit
                         return (
                           <div key={i} className="flex flex-col items-center gap-0.5">
                             <button
                               onClick={submitted ? (e) => openGradeModal(e, student, i) : e => e.stopPropagation()}
                               className={`text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5 transition
-                                ${reviewed ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                ${waitingResubmit ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                  : reviewed ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
                                   : submitted ? 'bg-green-100 text-green-700 hover:bg-green-200'
                                   : 'bg-gray-100 text-gray-400 cursor-default'}`}>
-                              <Upload size={9} /> B{i + 1}{submitted ? ' ✓' : ''}
+                              {waitingResubmit ? <RefreshCw size={9} /> : <Upload size={9} />}
+                              B{i + 1}{submitted ? ' ✓' : ''}
                             </button>
-                            {reviewed && <span className="text-[10px] text-indigo-600 leading-tight font-medium">{sub?.score != null ? `${sub.score}đ` : 'đã chấm'}</span>}
+                            {waitingResubmit && <span className="text-[10px] text-orange-500 leading-tight font-medium">chờ nộp lại</span>}
+                            {reviewed && !waitingResubmit && <span className="text-[10px] text-indigo-600 leading-tight font-medium">{sub?.score != null ? `${sub.score}đ` : 'đã chấm'}</span>}
                           </div>
                         )
                       })}
@@ -766,6 +824,18 @@ export default function LessonSubmissionsPage() {
                   </div>
                   {sub.reviewed_at && (
                     <p className="text-xs text-gray-400">Đã nhận xét lúc {new Date(sub.reviewed_at).toLocaleString('vi-VN')}</p>
+                  )}
+                  {sub.reviewed_at && (
+                    <button
+                      onClick={() => allowResubmit(sub, student)}
+                      className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl border text-sm font-medium transition
+                        ${sub.allow_resubmit
+                          ? 'border-orange-300 bg-orange-50 text-orange-600 hover:bg-orange-100'
+                          : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                    >
+                      <RefreshCw size={13} />
+                      {sub.allow_resubmit ? '✓ Đã cho phép nộp lại — bấm để hủy' : 'Cho phép nộp lại'}
+                    </button>
                   )}
                 </div>
               </div>

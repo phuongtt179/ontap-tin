@@ -1028,7 +1028,15 @@ export default function LessonPage() {
       if (file) fileUrl = await uploadFile(file)
       const { data: updated, error } = await supabase
         .from('lesson_submissions')
-        .update({ file_url: fileUrl, text_content: note.trim() || null, submitted_at: new Date().toISOString() })
+        .update({
+          file_url: fileUrl,
+          text_content: note.trim() || null,
+          submitted_at: new Date().toISOString(),
+          allow_resubmit: false,
+          reviewed_at: null,
+          score: null,
+          teacher_comment: null,
+        })
         .eq('id', existingSub.id)
         .select().single()
       if (error) throw error
@@ -1464,6 +1472,12 @@ export default function LessonPage() {
                                       {sub.text_content}
                                     </div>
                                   )}
+                                  {sub.allow_resubmit && (
+                                    <div className="rounded-xl p-3 border border-orange-300 bg-orange-50 flex items-center gap-2">
+                                      <span className="text-lg">📢</span>
+                                      <p className="text-sm text-orange-700 font-semibold">Giáo viên cho phép bạn nộp lại bài này!</p>
+                                    </div>
+                                  )}
                                   {sub.teacher_comment ? (
                                     <div className="rounded-xl p-4 border border-indigo-200 bg-indigo-50">
                                       <div className="text-indigo-700 font-bold text-xs mb-1.5">💬 Nhận xét của giáo viên</div>
@@ -1472,7 +1486,7 @@ export default function LessonPage() {
                                   ) : (
                                     <p className="text-xs text-gray-400 italic text-center py-2">⏳ Chờ giáo viên nhận xét...</p>
                                   )}
-                                  {!sub.reviewed_at && (
+                                  {(!sub.reviewed_at || sub.allow_resubmit) && (
                                     <button onClick={() => {
                                       const nn = [...taskNotes]; nn[i] = sub.text_content || ''; setTaskNotes(nn)
                                       setResubmitTask(i)
