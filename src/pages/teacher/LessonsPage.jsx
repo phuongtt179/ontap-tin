@@ -107,10 +107,10 @@ function TaskEditor({ index, task, onChange, onRemove, autoFocus }) {
                 onChange({ ...task, instructions: next })
               }
             }}
-            rows={4}
+            rows={10}
             autoFocus={autoFocus}
             placeholder="Nhập hướng dẫn ngắn (tùy chọn, hỗ trợ Markdown)..."
-            className="w-full px-3 py-2.5 text-sm focus:outline-none resize-none font-mono"
+            className="w-full px-3 py-2.5 text-sm focus:outline-none resize-y font-mono min-h-[180px]"
           />
           <div className="bg-gray-50 border-t border-gray-100 px-3 py-1.5 text-[10px] text-gray-400 flex gap-3 flex-wrap">
             <span>**đậm**</span><span>*nghiêng*</span><span># Tiêu đề</span><span>- danh sách</span>
@@ -181,6 +181,7 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
   const [filterDiff, setFilterDiff] = useState('')
   const [filterLessonTitle, setFilterLessonTitle] = useState('')
   const [randomCount, setRandomCount] = useState(10)
+  const [currentTaskIdx, setCurrentTaskIdx] = useState(0)
   const [saving, setSaving] = useState(false)
   const [loadingQ, setLoadingQ] = useState(false)
   const [pptxUploading, setPptxUploading] = useState(false)
@@ -261,10 +262,18 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
   }
 
   function addTask() {
-    setForm(f => ({ ...f, practice_tasks: [...f.practice_tasks, { instructions: '', instruction_file_url: '' }] }))
+    setForm(f => {
+      const next = [...f.practice_tasks, { instructions: '', instruction_file_url: '' }]
+      setCurrentTaskIdx(next.length - 1)
+      return { ...f, practice_tasks: next }
+    })
   }
   function removeTask(idx) {
-    setForm(f => ({ ...f, practice_tasks: f.practice_tasks.filter((_, i) => i !== idx) }))
+    setForm(f => {
+      const next = f.practice_tasks.filter((_, i) => i !== idx)
+      setCurrentTaskIdx(prev => Math.min(prev, next.length - 1))
+      return { ...f, practice_tasks: next }
+    })
   }
   function updateTask(idx, taskObj) {
     setForm(f => ({ ...f, practice_tasks: f.practice_tasks.map((t, i) => i === idx ? taskObj : t) }))
@@ -564,23 +573,65 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
               )}
             </div>
           ) : (
-            /* ── Step 3: Practice settings ── */
+            /* ── Step 3: Practice settings (carousel) ── */
             <div className="space-y-3">
-              <p className="text-xs text-gray-500">
-                Mỗi bài yêu cầu học sinh nộp 1 file (.pptx · .docx · .sb3).
-              </p>
-              {form.practice_tasks.map((task, i) => (
-                <TaskEditor key={i} index={i}
-                  task={task}
-                  onChange={taskObj => updateTask(i, taskObj)}
-                  onRemove={form.practice_tasks.length > 1 ? () => removeTask(i) : null}
-                  autoFocus={i === form.practice_tasks.length - 1}
-                />
-              ))}
-              <button type="button" onClick={addTask}
-                className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition">
-                <Plus size={14} /> Thêm bài tập
-              </button>
+              {/* Navigation bar */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  {form.practice_tasks.map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setCurrentTaskIdx(i)}
+                      className={`w-7 h-7 rounded-full text-xs font-bold transition
+                        ${currentTaskIdx === i
+                          ? 'bg-indigo-600 text-white shadow'
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addTask}
+                    className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-lg font-bold flex items-center justify-center transition"
+                    title="Thêm bài tập"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={currentTaskIdx === 0}
+                    onClick={() => setCurrentTaskIdx(i => i - 1)}
+                    className="px-2 py-1 text-xs rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 transition"
+                  >
+                    ← Trước
+                  </button>
+                  <span className="text-xs text-gray-400">{currentTaskIdx + 1}/{form.practice_tasks.length}</span>
+                  <button
+                    type="button"
+                    disabled={currentTaskIdx === form.practice_tasks.length - 1}
+                    onClick={() => setCurrentTaskIdx(i => i + 1)}
+                    className="px-2 py-1 text-xs rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 transition"
+                  >
+                    Sau →
+                  </button>
+                </div>
+              </div>
+
+              {/* Single task editor */}
+              <TaskEditor
+                key={currentTaskIdx}
+                index={currentTaskIdx}
+                task={form.practice_tasks[currentTaskIdx]}
+                onChange={taskObj => updateTask(currentTaskIdx, taskObj)}
+                onRemove={form.practice_tasks.length > 1 ? () => removeTask(currentTaskIdx) : null}
+                autoFocus
+              />
+
+              <p className="text-xs text-gray-400">Mỗi bài yêu cầu học sinh nộp 1 file (.pptx · .docx · .sb3).</p>
             </div>
           )}
         </div>
