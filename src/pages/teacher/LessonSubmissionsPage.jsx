@@ -370,6 +370,11 @@ export default function LessonSubmissionsPage() {
       if (!s.full_name.toLowerCase().includes(q)) return false
     }
     return true
+  }).sort((a, b) => {
+    const aCount = (submissionMap[a.id] || []).length
+    const bCount = (submissionMap[b.id] || []).length
+    if (bCount !== aCount) return bCount - aCount
+    return (a.class_name || '').localeCompare(b.class_name || '') || a.full_name.localeCompare(b.full_name)
   })
 
   // Stats
