@@ -9,7 +9,7 @@ import QuestionCard from '../../components/teacher/QuestionCard'
 import QuestionFormModal from '../../components/teacher/QuestionFormModal'
 import QuizSession from '../../components/student/QuizSession'
 import toast from 'react-hot-toast'
-import { Upload, Plus, BookOpen, ChevronDown, ChevronRight, Play, X } from 'lucide-react'
+import { Upload, Plus, BookOpen, ChevronDown, ChevronRight, Play, X, Filter } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 export default function QuestionsPage() {
@@ -29,6 +29,7 @@ export default function QuestionsPage() {
   const [filterType, setFilterType] = useState('')
   const [previewIds, setPreviewIds] = useState(new Set())
   const [showPreview, setShowPreview] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const { units: gradeUnits } = useUnitsByGrade(selectedGrade)
   const { lessonTitles: unitLessonTitles } = useLessonTitles(selectedUnit?.id)
@@ -157,13 +158,24 @@ export default function QuestionsPage() {
       : selectedTopic || 'Tất cả câu hỏi'
 
   return (
-    <div className="flex h-full min-h-0">
+    <div className="flex h-full min-h-0 relative overflow-hidden">
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
 
       {/* ── Sidebar ─────────────────────────────── */}
-      <aside className="w-64 shrink-0 bg-white border-r border-gray-200 flex flex-col min-h-0">
+      <aside className={sidebarOpen
+        ? 'flex fixed inset-y-0 left-0 z-40 shadow-2xl w-64 shrink-0 bg-white border-r border-gray-200 flex-col min-h-0'
+        : 'hidden md:flex md:relative w-64 shrink-0 bg-white border-r border-gray-200 flex-col min-h-0'
+      }>
         {/* Grade selector */}
         <div className="px-4 pt-5 pb-4 border-b border-gray-100">
-          <h1 className="text-lg font-bold text-gray-800 mb-3">Ngân hàng câu hỏi</h1>
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-lg font-bold text-gray-800">Ngân hàng câu hỏi</h1>
+            <button onClick={() => setSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600 p-1 -mr-1"><X size={18} /></button>
+          </div>
           <select value={selectedGrade} onChange={e => handleGradeChange(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
             {GRADES.length === 0 && <option value="">-- Chọn khoá --</option>}
@@ -267,7 +279,11 @@ export default function QuestionsPage() {
       {/* ── Main panel ──────────────────────────── */}
       <div className="flex-1 flex flex-col min-h-0 bg-gray-50">
         {/* Toolbar */}
-        <div className="flex items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-200 shrink-0">
+        <div className="flex items-center justify-between gap-2 md:gap-4 px-4 md:px-6 py-4 bg-white border-b border-gray-200 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden shrink-0 flex items-center gap-1 text-sm text-gray-600 border border-gray-300 rounded-lg px-2.5 py-1.5">
+              <Filter size={14} /> Lọc
+            </button>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               {selectedUnit && (
@@ -278,6 +294,7 @@ export default function QuestionsPage() {
             <p className="text-xs text-gray-400 mt-0.5">
               {loading ? '...' : `${displayedQuestions.length} câu hỏi`}
             </p>
+          </div>
           </div>
           <div className="flex gap-2 shrink-0 items-center flex-wrap justify-end">
             <select value={filterType} onChange={e => setFilterType(e.target.value)}

@@ -853,13 +853,13 @@ export default function StudentsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-5">
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Tìm theo tên..."
-            className="pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-44"
+            className="pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-44"
           />
         </div>
         <select
@@ -918,7 +918,7 @@ export default function StudentsPage() {
         </div>
       )}
 
-      {/* Table */}
+      {/* Table / Cards */}
       {loading ? (
         <div className="flex justify-center py-16">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
@@ -929,7 +929,46 @@ export default function StudentsPage() {
           <p className="text-sm mt-1">Bấm "Nhập học sinh" để thêm hàng loạt</p>
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+        <>
+        {/* Mobile card list */}
+        <div className="sm:hidden space-y-2">
+          {displayed.map((s, i) => (
+            <div key={s.id} className={`bg-white border rounded-xl p-3 ${selectedIds.has(s.id) ? 'bg-red-50 border-red-200' : 'border-gray-200'}`}>
+              <div className="flex items-start gap-2">
+                {canDelete && (
+                  <input type="checkbox" checked={selectedIds.has(s.id)}
+                    onChange={() => setSelectedIds(prev => { const n = new Set(prev); n.has(s.id) ? n.delete(s.id) : n.add(s.id); return n })}
+                    className="mt-0.5 rounded border-gray-300 text-indigo-600 cursor-pointer shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-semibold text-gray-800 text-sm truncate">{s.full_name}</span>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <button onClick={() => setEnrollStudent(s)} className="text-gray-300 hover:text-green-600 p-1" title="Khoá học"><UserPlus size={14} /></button>
+                      <button onClick={() => setEditStudent(s)} className="text-gray-300 hover:text-indigo-500 p-1" title="Sửa"><Pencil size={14} /></button>
+                      {canDelete && <button onClick={() => handleDelete(s)} className="text-gray-300 hover:text-red-500 p-1" title="Xóa"><Trash2 size={14} /></button>}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400 font-mono truncate mt-0.5">
+                    {s.username ? <>{s.username}<span className="text-gray-300">@school.local</span></> : '—'}
+                  </p>
+                  {(s.enrollments || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {(s.enrollments || []).map(e => (
+                        <span key={e.id} className={`text-xs px-2 py-0.5 rounded-full font-medium ${gradeColors[e.grade] || 'bg-gray-100 text-gray-600'}`}>
+                          {e.grade}{e.class_name ? ` · ${e.class_name}` : ''}{!e.is_approved ? ' (chờ)' : ''}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-x-auto">
           <table className="w-full text-sm min-w-[560px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -1033,6 +1072,7 @@ export default function StudentsPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {showImport && (
