@@ -282,9 +282,14 @@ function LessonNode({ lesson, globalIdx, prog, navigate }) {
 }
 
 // ── Zigzag path inside a unit ─────────────────────────────────────
-const COLS = 4
-
 function UnitPath({ lessons, progressMap, navigate, globalStart }) {
+  const [cols, setCols] = useState(() => window.innerWidth < 640 ? 2 : 4)
+  useEffect(() => {
+    const h = () => setCols(window.innerWidth < 640 ? 2 : 4)
+    window.addEventListener('resize', h)
+    return () => window.removeEventListener('resize', h)
+  }, [])
+  const COLS = cols
   const rows = []
   for (let i = 0; i < lessons.length; i += COLS) {
     rows.push(lessons.slice(i, i + COLS))

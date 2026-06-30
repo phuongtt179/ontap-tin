@@ -119,7 +119,7 @@ export default function GradesPage() {
       </div>
 
       {adding && (
-        <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6 flex items-end gap-3 max-w-sm">
+        <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6 flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3">
           <div className="flex-1">
             <label className="block text-xs font-medium text-gray-500 mb-1">Tên khoá học</label>
             <input

@@ -1311,9 +1311,9 @@ export default function LessonPage() {
                 ]
                 return (
                   <>
-                    {/* ── Node map: 6 bài/dòng, wrap xuống dòng 2 nếu nhiều hơn ── */}
+                    {/* ── Node map: 3 bài/dòng trên mobile, 6 trên desktop ── */}
                     {(() => {
-                      const TASKS_PER_ROW = 6
+                      const TASKS_PER_ROW = window.innerWidth < 640 ? 3 : 6
                       const nodeIcons = ['⚡','🎯','🔥','⭐','🚀']
                       const rows = []
                       for (let r = 0; r < practiceTasks.length; r += TASKS_PER_ROW)
@@ -1330,7 +1330,7 @@ export default function LessonPage() {
                                 const hasComment = !!sub?.teacher_comment
                                 return (
                                   <div key={i} className="flex items-center">
-                                    <div className="flex flex-col items-center gap-2" style={{ minWidth: 88 }}>
+                                    <div className="flex flex-col items-center gap-2" style={{ minWidth: window.innerWidth < 640 ? 70 : 88 }}>
                                       {/* Badge */}
                                       <div className={`text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 shadow-sm whitespace-nowrap
                                         ${sub

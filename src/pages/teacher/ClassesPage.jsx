@@ -126,7 +126,7 @@ export default function ClassesPage() {
 
       {/* Add form */}
       {adding && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-4 flex items-center gap-3">
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
           <input
             autoFocus
             value={newName}
