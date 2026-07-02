@@ -285,7 +285,7 @@ export default function LessonSubmissionsPage() {
     setTaskSaving(prev => ({ ...prev, [sub.id]: true }))
     const scoreRaw = taskScores[sub.id]
     const scoreVal = (scoreRaw !== '' && scoreRaw != null) ? parseFloat(scoreRaw) : null
-    const isFirstGrade = sub.score == null && scoreVal != null && !isNaN(scoreVal)
+    const isFirstGrade = !sub.reviewed_at && scoreVal != null && !isNaN(scoreVal)
     const updates = {
       teacher_comment: taskComments[sub.id] ?? '',
       reviewed_at: new Date().toISOString(),
@@ -408,6 +408,17 @@ export default function LessonSubmissionsPage() {
       ...prev,
       [student.id]: (prev[student.id] || []).map(s => s.id === sub.id ? { ...s, ...updates } : s),
     }))
+    if (sub.score != null) {
+      const bonus = scoreToBonus(sub.score)
+      if (bonus > 0) {
+        const { data: prof } = await supabase.from('profiles').select('sticker_count, sticker_total').eq('id', student.id).single()
+        await supabase.from('profiles').update({
+          sticker_count: (prof?.sticker_count ?? 0) + bonus,
+          sticker_total: (prof?.sticker_total ?? 0) + bonus,
+        }).eq('id', student.id)
+        toast.success(`Đã cộng +${bonus} ⭐ cho ${student.full_name}`)
+      }
+    }
   }
 
   async function approveAllAiGrades() {
@@ -430,6 +441,23 @@ export default function LessonSubmissionsPage() {
       })
       return next
     })
+    // Cộng sticker theo từng học sinh (gộp tất cả bài trong lần duyệt)
+    const studentBonusMap = {}
+    toApprove.forEach(({ sub, student }) => {
+      if (sub.score != null) {
+        const bonus = scoreToBonus(sub.score)
+        if (bonus > 0) studentBonusMap[student.id] = (studentBonusMap[student.id] || { student, bonus: 0 })
+        if (bonus > 0) studentBonusMap[student.id].bonus += bonus
+      }
+    })
+    await Promise.all(Object.values(studentBonusMap).map(async ({ student, bonus }) => {
+      if (bonus <= 0) return
+      const { data: prof } = await supabase.from('profiles').select('sticker_count, sticker_total').eq('id', student.id).single()
+      await supabase.from('profiles').update({
+        sticker_count: (prof?.sticker_count ?? 0) + bonus,
+        sticker_total: (prof?.sticker_total ?? 0) + bonus,
+      }).eq('id', student.id)
+    }))
     setApprovingAll(false)
     toast.success(`Đã duyệt ${toApprove.length} bài AI!`)
     setShowAiReview(false)
