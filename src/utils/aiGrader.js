@@ -40,8 +40,16 @@ async function runPythonTest(code, input, expected, points) {
 }
 
 async function extractContent(fileUrl, textContent, type) {
-  if (type === 'text') return textContent || ''
   if (type === 'image') return null
+  if (type === 'text') {
+    if (fileUrl) {
+      try {
+        const res = await fetch(fileUrl)
+        if (res.ok) return await res.text()
+      } catch {}
+    }
+    return textContent || ''
+  }
 
   const res = await fetch(fileUrl)
   if (!res.ok) return textContent || ''
