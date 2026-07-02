@@ -809,11 +809,13 @@ export default function LessonsPage() {
   const { grades: GRADES } = useGrades()
   const { topics } = useTopics()
 
-  const [selectedGrade, setSelectedGrade] = useState('')
-  const [selectedTopic, setSelectedTopic] = useState('')
+  const [selectedGrade, setSelectedGrade] = useState(() => sessionStorage.getItem('lessons_grade') || '')
+  const [selectedTopic, setSelectedTopic] = useState(() => sessionStorage.getItem('lessons_topic') || '')
   const [selectedUnit, setSelectedUnit] = useState(null)
   const [selectedLessonTitle, setSelectedLessonTitle] = useState(null)
-  const [expandedTopics, setExpandedTopics] = useState({})
+  const [expandedTopics, setExpandedTopics] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('lessons_expanded') || '{}') } catch { return {} }
+  })
   const [allLessons, setAllLessons] = useState([])
   const [loading, setLoading] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
@@ -823,6 +825,10 @@ export default function LessonsPage() {
 
   const { units: gradeUnits } = useUnitsByGrade(selectedGrade)
   const { lessonTitles: unitLessonTitles } = useLessonTitles(selectedUnit?.id)
+
+  useEffect(() => { if (selectedGrade) sessionStorage.setItem('lessons_grade', selectedGrade) }, [selectedGrade])
+  useEffect(() => { if (selectedTopic) sessionStorage.setItem('lessons_topic', selectedTopic) }, [selectedTopic])
+  useEffect(() => { sessionStorage.setItem('lessons_expanded', JSON.stringify(expandedTopics)) }, [expandedTopics])
 
   useEffect(() => {
     if (GRADES.length > 0 && topics.length > 0 && !selectedGrade) {
