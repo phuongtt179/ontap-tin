@@ -92,49 +92,36 @@ async function extractContent(fileUrl, textContent, type) {
   return textContent || ''
 }
 
-// Grade a single student's tasks in one API call
-// submissions: array indexed by task (null = not submitted)
-// taskDefs: array of {instructions} objects
-// Returns: { results: [{taskIndex, score, comment}] }
-export async function gradeStudent(submissions, taskDefs) {
-  const preparedTasks = []
+async function gradeOneTask(taskIndex, sub, taskDef) {
+  const instructions = taskDef?.instructions || ''
+  const fileUrl = sub.file_url
+  const textContent = sub.text_content
+  const type = getFileType(fileUrl, textContent)
 
-  for (let i = 0; i < taskDefs.length; i++) {
-    const sub = submissions[i]
-    if (!sub) continue
-
-    const instructions = taskDefs[i]?.instructions || ''
-    const fileUrl = sub.file_url
-    const textContent = sub.text_content
-    const type = getFileType(fileUrl, textContent)
-
-    let testResults = null
-    if (type === 'py') {
-      const testCases = parseTestCases(instructions)
-      if (testCases.length > 0) {
-        const code = await extractContent(fileUrl, textContent, 'py')
-        testResults = await Promise.all(
-          testCases.map(tc => runPythonTest(code, tc.input, tc.expected, tc.points))
-        )
-      }
+  let testResults = null
+  if (type === 'py') {
+    const testCases = parseTestCases(instructions)
+    if (testCases.length > 0) {
+      const code = await extractContent(fileUrl, textContent, 'py')
+      testResults = await Promise.all(
+        testCases.map(tc => runPythonTest(code, tc.input, tc.expected, tc.points))
+      )
     }
-
-    preparedTasks.push({
-      taskIndex: i,
-      type,
-      content: type !== 'image' ? await extractContent(fileUrl, textContent, type) : null,
-      imageUrl: type === 'image' ? fileUrl : null,
-      instructions,
-      testResults,
-    })
   }
 
-  if (preparedTasks.length === 0) return { results: [] }
+  const prepared = {
+    taskIndex,
+    type,
+    content: type !== 'image' ? await extractContent(fileUrl, textContent, type) : null,
+    imageUrl: type === 'image' ? fileUrl : null,
+    instructions,
+    testResults,
+  }
 
   const res = await fetch('/api/grade', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tasks: preparedTasks }),
+    body: JSON.stringify({ tasks: [prepared] }),
   })
 
   if (res.status === 429) {
@@ -145,5 +132,24 @@ export async function gradeStudent(submissions, taskDefs) {
   }
 
   if (!res.ok) throw new Error('grade_error')
-  return res.json()
+  const data = await res.json()
+  return data.results?.[0] || null
+}
+
+// Grade each task with a separate API call to avoid cross-task confusion
+// submissions: array indexed by task (null = not submitted)
+// taskDefs: array of {instructions} objects
+// Returns: { results: [{taskIndex, score, comment}] }
+export async function gradeStudent(submissions, taskDefs) {
+  const results = []
+
+  for (let i = 0; i < taskDefs.length; i++) {
+    const sub = submissions[i]
+    if (!sub) continue
+    if (i > 0) await new Promise(r => setTimeout(r, 4000))
+    const result = await gradeOneTask(i, sub, taskDefs[i])
+    if (result) results.push(result)
+  }
+
+  return { results }
 }

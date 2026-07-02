@@ -13,44 +13,43 @@ export default async function handler(req, res) {
   const hasImage = tasks.some(t => t.type === 'image' && t.imageUrl)
   const model = hasImage ? 'gemini-2.5-flash' : 'gemini-3.1-flash-lite'
 
-  // Build prompt text
-  let prompt = `Bạn là giáo viên chấm bài thực hành Tin học tiểu học. Chấm các bài sau và trả về JSON.
+  // Grade ONE task at a time to avoid cross-task confusion
+  const task = tasks[0]
 
-Quy tắc:
-- Điểm từ 0 đến 10 (hoặc theo thang điểm trong tiêu chí nếu có)
-- Nhận xét bằng tiếng Việt, 1–2 câu ngắn gọn, khuyến khích học sinh
-- Nếu có "Tiêu chí chấm" trong đề bài thì chấm theo đó
-- Nếu có kết quả test case Python thì cộng điểm test + chấm style code riêng
-- Trả về ĐÚNG định dạng JSON array, không thêm text khác\n\n`
+  let prompt = `Bạn là giáo viên chấm bài thực hành Tin học tiểu học.
 
-  for (const task of tasks) {
-    prompt += `=== BÀI ${task.taskIndex + 1} ===\n`
-    prompt += `Đề bài: ${task.instructions || '(không có đề bài)'}\n`
+Đề bài:
+${task.instructions || '(không có đề bài)'}
 
-    if (task.type === 'image') {
-      prompt += `Bài nộp: [xem hình ảnh đính kèm]\n`
-    } else if (task.content) {
-      prompt += `Bài nộp:\n${task.content}\n`
-    } else {
-      prompt += `Bài nộp: (không có nội dung)\n`
-    }
+Bài nộp của học sinh:\n`
 
-    if (task.testResults?.length > 0) {
-      const passed = task.testResults.filter(r => r.passed)
-      const total = task.testResults.length
-      const testScore = passed.reduce((s, r) => s + (r.points || 0), 0)
-      const maxTest = task.testResults.reduce((s, r) => s + (r.points || 0), 0)
-      prompt += `\nKết quả test case (${passed.length}/${total} đúng, ${testScore}/${maxTest}đ):\n`
-      task.testResults.forEach((r, i) => {
-        prompt += `  Test ${i + 1}: input="${r.input}" → expected="${r.expected}", actual="${r.actual}" ${r.passed ? '✅' : '❌'}\n`
-      })
-    }
-
-    prompt += '\n'
+  if (task.type === 'image') {
+    prompt += `[xem hình ảnh đính kèm]\n`
+  } else if (task.content) {
+    prompt += `${task.content}\n`
+  } else {
+    prompt += `(học sinh chưa nộp hoặc file trống)\n`
   }
 
-  prompt += `Trả về JSON array (không có markdown, không text thêm):
-[{"taskIndex":0,"score":8,"comment":"Nhận xét..."},{"taskIndex":1,"score":7,"comment":"..."}]`
+  if (task.testResults?.length > 0) {
+    const passed = task.testResults.filter(r => r.passed)
+    const total = task.testResults.length
+    const testScore = passed.reduce((s, r) => s + (r.points || 0), 0)
+    const maxTest = task.testResults.reduce((s, r) => s + (r.points || 0), 0)
+    prompt += `\nKết quả test case (${passed.length}/${total} đúng, ${testScore}/${maxTest}đ):\n`
+    task.testResults.forEach((r, i) => {
+      prompt += `  Test ${i + 1}: input="${r.input}" → expected="${r.expected}", actual="${r.actual}" ${r.passed ? '✅' : '❌'}\n`
+    })
+  }
+
+  prompt += `
+Yêu cầu:
+- Chấm điểm từ 0–10 dựa trên đề bài trên
+- Nếu đề bài có tiêu chí chấm cụ thể thì theo đó
+- Nhận xét 1–2 câu tiếng Việt, ngắn gọn, khuyến khích
+- Chỉ trả về JSON, không thêm text khác
+
+{"taskIndex":${task.taskIndex},"score":8,"comment":"Nhận xét..."}`
 
   // Build Gemini parts
   const parts = [{ text: prompt }]
