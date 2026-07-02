@@ -1015,6 +1015,8 @@ export default function LessonPage() {
     const taskDefs = parseTasks(lesson?.practice_instructions)
     const taskDef = taskDefs[taskIdx]
     if (!taskDef) return
+    // Jitter ngẫu nhiên 2–15s để tránh cả lớp gửi Gemini cùng lúc
+    await new Promise(r => setTimeout(r, 2000 + Math.random() * 13000))
     setAiGradingTask(taskIdx)
     try {
       const { results } = await gradeStudent([sub], [taskDef])
