@@ -117,6 +117,21 @@ function TaskEditor({ index, task, onChange, onRemove, autoFocus }) {
             <span className="text-blue-400">| cột1 | cột2 | ← bảng (hoặc copy từ Word/Excel)</span>
           </div>
 
+          {/* Rubric chấm */}
+          <div className="border-t border-gray-100 px-3 py-3 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-semibold text-gray-600">Tiêu chí chấm (Rubric)</p>
+              <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Chỉ AI đọc · Học sinh không thấy</span>
+            </div>
+            <textarea
+              value={task.rubric || ''}
+              onChange={e => onChange({ ...task, rubric: e.target.value })}
+              rows={4}
+              placeholder={'Ví dụ:\n1. Có khối "Khi bấm cờ xanh": 2 điểm\n2. Có vòng lặp Forever: 3 điểm\n3. Nhân vật di chuyển đúng: 5 điểm'}
+              className="w-full px-3 py-2 text-sm border border-amber-200 bg-amber-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 resize-y font-mono min-h-[90px] placeholder-gray-400"
+            />
+          </div>
+
           {/* File đề bài */}
           <div className="border-t border-gray-100 px-3 py-3 space-y-2">
             <p className="text-xs font-semibold text-gray-600">File đề bài (Word / PPTX — tùy chọn)</p>

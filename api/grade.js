@@ -25,6 +25,7 @@ Quy tắc:
   for (const task of tasks) {
     prompt += `=== [taskIndex=${task.taskIndex}] ===\n`
     prompt += `Đề bài: ${task.instructions || '(không có đề bài)'}\n`
+    if (task.rubric) prompt += `Tiêu chí chấm:\n${task.rubric}\n`
 
     if (task.type === 'image') {
       prompt += `Bài nộp: [xem hình ảnh đính kèm]\n`
