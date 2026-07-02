@@ -285,18 +285,19 @@ export default function LessonSubmissionsPage() {
     setTaskSaving(prev => ({ ...prev, [sub.id]: true }))
     const scoreRaw = taskScores[sub.id]
     const scoreVal = (scoreRaw !== '' && scoreRaw != null) ? parseFloat(scoreRaw) : null
-    const isFirstGrade = !sub.reviewed_at && scoreVal != null && !isNaN(scoreVal)
+    const awardSticker = !sub.sticker_awarded && scoreVal != null && !isNaN(scoreVal)
     const updates = {
       teacher_comment: taskComments[sub.id] ?? '',
       reviewed_at: new Date().toISOString(),
       score: (scoreVal != null && !isNaN(scoreVal)) ? scoreVal : null,
       graded_by: 'teacher',
+      ...(awardSticker && { sticker_awarded: true }),
     }
     const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
     setTaskSaving(prev => ({ ...prev, [sub.id]: false }))
     if (error) { toast.error('Lưu thất bại: ' + error.message); return }
 
-    if (isFirstGrade) {
+    if (awardSticker) {
       const bonus = scoreToBonus(scoreVal)
       if (bonus > 0) {
         const { data: prof } = await supabase
@@ -401,14 +402,14 @@ export default function LessonSubmissionsPage() {
   }
 
   async function approveAiGrade(sub, student) {
-    const now = new Date().toISOString()
-    const updates = { reviewed_at: now }
+    const awardSticker = !sub.sticker_awarded && sub.score != null
+    const updates = { reviewed_at: new Date().toISOString(), ...(awardSticker && { sticker_awarded: true }) }
     await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
     setSubmissionMap(prev => ({
       ...prev,
       [student.id]: (prev[student.id] || []).map(s => s.id === sub.id ? { ...s, ...updates } : s),
     }))
-    if (sub.score != null) {
+    if (awardSticker) {
       const bonus = scoreToBonus(sub.score)
       if (bonus > 0) {
         const { data: prof } = await supabase.from('profiles').select('sticker_count, sticker_total').eq('id', student.id).single()
@@ -430,24 +431,27 @@ export default function LessonSubmissionsPage() {
     )
     if (toApprove.length === 0) { toast('Không có bài AI nào chưa duyệt'); return }
     setApprovingAll(true)
-    const updates = { reviewed_at: now }
-    await Promise.all(toApprove.map(({ sub }) =>
-      supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
-    ))
+    await Promise.all(toApprove.map(({ sub }) => {
+      const upd = { reviewed_at: now, ...(!sub.sticker_awarded && sub.score != null && { sticker_awarded: true }) }
+      return supabase.from('lesson_submissions').update(upd).eq('id', sub.id)
+    }))
     setSubmissionMap(prev => {
       const next = { ...prev }
       toApprove.forEach(({ sub, student }) => {
-        next[student.id] = (next[student.id] || []).map(s => s.id === sub.id ? { ...s, ...updates } : s)
+        const upd = { reviewed_at: now, ...(!sub.sticker_awarded && sub.score != null && { sticker_awarded: true }) }
+        next[student.id] = (next[student.id] || []).map(s => s.id === sub.id ? { ...s, ...upd } : s)
       })
       return next
     })
-    // Cộng sticker theo từng học sinh (gộp tất cả bài trong lần duyệt)
+    // Cộng sticker — chỉ những bài chưa từng được cộng
     const studentBonusMap = {}
     toApprove.forEach(({ sub, student }) => {
-      if (sub.score != null) {
+      if (!sub.sticker_awarded && sub.score != null) {
         const bonus = scoreToBonus(sub.score)
-        if (bonus > 0) studentBonusMap[student.id] = (studentBonusMap[student.id] || { student, bonus: 0 })
-        if (bonus > 0) studentBonusMap[student.id].bonus += bonus
+        if (bonus > 0) {
+          if (!studentBonusMap[student.id]) studentBonusMap[student.id] = { student, bonus: 0 }
+          studentBonusMap[student.id].bonus += bonus
+        }
       }
     })
     await Promise.all(Object.values(studentBonusMap).map(async ({ student, bonus }) => {
