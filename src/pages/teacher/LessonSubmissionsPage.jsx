@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
-import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users, FileText, FileImage, File, ExternalLink, Code, Play, TerminalSquare, Search, Wifi, RefreshCw } from 'lucide-react'
+import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users, FileText, FileImage, File, ExternalLink, Code, Play, TerminalSquare, Search, Wifi, RefreshCw, Bot } from 'lucide-react'
 import MarkdownContent from '../../components/ui/MarkdownContent'
 import Sb3Viewer from '../../components/ui/Sb3Viewer'
+import { gradeStudent } from '../../utils/aiGrader'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
@@ -155,6 +156,7 @@ export default function LessonSubmissionsPage() {
   const [taskScores, setTaskScores] = useState({})     // subId -> string
   const [taskSaving, setTaskSaving] = useState({})     // subId -> bool
   const [gradeModal, setGradeModal] = useState(null)  // { student, taskIdx } — popup chấm nhanh
+  const [aiGrading, setAiGrading] = useState({ active: false, done: 0, total: 0, countdown: 0 })
 
   useEffect(() => { loadAll() }, [id])
 
@@ -286,6 +288,7 @@ export default function LessonSubmissionsPage() {
       teacher_comment: taskComments[sub.id] ?? '',
       reviewed_at: new Date().toISOString(),
       score: (scoreVal != null && !isNaN(scoreVal)) ? scoreVal : null,
+      graded_by: 'teacher',
     }
     const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
     setTaskSaving(prev => ({ ...prev, [sub.id]: false }))
@@ -339,6 +342,60 @@ export default function LessonSubmissionsPage() {
       ? { ...prev, submissions: prev.submissions.map(s => s.id === sub.id ? { ...s, ...updates } : s) }
       : prev)
     setGradeModal(prev => prev?.student.id === theStudent.id ? { ...prev } : prev)
+  }
+
+  async function gradeOneStudent(student) {
+    const subs = submissionMap[student.id] || []
+    const taskDefs = parseTasks(lesson?.practice_instructions)
+    const taskSubs = taskDefs.map((_, i) => subs.find(s => (s.content_json?.task_index ?? 0) === i) || null)
+    const { results } = await gradeStudent(taskSubs, taskDefs)
+    const now = new Date().toISOString()
+    for (const { taskIndex, score, comment } of results) {
+      const sub = taskSubs[taskIndex]
+      if (!sub) continue
+      const updates = { score, teacher_comment: comment, graded_by: 'ai', ai_graded_at: now }
+      await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
+      setSubmissionMap(prev => ({
+        ...prev,
+        [student.id]: (prev[student.id] || []).map(s => s.id === sub.id ? { ...s, ...updates } : s),
+      }))
+      setTaskScores(prev => ({ ...prev, [sub.id]: String(score) }))
+      setTaskComments(prev => ({ ...prev, [sub.id]: comment }))
+    }
+  }
+
+  async function gradeAllWithAI() {
+    const taskDefs = parseTasks(lesson?.practice_instructions)
+    const toGrade = displayedStudents.filter(s => {
+      const subs = submissionMap[s.id] || []
+      return subs.some(sub => sub && !sub.reviewed_at && sub.graded_by !== 'ai')
+    })
+    if (toGrade.length === 0) { toast('Không có bài mới nào cần chấm'); return }
+
+    setAiGrading({ active: true, done: 0, total: toGrade.length, countdown: 0 })
+    for (let i = 0; i < toGrade.length; i++) {
+      try {
+        await gradeOneStudent(toGrade[i])
+        setAiGrading(prev => ({ ...prev, done: i + 1 }))
+      } catch (err) {
+        if (err.quotaType === 'quota_rpm') {
+          for (let s = 60; s > 0; s--) {
+            setAiGrading(prev => ({ ...prev, countdown: s }))
+            await new Promise(r => setTimeout(r, 1000))
+          }
+          setAiGrading(prev => ({ ...prev, countdown: 0 }))
+          i--; continue
+        }
+        if (err.quotaType === 'quota_rpd') {
+          toast.error(`Hết quota hôm nay! Đã chấm ${i}/${toGrade.length} học sinh.`)
+          break
+        }
+        toast.error(`Lỗi: ${toGrade[i].full_name} — ${err.message}`)
+      }
+      if (i < toGrade.length - 1) await new Promise(r => setTimeout(r, 4000))
+    }
+    setAiGrading({ active: false, done: 0, total: 0, countdown: 0 })
+    toast.success('AI đã chấm xong!')
   }
 
   function openGradeModal(e, student, taskIdx) {
@@ -418,6 +475,21 @@ export default function LessonSubmissionsPage() {
           />
         </div>
         <span className="text-sm text-gray-500">{total} học sinh</span>
+        {hasPractice && (
+          <button
+            onClick={gradeAllWithAI}
+            disabled={aiGrading.active}
+            className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+          >
+            {aiGrading.active ? (
+              aiGrading.countdown > 0
+                ? <><Loader2 size={12} className="animate-spin" /> Đợi {aiGrading.countdown}s...</>
+                : <><Loader2 size={12} className="animate-spin" /> {aiGrading.done}/{aiGrading.total}...</>
+            ) : (
+              <><Bot size={13} /> AI Chấm tất cả</>
+            )}
+          </button>
+        )}
         <div className={`ml-auto flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${realtimeConnected ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
           <Wifi size={11} className={realtimeConnected ? 'animate-pulse' : ''} />
           {realtimeConnected ? 'Đang cập nhật tự động' : 'Đang kết nối...'}
@@ -692,22 +764,21 @@ export default function LessonSubmissionsPage() {
                         const sub = subs.find(s => (s.content_json?.task_index ?? 0) === i)
                         const reviewed = !!sub?.reviewed_at
                         const waiting = !!sub?.allow_resubmit
+                        const aiGraded = sub?.graded_by === 'ai'
                         return (
                           <td key={i} className="px-3 py-3 text-center border-r border-gray-100">
                             {sub ? (
                               <button
                                 onClick={e => openGradeModal(e, student, i)}
                                 className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg transition
-                                  ${waiting
-                                    ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                                    : reviewed
-                                    ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                  ${waiting ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                    : aiGraded ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                                    : reviewed ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
                                     : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
                               >
-                                {waiting
-                                  ? <><RefreshCw size={10} /> chờ</>
-                                  : reviewed
-                                  ? (sub.score != null ? `${sub.score}đ` : '✓ chấm')
+                                {waiting ? <><RefreshCw size={10} /> chờ</>
+                                  : aiGraded ? <>🤖 {sub.score != null ? `${sub.score}đ` : '?'}</>
+                                  : reviewed ? (sub.score != null ? `${sub.score}đ` : '✓ chấm')
                                   : '✓ nộp'}
                               </button>
                             ) : (
@@ -818,9 +889,28 @@ export default function LessonSubmissionsPage() {
 
                 {/* Chấm điểm */}
                 <div className="border-t border-gray-100 pt-4 space-y-3">
-                  <p className="text-xs font-bold text-indigo-600 flex items-center gap-1.5">
-                    <MessageSquare size={12} /> Nhận xét & điểm
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-indigo-600 flex items-center gap-1.5">
+                      <MessageSquare size={12} />
+                      {sub.graded_by === 'ai' ? '🤖 AI đã chấm — kiểm tra & lưu' : 'Nhận xét & điểm'}
+                    </p>
+                    {!sub.reviewed_at && (
+                      <button
+                        onClick={async e => {
+                          e.stopPropagation()
+                          try {
+                            await gradeOneStudent(student)
+                            toast.success('AI đã chấm xong!')
+                          } catch (err) {
+                            toast.error(err.quotaType === 'quota_rpd' ? 'Hết quota hôm nay' : 'Lỗi AI: ' + err.message)
+                          }
+                        }}
+                        className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 font-semibold"
+                      >
+                        <Bot size={12} /> AI chấm lại
+                      </button>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-gray-500 shrink-0">Điểm:</label>
                     <input type="number" min={0} max={10} step={0.5}

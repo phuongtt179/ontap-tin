@@ -13,6 +13,7 @@ import { CodeBlock, CodeBlockWithBlanks } from '../../components/ui/CodeBlock'
 import StickerModal from '../../components/student/StickerModal'
 import RewardModal from '../../components/student/RewardModal'
 import { updateStreak, STREAK_MILESTONES } from '../../utils/updateStreak'
+import { gradeStudent } from '../../utils/aiGrader'
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5) }
 
@@ -872,6 +873,7 @@ export default function LessonPage() {
   const [taskNotes, setTaskNotes] = useState([])               // string per task
   const [taskSubmitting, setTaskSubmitting] = useState(null)   // task index being submitted
   const [resubmitTask, setResubmitTask] = useState(null)       // task index in resubmit mode
+  const [aiGradingTask, setAiGradingTask] = useState(null)     // task index being AI graded
   const [activeTaskIdx, setActiveTaskIdx] = useState(null)     // task popup index
   const [loading, setLoading] = useState(true)
   const [quizActive, setQuizActive] = useState(false)
@@ -1003,6 +1005,28 @@ export default function LessonPage() {
     setQuizActive(true)
   }
 
+  async function triggerAiGrade(sub, taskIdx) {
+    if (!sub) return
+    // Cooldown: không chấm lại nếu AI vừa chấm trong 5 phút
+    if (sub.ai_graded_at) {
+      const elapsed = Date.now() - new Date(sub.ai_graded_at).getTime()
+      if (elapsed < 5 * 60 * 1000) return
+    }
+    const taskDefs = parseTasks(lesson?.practice_instructions)
+    const taskDef = taskDefs[taskIdx]
+    if (!taskDef) return
+    setAiGradingTask(taskIdx)
+    try {
+      const { results } = await gradeStudent([sub], [taskDef])
+      const result = results[0]
+      if (!result) return
+      const updates = { score: result.score, teacher_comment: result.comment, graded_by: 'ai', ai_graded_at: new Date().toISOString() }
+      await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
+      setTaskSubmissions(prev => { const next = [...prev]; next[taskIdx] = { ...sub, ...updates }; return next })
+    } catch { /* quota or network — fail silently, giáo viên sẽ chấm tay */ }
+    finally { setAiGradingTask(null) }
+  }
+
   async function handleQuizSubmit({ correct, total, passed }) {
     const wasAlreadyPassed = progress?.quiz_passed
     await upsertProgress({ quiz_correct: correct, quiz_total: total, quiz_passed: passed, quiz_current_idx: 0 })
@@ -1036,12 +1060,15 @@ export default function LessonPage() {
           reviewed_at: null,
           score: null,
           teacher_comment: null,
+          graded_by: null,
+          ai_graded_at: null,
         })
         .eq('id', existingSub.id)
         .select().single()
       if (error) throw error
       const newSubs = [...taskSubmissions]; newSubs[taskIdx] = updated; setTaskSubmissions(newSubs)
       setResubmitTask(null)
+      triggerAiGrade(updated, taskIdx)
       const nf = [...taskFiles]; nf[taskIdx] = null; setTaskFiles(nf)
       const nn = [...taskNotes]; nn[taskIdx] = ''; setTaskNotes(nn)
       toast.success(`Đã cập nhật bài ${taskIdx + 1}`)
@@ -1080,6 +1107,7 @@ export default function LessonPage() {
       }
       await awardSticker(1, `Nộp xong bài thực hành ${taskIdx + 1}! 📝`)
       recordActivity()
+      triggerAiGrade(subInserted, taskIdx)
     } catch (err) {
       toast.error('Nộp bài thất bại: ' + err.message)
     } finally {
@@ -1478,10 +1506,23 @@ export default function LessonPage() {
                                       <p className="text-sm text-orange-700 font-semibold">Giáo viên cho phép bạn nộp lại bài này!</p>
                                     </div>
                                   )}
-                                  {sub.teacher_comment ? (
-                                    <div className="rounded-xl p-4 border border-indigo-200 bg-indigo-50">
-                                      <div className="text-indigo-700 font-bold text-xs mb-1.5">💬 Nhận xét của giáo viên</div>
-                                      <p className="text-sm text-gray-800 leading-relaxed">{sub.teacher_comment}</p>
+                                  {aiGradingTask === i ? (
+                                    <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2.5 border border-amber-200">
+                                      <Loader2 size={13} className="animate-spin" /> AI đang chấm bài...
+                                    </div>
+                                  ) : sub.score != null ? (
+                                    <div className={`rounded-xl p-4 border ${sub.graded_by === 'ai' ? 'border-amber-200 bg-amber-50' : 'border-indigo-200 bg-indigo-50'}`}>
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <div className={`text-xs font-bold ${sub.graded_by === 'ai' ? 'text-amber-700' : 'text-indigo-700'}`}>
+                                          {sub.graded_by === 'ai' ? '🤖 AI nhận xét' : '💬 Nhận xét của giáo viên'}
+                                        </div>
+                                        <span className={`text-lg font-black ${sub.graded_by === 'ai' ? 'text-amber-600' : 'text-indigo-600'}`}>
+                                          {sub.score}/10
+                                        </span>
+                                      </div>
+                                      {sub.teacher_comment && (
+                                        <p className="text-sm text-gray-800 leading-relaxed">{sub.teacher_comment}</p>
+                                      )}
                                     </div>
                                   ) : (
                                     <p className="text-xs text-gray-400 italic text-center py-2">⏳ Chờ giáo viên nhận xét...</p>
