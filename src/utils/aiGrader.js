@@ -66,7 +66,8 @@ async function extractContent(fileUrl, textContent, type) {
   if (type === 'docx') {
     const zip = await JSZip.loadAsync(buf)
     const xml = await zip.file('word/document.xml').async('string')
-    return xml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    const matches = xml.match(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g) || []
+    return matches.map(m => m.replace(/<[^>]+>/g, '')).join(' ').replace(/\s+/g, ' ').trim()
   }
 
   if (type === 'pptx') {
@@ -81,7 +82,8 @@ async function extractContent(fileUrl, textContent, type) {
     const slides = []
     for (let i = 0; i < slideFiles.length; i++) {
       const xml = await zip.file(slideFiles[i]).async('string')
-      const text = xml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+      const matches = xml.match(/<a:t(?:\s[^>]*)?>([^<]*)<\/a:t>/g) || []
+      const text = matches.map(m => m.replace(/<[^>]+>/g, '')).join(' ').replace(/\s+/g, ' ').trim()
       if (text) slides.push(`[Slide ${i + 1}]: ${text}`)
     }
     return slides.join('\n')
