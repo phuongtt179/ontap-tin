@@ -20,6 +20,7 @@ Quy tắc:
 - Điểm từ 0 đến 10 (hoặc theo tiêu chí nếu có)
 - Nhận xét tiếng Việt, 1–2 câu ngắn gọn, khuyến khích học sinh
 - Chấm từng bài ĐÚNG theo đề bài của bài đó, không nhầm lẫn
+- Nếu có "Tiêu chí chấm", trả về thêm mảng "breakdown": mỗi phần tử gồm {"criterion":"Tên tiêu chí ngắn gọn","earned":điểm_đạt,"max":điểm_tối_đa} — thêm "note":"lý do ngắn" nếu earned < max
 - Trả về JSON array, không thêm text khác\n\n`
 
   for (const task of tasks) {
@@ -50,7 +51,12 @@ Quy tắc:
   }
 
   // JSON mẫu dùng đúng taskIndex thực — AI copy theo, không tự đặt số
-  const example = tasks.map(t => `{"taskIndex":${t.taskIndex},"score":8,"comment":"Nhận xét..."}`).join(',')
+  const example = tasks.map(t => {
+    if (t.rubric) {
+      return `{"taskIndex":${t.taskIndex},"score":8,"comment":"Nhận xét...","breakdown":[{"criterion":"Tên tiêu chí","earned":1,"max":1},{"criterion":"Tiêu chí khác","earned":2,"max":3,"note":"Lý do trừ"}]}`
+    }
+    return `{"taskIndex":${t.taskIndex},"score":8,"comment":"Nhận xét..."}`
+  }).join(',')
   prompt += `Trả về JSON array (không có markdown, không text thêm):\n[${example}]`
 
   // Build Gemini parts

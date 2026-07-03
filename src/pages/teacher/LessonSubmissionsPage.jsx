@@ -946,6 +946,25 @@ export default function LessonSubmissionsPage() {
                           </td>
                           <td className="px-3 py-3 text-xs text-gray-600 max-w-xs">
                             <span className="line-clamp-2">{sub.teacher_comment || <span className="text-gray-300 italic">Không có nhận xét</span>}</span>
+                            {sub.ai_breakdown?.length > 0 && (
+                              <table className="mt-1.5 w-full border-collapse">
+                                <tbody>
+                                  {sub.ai_breakdown.map((row, ri) => (
+                                    <tr key={ri}>
+                                      <td className="py-0.5 pr-2 text-[11px] text-gray-500 leading-snug">{row.criterion}</td>
+                                      <td className="py-0.5 text-right whitespace-nowrap text-[11px] font-bold">
+                                        <span className={row.earned >= row.max ? 'text-green-600' : 'text-red-500'}>
+                                          {row.earned}/{row.max}đ
+                                        </span>
+                                      </td>
+                                      {row.note && (
+                                        <td className="py-0.5 pl-1.5 text-[10px] text-gray-400 italic">{row.note}</td>
+                                      )}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
                           </td>
                           <td className="px-3 py-3 text-center">
                             <div className="flex items-center justify-center gap-1.5">

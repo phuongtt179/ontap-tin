@@ -1022,7 +1022,7 @@ export default function LessonPage() {
       const { results } = await gradeStudent([sub], [taskDef])
       const result = results[0]
       if (!result) return
-      const updates = { score: result.score, teacher_comment: result.comment, graded_by: 'ai', ai_graded_at: new Date().toISOString() }
+      const updates = { score: result.score, teacher_comment: result.comment, graded_by: 'ai', ai_graded_at: new Date().toISOString(), ai_breakdown: result.breakdown || null }
       await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
       setTaskSubmissions(prev => { const next = [...prev]; next[taskIdx] = { ...sub, ...updates }; return next })
     } catch { /* quota or network — fail silently, giáo viên sẽ chấm tay */ }
@@ -1524,6 +1524,28 @@ export default function LessonPage() {
                                       </div>
                                       {sub.teacher_comment && (
                                         <p className="text-sm text-gray-800 leading-relaxed">{sub.teacher_comment}</p>
+                                      )}
+                                      {sub.ai_breakdown?.length > 0 && (
+                                        <div className="mt-3 border-t border-amber-200 pt-3">
+                                          <p className="text-[11px] font-bold text-amber-700 mb-1.5">Bảng điểm chi tiết</p>
+                                          <table className="w-full text-xs border-collapse">
+                                            <tbody>
+                                              {sub.ai_breakdown.map((row, ri) => (
+                                                <tr key={ri} className={ri % 2 === 0 ? 'bg-white/60' : ''}>
+                                                  <td className="py-1 pr-2 text-gray-700 leading-snug">{row.criterion}</td>
+                                                  <td className="py-1 text-right shrink-0 whitespace-nowrap font-semibold">
+                                                    <span className={row.earned >= row.max ? 'text-green-600' : 'text-red-500'}>
+                                                      {row.earned}/{row.max}đ
+                                                    </span>
+                                                  </td>
+                                                  {row.note && (
+                                                    <td className="py-1 pl-2 text-gray-400 italic leading-snug">{row.note}</td>
+                                                  )}
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
                                       )}
                                     </div>
                                   ) : (
