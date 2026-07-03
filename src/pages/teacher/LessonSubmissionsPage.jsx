@@ -1045,7 +1045,11 @@ export default function LessonSubmissionsPage() {
                     {task.instruction_file_url && (() => {
                       const ext = task.instruction_file_url.split('.').pop().toLowerCase().split('?')[0]
                       const isOffice = ['doc','docx','ppt','pptx'].includes(ext)
-                      return isOffice ? (
+                      const isPdf = ext === 'pdf'
+                      return isPdf ? (
+                        <iframe src={task.instruction_file_url}
+                          width="100%" height="500" frameBorder="0" className="rounded-lg border border-amber-200 block w-full" />
+                      ) : isOffice ? (
                         <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(task.instruction_file_url)}`}
                           width="100%" height="400" frameBorder="0" className="rounded-lg border border-amber-200 block w-full" />
                       ) : null

@@ -151,7 +151,7 @@ function TaskEditor({ index, task, onChange, onRemove, autoFocus }) {
                 {uploading ? 'Đang upload...' : 'Upload file Word / PPTX'}
               </button>
             )}
-            <input ref={fileRef} type="file" accept=".doc,.docx,.ppt,.pptx" className="hidden" onChange={handleFileUpload} />
+            <input ref={fileRef} type="file" accept=".doc,.docx,.ppt,.pptx,.pdf" className="hidden" onChange={handleFileUpload} />
           </div>
         </div>
       ) : (
@@ -456,7 +456,7 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">File bài giảng PPTX <span className="text-gray-400 font-normal">(tuỳ chọn)</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">File bài giảng <span className="text-gray-400 font-normal">PPTX / PDF (tuỳ chọn)</span></label>
                 {form.pptx_url ? (
                   <div className="flex items-center gap-3 border border-orange-200 rounded-lg px-3 py-2.5 bg-orange-50">
                     <FileText size={18} className="text-orange-500 shrink-0" />
@@ -473,9 +473,9 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
                     ${pptxUploading ? 'border-orange-200 bg-orange-50 cursor-wait' : 'border-gray-300 hover:border-orange-400 hover:bg-orange-50 cursor-pointer'}`}>
                     {pptxUploading
                       ? <><Loader2 size={15} className="text-orange-400 animate-spin shrink-0" /><span className="text-sm text-orange-500">Đang tải lên...</span></>
-                      : <><Upload size={15} className="text-gray-400 shrink-0" /><span className="text-sm text-gray-500">Bấm để tải lên .pptx · .ppt</span></>
+                      : <><Upload size={15} className="text-gray-400 shrink-0" /><span className="text-sm text-gray-500">Bấm để tải lên .pptx · .ppt · .pdf</span></>
                     }
-                    <input type="file" className="hidden" accept=".pptx,.ppt"
+                    <input type="file" className="hidden" accept=".pptx,.ppt,.pdf"
                       onChange={handlePptxUpload} disabled={pptxUploading} />
                   </label>
                 )}

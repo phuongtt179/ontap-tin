@@ -1262,14 +1262,20 @@ export default function LessonPage() {
           </SectionCard>
         )}
 
-        {/* PPTX */}
-        {hasPptx && (
+        {/* PPTX / PDF */}
+        {hasPptx && (() => {
+          const isPdf = lesson.pptx_url?.split('?')[0].toLowerCase().endsWith('.pdf')
+          return (
           <SectionCard icon={<FileText size={18} />} iconBg="bg-orange-100" iconColor="text-orange-600"
-            title="Bài giảng (PowerPoint)" done={pptxOk} locked={pptxLocked}
+            title={isPdf ? 'Bài giảng (PDF)' : 'Bài giảng (PowerPoint)'} done={pptxOk} locked={pptxLocked}
             lockMessage="Xem video trước để mở khóa">
-            <div className="w-full rounded-xl overflow-hidden border border-gray-200 mb-4" style={{ aspectRatio: '16/9' }}>
-              <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(lesson.pptx_url)}`}
-                width="100%" height="100%" frameBorder="0" title="Bài giảng PPTX" className="w-full h-full block" allowFullScreen />
+            <div className="w-full rounded-xl overflow-hidden border border-gray-200 mb-4" style={{ aspectRatio: isPdf ? '3/4' : '16/9' }}>
+              {isPdf
+                ? <iframe src={lesson.pptx_url}
+                    width="100%" height="100%" frameBorder="0" title="Bài giảng PDF" className="w-full h-full block" />
+                : <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(lesson.pptx_url)}`}
+                    width="100%" height="100%" frameBorder="0" title="Bài giảng PPTX" className="w-full h-full block" allowFullScreen />
+              }
             </div>
             {pptxOk
               ? <DoneChip label="Đã xem bài giảng" />
@@ -1277,7 +1283,8 @@ export default function LessonPage() {
                   Đánh dấu đã xem bài giảng
                 </ActionButton>}
           </SectionCard>
-        )}
+          )
+        })()}
 
         {/* Quiz */}
         {hasQuiz && (
@@ -1478,7 +1485,12 @@ export default function LessonPage() {
                                   {task.instruction_file_url && (() => {
                                     const ext = task.instruction_file_url.split('.').pop().toLowerCase().split('?')[0]
                                     const isOffice = ['doc','docx','ppt','pptx'].includes(ext)
-                                    return isOffice ? (
+                                    const isPdf = ext === 'pdf'
+                                    return isPdf ? (
+                                      <iframe src={task.instruction_file_url}
+                                        width="100%" height="600" frameBorder="0"
+                                        className="rounded-xl border border-gray-200 block w-full" />
+                                    ) : isOffice ? (
                                       <iframe
                                         src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(task.instruction_file_url)}`}
                                         width="100%" height="480" frameBorder="0"
@@ -1594,11 +1606,11 @@ export default function LessonPage() {
                                           <p className="text-sm font-bold text-gray-500">
                                             {isResubmitting ? 'Chọn file mới' : 'Bấm để chọn file nộp bài'}
                                           </p>
-                                          <p className="text-xs text-gray-400 mt-1">.pptx · .docx · .sb3 · .py · .txt</p>
+                                          <p className="text-xs text-gray-400 mt-1">.pptx · .docx · .pdf · .sb3 · .py · .txt · ảnh</p>
                                         </div>
                                       </>
                                     )}
-                                    <input type="file" className="hidden" accept=".pptx,.docx,.sb3,.py,.txt"
+                                    <input type="file" className="hidden" accept=".pptx,.docx,.pdf,.sb3,.py,.txt,image/*"
                                       onChange={e => {
                                         if (!e.target.files?.[0]) return
                                         const next = [...taskFiles]; next[i] = e.target.files[0]; setTaskFiles(next)
