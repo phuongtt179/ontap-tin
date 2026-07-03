@@ -9,7 +9,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 export default function PDFViewer({ url }) {
   const [numPages, setNumPages] = useState(null)
   const [page, setPage] = useState(1)
-  const [zoom, setZoom] = useState(1.5)
+  const [zoom, setZoom] = useState(1.0)
   const [error, setError] = useState(false)
   const [containerWidth, setContainerWidth] = useState(800)
   const containerRef = useRef(null)

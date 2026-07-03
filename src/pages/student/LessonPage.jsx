@@ -1183,7 +1183,7 @@ export default function LessonPage() {
 
       {/* ── Hero gradient ── */}
       <div className="bg-gradient-to-r from-[#003d8f] via-[#0055bb] to-[#0077dd] text-white px-5 pt-5 pb-4 md:px-8 shrink-0">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <button onClick={() => navigate('/student/learn')}
             className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm mb-4 transition">
             <ArrowLeft size={15} /> Bài học
@@ -1238,7 +1238,7 @@ export default function LessonPage() {
       </div>
 
       {/* ── Content sections ── */}
-      <div className="flex-1 max-w-3xl w-full mx-auto px-4 md:px-8 py-6 space-y-4">
+      <div className="flex-1 max-w-5xl w-full mx-auto px-4 md:px-8 py-6 space-y-4">
 
         {/* Video */}
         {hasVideo && (
