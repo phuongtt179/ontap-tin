@@ -1047,7 +1047,7 @@ export default function LessonSubmissionsPage() {
                       const isOffice = ['doc','docx','ppt','pptx'].includes(ext)
                       const isPdf = ext === 'pdf'
                       return isPdf ? (
-                        <iframe src={task.instruction_file_url}
+                        <iframe src={`https://docs.google.com/viewer?url=${encodeURIComponent(task.instruction_file_url)}&embedded=true`}
                           width="100%" height="500" frameBorder="0" className="rounded-lg border border-amber-200 block w-full" />
                       ) : isOffice ? (
                         <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(task.instruction_file_url)}`}

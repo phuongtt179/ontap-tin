@@ -1271,7 +1271,7 @@ export default function LessonPage() {
             lockMessage="Xem video trước để mở khóa">
             <div className="w-full rounded-xl overflow-hidden border border-gray-200 mb-4" style={{ aspectRatio: isPdf ? '3/4' : '16/9' }}>
               {isPdf
-                ? <iframe src={lesson.pptx_url}
+                ? <iframe src={`https://docs.google.com/viewer?url=${encodeURIComponent(lesson.pptx_url)}&embedded=true`}
                     width="100%" height="100%" frameBorder="0" title="Bài giảng PDF" className="w-full h-full block" />
                 : <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(lesson.pptx_url)}`}
                     width="100%" height="100%" frameBorder="0" title="Bài giảng PPTX" className="w-full h-full block" allowFullScreen />
@@ -1487,7 +1487,7 @@ export default function LessonPage() {
                                     const isOffice = ['doc','docx','ppt','pptx'].includes(ext)
                                     const isPdf = ext === 'pdf'
                                     return isPdf ? (
-                                      <iframe src={task.instruction_file_url}
+                                      <iframe src={`https://docs.google.com/viewer?url=${encodeURIComponent(task.instruction_file_url)}&embedded=true`}
                                         width="100%" height="600" frameBorder="0"
                                         className="rounded-xl border border-gray-200 block w-full" />
                                     ) : isOffice ? (
