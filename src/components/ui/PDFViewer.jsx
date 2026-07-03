@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -9,8 +9,20 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 export default function PDFViewer({ url }) {
   const [numPages, setNumPages] = useState(null)
   const [page, setPage] = useState(1)
-  const [scale, setScale] = useState(1.0)
+  const [zoom, setZoom] = useState(1.0)
   const [error, setError] = useState(false)
+  const [containerWidth, setContainerWidth] = useState(800)
+  const containerRef = useRef(null)
+
+  useEffect(() => {
+    if (!containerRef.current) return
+    const observer = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width
+      if (w) setContainerWidth(w - 24) // trừ padding
+    })
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [])
 
   if (!url) return null
 
@@ -39,24 +51,25 @@ export default function PDFViewer({ url }) {
             className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40 text-sm">→</button>
         </div>
         <div className="flex items-center gap-1.5">
-          <button onClick={() => setScale(s => Math.max(s - 0.2, 0.5))} disabled={scale <= 0.5}
+          <button onClick={() => setZoom(z => Math.max(z - 0.2, 0.5))} disabled={zoom <= 0.5}
             className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40 text-sm">−</button>
-          <span className="text-xs text-gray-600 w-12 text-center">{Math.round(scale * 100)}%</span>
-          <button onClick={() => setScale(s => Math.min(s + 0.2, 2.0))} disabled={scale >= 2.0}
+          <span className="text-xs text-gray-600 w-12 text-center">{Math.round(zoom * 100)}%</span>
+          <button onClick={() => setZoom(z => Math.min(z + 0.2, 2.0))} disabled={zoom >= 2.0}
             className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-40 text-sm">+</button>
         </div>
         <a href={url} target="_blank" rel="noopener noreferrer"
           className="text-xs text-indigo-500 hover:underline shrink-0">↗ Mở tab mới</a>
       </div>
 
-      {/* PDF */}
-      <div className="overflow-auto p-3 flex justify-center">
+      {/* PDF — tự giãn theo chiều rộng container */}
+      <div ref={containerRef} className="overflow-auto p-3 flex justify-center">
         <Document file={url}
           onLoadSuccess={({ numPages }) => { setNumPages(numPages); setError(false) }}
           onLoadError={() => setError(true)}
           loading={<div className="py-12 text-sm text-gray-400 text-center">Đang tải PDF...</div>}
           error="">
-          <Page pageNumber={page} scale={scale}
+          <Page pageNumber={page}
+            width={containerWidth * zoom}
             renderTextLayer renderAnnotationLayer
             className="shadow-md bg-white" />
         </Document>
