@@ -20,7 +20,7 @@ Quy tắc:
 - Điểm từ 0 đến 10 (hoặc theo tiêu chí nếu có)
 - Nhận xét tiếng Việt, 1–2 câu ngắn gọn, khuyến khích học sinh
 - Chấm từng bài ĐÚNG theo đề bài của bài đó, không nhầm lẫn
-- Nếu có "Tiêu chí chấm", trả về thêm mảng "breakdown": mỗi phần tử gồm {"criterion":"Tên tiêu chí ngắn gọn","earned":điểm_đạt,"max":điểm_tối_đa} — thêm "note":"lý do ngắn" nếu earned < max
+- Nếu có "Tiêu chí chấm", trả về thêm mảng "breakdown": mỗi phần tử gồm {"criterion":"Tên tiêu chí ngắn gọn","earned":điểm_đạt,"max":điểm_tối_đa} — thêm "note":"lý do cụ thể: học sinh làm gì sai/thiếu (ví dụ: nói 'xin chào' thay vì 'Chúc mừng!')" nếu earned < max
 - Trả về JSON array, không thêm text khác\n\n`
 
   for (const task of tasks) {
