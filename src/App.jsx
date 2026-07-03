@@ -21,6 +21,7 @@ import AssistantsPage from './pages/teacher/AssistantsPage'
 import StudentNotesPage from './pages/teacher/StudentNotesPage'
 import AttendancePage from './pages/teacher/AttendancePage'
 import RewardsPage from './pages/teacher/RewardsPage'
+import Sb3PreviewPage from './pages/teacher/Sb3PreviewPage'
 import MessagesInboxPage from './pages/teacher/MessagesInboxPage'
 import MessagesPage from './pages/student/MessagesPage'
 import StudentDashboard from './pages/student/StudentDashboard'
@@ -129,6 +130,11 @@ export default function App() {
           <Route path="/teacher/messages" element={
             <ProtectedRoute role="teacher">
               <Layout><MessagesInboxPage /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/teacher/sb3-preview" element={
+            <ProtectedRoute role="teacher">
+              <Layout><Sb3PreviewPage /></Layout>
             </ProtectedRoute>
           } />
 

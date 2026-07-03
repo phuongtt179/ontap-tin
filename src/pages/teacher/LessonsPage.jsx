@@ -974,7 +974,14 @@ export default function LessonsPage() {
         <div className="px-4 pt-5 pb-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-lg font-bold text-gray-800">Bài học</h1>
-            <button onClick={() => setSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600 p-1 -mr-1"><X size={18} /></button>
+            <div className="flex items-center gap-1">
+              <button onClick={() => navigate('/teacher/sb3-preview')}
+                title="Xem AI đọc file Scratch"
+                className="text-xs text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 px-2 py-1 rounded-lg transition font-medium">
+                🐱 sb3
+              </button>
+              <button onClick={() => setSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600 p-1 -mr-1"><X size={18} /></button>
+            </div>
           </div>
           <select value={selectedGrade} onChange={e => handleGradeChange(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
