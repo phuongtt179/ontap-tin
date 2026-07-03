@@ -14,6 +14,7 @@ import StickerModal from '../../components/student/StickerModal'
 import RewardModal from '../../components/student/RewardModal'
 import { updateStreak, STREAK_MILESTONES } from '../../utils/updateStreak'
 import { gradeStudent } from '../../utils/aiGrader'
+import PDFViewer from '../../components/ui/PDFViewer'
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5) }
 
@@ -1270,19 +1271,9 @@ export default function LessonPage() {
             title={isPdf ? 'Bài giảng (PDF)' : 'Bài giảng (PowerPoint)'} done={pptxOk} locked={pptxLocked}
             lockMessage="Xem video trước để mở khóa">
             {isPdf ? (
-              <a href={lesson.pptx_url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-4 p-4 rounded-xl border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-300 transition mb-4 group">
-                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
-                  <FileText size={24} className="text-red-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-800 text-sm truncate">
-                    {decodeURIComponent(lesson.pptx_url.split('/').pop().split('?')[0])}
-                  </p>
-                  <p className="text-xs text-orange-600 mt-0.5">Bấm để mở PDF trong tab mới</p>
-                </div>
-                <span className="text-orange-400 group-hover:text-orange-600 text-lg">↗</span>
-              </a>
+              <div className="mb-4">
+                <PDFViewer url={lesson.pptx_url} />
+              </div>
             ) : (
               <div className="w-full rounded-xl overflow-hidden border border-gray-200 mb-4" style={{ aspectRatio: '16/9' }}>
                 <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(lesson.pptx_url)}`}
@@ -1499,14 +1490,7 @@ export default function LessonPage() {
                                     const isOffice = ['doc','docx','ppt','pptx'].includes(ext)
                                     const isPdf = ext === 'pdf'
                                     return isPdf ? (
-                                      <a href={task.instruction_file_url} target="_blank" rel="noopener noreferrer"
-                                        className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition">
-                                        <FileText size={18} className="text-red-400 shrink-0" />
-                                        <span className="text-sm text-indigo-600 hover:underline truncate">
-                                          {decodeURIComponent(task.instruction_file_url.split('/').pop().split('?')[0])}
-                                        </span>
-                                        <span className="text-gray-400 text-xs ml-auto shrink-0">↗ Mở PDF</span>
-                                      </a>
+                                      <PDFViewer url={task.instruction_file_url} />
                                     ) : isOffice ? (
                                       <iframe
                                         src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(task.instruction_file_url)}`}
