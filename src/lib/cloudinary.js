@@ -17,14 +17,14 @@ export async function uploadImage(file) {
   return data.secure_url
 }
 
-// Upload any file type — dùng /auto để Cloudinary tự phân loại
+// Upload any file type — dùng /raw để file luôn accessible trực tiếp (PDF, docx, sb3...)
 export async function uploadFile(file) {
   const fd = new FormData()
   fd.append('file', file)
   fd.append('upload_preset', UPLOAD_PRESET)
 
   const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`,
+    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`,
     { method: 'POST', body: fd }
   )
 
