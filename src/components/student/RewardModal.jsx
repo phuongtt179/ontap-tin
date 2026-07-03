@@ -4,10 +4,6 @@ import { useAuth } from '../../context/AuthContext'
 import { X, Gift, CheckCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const SHOW_COUNT = 3
-
-function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5) }
-
 export default function RewardModal({ stickerCount, threshold, grade, onClose, onRedeemed }) {
   const { user } = useAuth()
   const [rewards, setRewards] = useState([])
@@ -17,8 +13,8 @@ export default function RewardModal({ stickerCount, threshold, grade, onClose, o
   const [done, setDone] = useState(false)
   const [visible, setVisible] = useState(false)
 
-  const canRedeem = Math.floor(stickerCount / threshold)
-  const afterRedeem = stickerCount - threshold
+  const cost = selected?.sticker_cost ?? threshold
+  const afterRedeem = stickerCount - cost
 
   useEffect(() => {
     setTimeout(() => setVisible(true), 30)
@@ -26,16 +22,14 @@ export default function RewardModal({ stickerCount, threshold, grade, onClose, o
   }, [])
 
   async function loadRewards() {
-    // Lấy quà chung (grade IS NULL) + quà riêng của khóa này
-    let query = supabase.from('reward_items').select('*').eq('is_active', true).order('created_at')
+    let query = supabase.from('reward_items').select('*').eq('is_active', true).order('sticker_cost')
     if (grade) {
       query = query.or(`grade.is.null,grade.eq.${grade}`)
     } else {
       query = query.is('grade', null)
     }
     const { data } = await query
-    const pool = data || []
-    setRewards(shuffle(pool).slice(0, SHOW_COUNT))
+    setRewards(data || [])
     setLoading(false)
   }
 
@@ -46,7 +40,7 @@ export default function RewardModal({ stickerCount, threshold, grade, onClose, o
       const { error: reqErr } = await supabase.from('reward_requests').insert({
         student_id: user.id,
         reward_item_id: selected.id,
-        sticker_cost: threshold,
+        sticker_cost: cost,
         status: 'pending',
       })
       if (reqErr) throw reqErr
@@ -91,7 +85,6 @@ export default function RewardModal({ stickerCount, threshold, grade, onClose, o
           <p className="text-sm text-white/90 mt-0.5">
             Bạn có <span className="font-black">⭐ {stickerCount}</span> sticker
             {grade && <span className="ml-1.5 bg-white/25 px-1.5 py-0.5 rounded-full text-xs font-bold">Khóa {grade}</span>}
-            {canRedeem > 1 && <span className="ml-1 bg-white/25 px-1.5 py-0.5 rounded-full text-xs font-bold">×{canRedeem} lần</span>}
           </p>
         </div>
 
@@ -126,28 +119,43 @@ export default function RewardModal({ stickerCount, threshold, grade, onClose, o
           ) : (
             <>
               <p className="text-sm text-gray-500 mb-3 text-center">Chọn 1 phần thưởng bạn muốn:</p>
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                {rewards.map(r => (
-                  <button key={r.id} onClick={() => setSelected(r)}
-                    className={`relative flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all duration-200
-                      ${selected?.id === r.id
-                        ? 'border-orange-400 bg-orange-50 scale-105 shadow-md shadow-orange-100'
-                        : 'border-gray-100 bg-gray-50 hover:border-orange-200 hover:bg-orange-50/50'}`}>
-                    {selected?.id === r.id && <CheckCircle size={14} className="absolute top-1.5 right-1.5 text-orange-500" />}
-                    <span className="text-3xl">{r.emoji}</span>
-                    <span className="text-[10px] font-bold text-gray-700 text-center leading-tight line-clamp-2">{r.name}</span>
-                  </button>
-                ))}
+
+              <div className="grid grid-cols-3 gap-2 mb-4 max-h-72 overflow-y-auto pr-0.5">
+                {rewards.map(r => {
+                  const affordable = stickerCount >= r.sticker_cost
+                  const isSelected = selected?.id === r.id
+                  return (
+                    <button key={r.id}
+                      onClick={() => affordable && setSelected(r)}
+                      disabled={!affordable}
+                      className={`relative flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all duration-200
+                        ${!affordable
+                          ? 'border-gray-100 bg-gray-50 opacity-45 cursor-not-allowed grayscale'
+                          : isSelected
+                            ? 'border-orange-400 bg-orange-50 scale-105 shadow-md shadow-orange-100'
+                            : 'border-gray-100 bg-gray-50 hover:border-orange-200 hover:bg-orange-50/50'}`}>
+                      {isSelected && <CheckCircle size={14} className="absolute top-1.5 right-1.5 text-orange-500" />}
+                      <span className="text-3xl">{r.emoji}</span>
+                      <span className="text-[10px] font-bold text-gray-700 text-center leading-tight line-clamp-2">{r.name}</span>
+                      <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full mt-0.5
+                        ${affordable ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400'}`}>
+                        ⭐ {r.sticker_cost}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
 
-              <div className="bg-gray-50 rounded-2xl px-4 py-2.5 mb-4 flex items-center justify-between">
-                <div className="text-xs text-gray-500">
-                  <span className="font-bold text-orange-500">⭐ {threshold}</span> sticker / 1 quà
+              {selected && (
+                <div className="bg-gray-50 rounded-2xl px-4 py-2.5 mb-4 flex items-center justify-between">
+                  <div className="text-xs text-gray-500">
+                    Chi phí: <span className="font-bold text-orange-500">⭐ {cost}</span> sticker
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Còn lại: <span className="font-bold">{afterRedeem} ⭐</span>
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500">
-                  Còn lại: <span className="font-bold">{afterRedeem} ⭐</span>
-                </div>
-              </div>
+              )}
 
               <button onClick={handleRedeem} disabled={!selected || submitting}
                 className={`w-full py-3 rounded-2xl font-black text-base transition-all

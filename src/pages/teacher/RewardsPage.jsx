@@ -23,6 +23,7 @@ export default function RewardsPage() {
   const [formName, setFormName] = useState('')
   const [formEmoji, setFormEmoji] = useState('🎁')
   const [formGrade, setFormGrade] = useState('')   // '' = tất cả, hoặc grade cụ thể
+  const [formCost, setFormCost] = useState(50)
   const [saving, setSaving] = useState(false)
 
   // Requests
@@ -92,17 +93,19 @@ export default function RewardsPage() {
 
   // ── Item CRUD ──
   function openAdd() {
-    setEditItem(null); setFormName(''); setFormEmoji('🎁'); setFormGrade(''); setShowForm(true)
+    setEditItem(null); setFormName(''); setFormEmoji('🎁'); setFormGrade(''); setFormCost(50); setShowForm(true)
   }
   function openEdit(item) {
     setEditItem(item); setFormName(item.name); setFormEmoji(item.emoji || '🎁')
-    setFormGrade(item.grade || ''); setShowForm(true)
+    setFormGrade(item.grade || ''); setFormCost(item.sticker_cost ?? 50); setShowForm(true)
   }
 
   async function saveItem() {
     if (!formName.trim()) { toast.error('Nhập tên phần thưởng'); return }
+    const cost = parseInt(formCost)
+    if (!cost || cost < 1) { toast.error('Nhập số sticker hợp lệ'); return }
     setSaving(true)
-    const payload = { name: formName.trim(), emoji: formEmoji, is_active: true, grade: formGrade || null }
+    const payload = { name: formName.trim(), emoji: formEmoji, is_active: true, grade: formGrade || null, sticker_cost: cost }
     if (editItem) {
       const { error } = await supabase.from('reward_items').update(payload).eq('id', editItem.id)
       if (error) toast.error(error.message)
@@ -248,6 +251,9 @@ export default function RewardsPage() {
                   </span>
                   <span className="text-4xl mt-2">{item.emoji}</span>
                   <span className="text-sm font-bold text-gray-700 text-center leading-tight">{item.name}</span>
+                  <div className="text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                    ⭐ {item.sticker_cost ?? 50}
+                  </div>
                   <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                     {item.is_active ? 'Đang hiện' : 'Đã ẩn'}
                   </div>
@@ -470,11 +476,28 @@ export default function RewardsPage() {
                   placeholder="VD: Kẹo ngọt, Nhãn dán, Bút màu..." />
               </div>
 
+              {/* Số sticker */}
+              <div>
+                <label className="text-xs font-bold text-gray-500 mb-1.5 block">Số sticker cần để đổi</label>
+                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                  <span className="text-base">⭐</span>
+                  <input
+                    type="number" min={1} max={9999}
+                    value={formCost}
+                    onChange={e => setFormCost(e.target.value)}
+                    className="flex-1 bg-transparent text-sm font-black text-amber-700 focus:outline-none"
+                    placeholder="VD: 50"
+                  />
+                  <span className="text-xs text-amber-600 font-semibold">sticker</span>
+                </div>
+              </div>
+
               {/* Preview */}
               <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
                 <span className="text-3xl">{formEmoji}</span>
                 <div>
                   <div className="font-bold text-gray-700 text-sm">{formName || 'Tên phần thưởng'}</div>
+                  <div className="text-[11px] font-bold text-amber-600 mt-0.5">⭐ {formCost || 50} sticker</div>
                   <div className={`text-[10px] font-semibold mt-0.5 ${formGrade ? 'text-orange-600' : 'text-gray-400'}`}>
                     {formGrade ? `Chỉ khóa ${formGrade}` : 'Áp dụng tất cả khóa'}
                   </div>
