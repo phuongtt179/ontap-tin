@@ -1046,9 +1046,18 @@ export default function LessonSubmissionsPage() {
                       const ext = task.instruction_file_url.split('.').pop().toLowerCase().split('?')[0]
                       const isOffice = ['doc','docx','ppt','pptx'].includes(ext)
                       const isPdf = ext === 'pdf'
+                      const pdfUrl = task.instruction_file_url?.includes('/raw/upload/')
+                        ? task.instruction_file_url.replace('/raw/upload/', '/raw/upload/fl_inline/')
+                        : task.instruction_file_url
                       return isPdf ? (
-                        <iframe src={`https://docs.google.com/viewer?url=${encodeURIComponent(task.instruction_file_url)}&embedded=true`}
-                          width="100%" height="500" frameBorder="0" className="rounded-lg border border-amber-200 block w-full" />
+                        <div className="space-y-1">
+                          <iframe src={pdfUrl}
+                            width="100%" height="500" frameBorder="0" className="rounded-lg border border-amber-200 block w-full" />
+                          <a href={task.instruction_file_url} target="_blank" rel="noopener noreferrer"
+                            className="text-xs text-amber-700 hover:underline flex items-center gap-1">
+                            📄 Mở PDF trong tab mới
+                          </a>
+                        </div>
                       ) : isOffice ? (
                         <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(task.instruction_file_url)}`}
                           width="100%" height="400" frameBorder="0" className="rounded-lg border border-amber-200 block w-full" />

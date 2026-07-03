@@ -1265,18 +1265,30 @@ export default function LessonPage() {
         {/* PPTX / PDF */}
         {hasPptx && (() => {
           const isPdf = lesson.pptx_url?.split('?')[0].toLowerCase().endsWith('.pdf')
+          // Cloudinary raw files cần fl_inline để browser nhúng được thay vì download
+          const pdfInlineUrl = lesson.pptx_url?.includes('/raw/upload/')
+            ? lesson.pptx_url.replace('/raw/upload/', '/raw/upload/fl_inline/')
+            : lesson.pptx_url
           return (
           <SectionCard icon={<FileText size={18} />} iconBg="bg-orange-100" iconColor="text-orange-600"
             title={isPdf ? 'Bài giảng (PDF)' : 'Bài giảng (PowerPoint)'} done={pptxOk} locked={pptxLocked}
             lockMessage="Xem video trước để mở khóa">
-            <div className="w-full rounded-xl overflow-hidden border border-gray-200 mb-4" style={{ aspectRatio: isPdf ? '3/4' : '16/9' }}>
-              {isPdf
-                ? <iframe src={`https://docs.google.com/viewer?url=${encodeURIComponent(lesson.pptx_url)}&embedded=true`}
-                    width="100%" height="100%" frameBorder="0" title="Bài giảng PDF" className="w-full h-full block" />
-                : <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(lesson.pptx_url)}`}
-                    width="100%" height="100%" frameBorder="0" title="Bài giảng PPTX" className="w-full h-full block" allowFullScreen />
-              }
-            </div>
+            {isPdf ? (
+              <div className="mb-4 space-y-2">
+                <iframe src={pdfInlineUrl}
+                  width="100%" height="600" frameBorder="0" title="Bài giảng PDF"
+                  className="rounded-xl border border-gray-200 block w-full" />
+                <a href={lesson.pptx_url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 text-xs text-orange-600 hover:underline py-1">
+                  <FileText size={13} /> Mở PDF trong tab mới
+                </a>
+              </div>
+            ) : (
+              <div className="w-full rounded-xl overflow-hidden border border-gray-200 mb-4" style={{ aspectRatio: '16/9' }}>
+                <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(lesson.pptx_url)}`}
+                  width="100%" height="100%" frameBorder="0" title="Bài giảng PPTX" className="w-full h-full block" allowFullScreen />
+              </div>
+            )}
             {pptxOk
               ? <DoneChip label="Đã xem bài giảng" />
               : <ActionButton onClick={handleMarkPptxViewed} disabled={pptxMarking} loading={pptxMarking} color="orange">
@@ -1486,10 +1498,19 @@ export default function LessonPage() {
                                     const ext = task.instruction_file_url.split('.').pop().toLowerCase().split('?')[0]
                                     const isOffice = ['doc','docx','ppt','pptx'].includes(ext)
                                     const isPdf = ext === 'pdf'
+                                    const pdfUrl = task.instruction_file_url?.includes('/raw/upload/')
+                                      ? task.instruction_file_url.replace('/raw/upload/', '/raw/upload/fl_inline/')
+                                      : task.instruction_file_url
                                     return isPdf ? (
-                                      <iframe src={`https://docs.google.com/viewer?url=${encodeURIComponent(task.instruction_file_url)}&embedded=true`}
-                                        width="100%" height="600" frameBorder="0"
-                                        className="rounded-xl border border-gray-200 block w-full" />
+                                      <div className="space-y-1">
+                                        <iframe src={pdfUrl}
+                                          width="100%" height="500" frameBorder="0"
+                                          className="rounded-xl border border-gray-200 block w-full" />
+                                        <a href={task.instruction_file_url} target="_blank" rel="noopener noreferrer"
+                                          className="flex items-center gap-1 text-xs text-indigo-500 hover:underline">
+                                          <FileText size={12} /> Mở PDF trong tab mới
+                                        </a>
+                                      </div>
                                     ) : isOffice ? (
                                       <iframe
                                         src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(task.instruction_file_url)}`}
