@@ -1046,18 +1046,12 @@ export default function LessonSubmissionsPage() {
                       const ext = task.instruction_file_url.split('.').pop().toLowerCase().split('?')[0]
                       const isOffice = ['doc','docx','ppt','pptx'].includes(ext)
                       const isPdf = ext === 'pdf'
-                      const pdfUrl = task.instruction_file_url?.includes('/raw/upload/')
-                        ? task.instruction_file_url.replace('/raw/upload/', '/raw/upload/fl_inline/')
-                        : task.instruction_file_url
                       return isPdf ? (
-                        <div className="space-y-1">
-                          <iframe src={pdfUrl}
-                            width="100%" height="500" frameBorder="0" className="rounded-lg border border-amber-200 block w-full" />
-                          <a href={task.instruction_file_url} target="_blank" rel="noopener noreferrer"
-                            className="text-xs text-amber-700 hover:underline flex items-center gap-1">
-                            📄 Mở PDF trong tab mới
-                          </a>
-                        </div>
+                        <a href={task.instruction_file_url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-2 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 transition text-sm text-amber-800">
+                          📄 <span className="truncate">{decodeURIComponent(task.instruction_file_url.split('/').pop().split('?')[0])}</span>
+                          <span className="ml-auto shrink-0 text-xs">↗ Mở PDF</span>
+                        </a>
                       ) : isOffice ? (
                         <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(task.instruction_file_url)}`}
                           width="100%" height="400" frameBorder="0" className="rounded-lg border border-amber-200 block w-full" />
