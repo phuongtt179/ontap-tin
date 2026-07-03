@@ -60,11 +60,11 @@ function formatBlock(blocks, block) {
     case 'sound_stopallsounds':     return 'Ngừng mọi âm thanh'
     case 'control_forever':         return 'Lặp mãi'
     case 'control_repeat':          return `Lặp lại ${n(v('TIMES'))} lần`
-    case 'control_if':              return 'Nếu ... thì'
-    case 'control_if_else':         return 'Nếu ... thì ... nếu không thì'
+    case 'control_if':              return `Nếu [${n(v('CONDITION'))}] thì`
+    case 'control_if_else':         return `Nếu [${n(v('CONDITION'))}] thì ... nếu không thì`
     case 'control_wait':            return `Đợi ${n(v('DURATION'))} giây`
-    case 'control_wait_until':      return 'Đợi đến khi ...'
-    case 'control_repeat_until':    return 'Lặp lại cho đến khi ...'
+    case 'control_wait_until':      return `Đợi đến khi [${n(v('CONDITION'))}]`
+    case 'control_repeat_until':    return `Lặp lại cho đến khi [${n(v('CONDITION'))}]`
     case 'control_stop':            return `Dừng ${f('STOP_OPTION') ?? '...'}`
     case 'control_create_clone_of': return `Tạo bản sao của ${n(v('CLONE_OPTION') ?? f('CLONE_OPTION'))}`
     case 'control_delete_this_clone': return 'Xóa bản sao này'
@@ -74,9 +74,17 @@ function formatBlock(blocks, block) {
     case 'event_whenbroadcastreceived': return `Khi nhận ${q(f('BROADCAST_OPTION'))}`
     case 'event_broadcast':         return `Phát tin ${q(v('BROADCAST_INPUT'))}`
     case 'event_broadcastandwait':  return `Phát tin ${q(v('BROADCAST_INPUT'))} và đợi`
-    case 'sensing_touchingobject':  return `Đang chạm ${n(v('TOUCHINGOBJECTMENU') ?? f('TOUCHINGOBJECTMENU'))}?`
+    case 'sensing_touchingobject':  return `chạm ${n(v('TOUCHINGOBJECTMENU') ?? f('TOUCHINGOBJECTMENU'))}`
+    case 'sensing_touchingcolor':   return `chạm màu`
     case 'sensing_askandwait':      return `Hỏi ${q(v('QUESTION'))} và đợi`
-    case 'sensing_keypressed':      return `Phím ${q(f('KEY_OPTION'))} được bấm?`
+    case 'sensing_keypressed':      return `phím ${f('KEY_OPTION') ?? '...'} được nhấn`
+    case 'sensing_mousedown':       return `chuột được nhấn`
+    case 'operator_and':            return `... và ...`
+    case 'operator_or':             return `... hoặc ...`
+    case 'operator_not':            return `không ...`
+    case 'operator_gt':             return `${n(v('OPERAND1'))} > ${n(v('OPERAND2'))}`
+    case 'operator_lt':             return `${n(v('OPERAND1'))} < ${n(v('OPERAND2'))}`
+    case 'operator_equals':         return `${n(v('OPERAND1'))} = ${n(v('OPERAND2'))}`
     case 'data_setvariableto':      return `Đặt ${q(f('VARIABLE'))} = ${n(v('VALUE'))}`
     case 'data_changevariableby':   return `Thay đổi ${q(f('VARIABLE'))} thêm ${n(v('VALUE'))}`
     case 'data_showvariable':       return `Hiện biến ${q(f('VARIABLE'))}`
