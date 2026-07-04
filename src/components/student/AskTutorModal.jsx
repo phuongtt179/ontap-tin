@@ -39,8 +39,10 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
         return
       }
       setAnswer(data.answer)
-      // Lưu lại mọi lần hỏi AI (kênh 'ai') để giáo viên xem lại
-      const ctxPayload = { ...context, mode }
+      // Lưu lại mọi lần hỏi AI (kênh 'ai') để giáo viên xem lại.
+      // KHÔNG lưu đáp án đúng / hint vào DB (học sinh có thể đọc message của mình).
+      const { correctAnswer, hint, ...safeContext } = context
+      const ctxPayload = { ...safeContext, mode }
       supabase.from('messages').insert([
         { student_id: studentId, sender_role: 'student', channel: 'ai', content: q, context: ctxPayload, is_read: true },
         { student_id: studentId, sender_role: 'ai', channel: 'ai', content: data.answer, context: ctxPayload, is_read: true },
@@ -55,7 +57,8 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
   async function askTeacher() {
     if (escalating) return
     setEscalating(true)
-    const ctxPayload = { ...context, mode, aiAnswer: answer || null }
+    const { correctAnswer, hint, ...safeContext } = context
+    const ctxPayload = { ...safeContext, mode, aiAnswer: answer || null }
     const { error } = await supabase.from('messages').insert({
       student_id: studentId,
       sender_role: 'student',

@@ -14,7 +14,7 @@ Nguyên tắc:
   let task = ''
   if (mode === 'quiz') {
     task = `Con đang làm một CÂU HỎI TRẮC NGHIỆM và cần trợ giúp.
-QUAN TRỌNG: TUYỆT ĐỐI KHÔNG nói ra đáp án đúng. Chỉ được GỢI Ý — nhắc lại khái niệm liên quan, đặt câu hỏi ngược, hướng con tự suy nghĩ để tìm ra. Nếu con xin đáp án thẳng, hãy động viên con tự thử một lần nữa.`
+Bên dưới có thể có "[Đáp án đúng]" và "[Gợi ý giáo viên đã soạn]" — những thứ này CHỈ để bạn định hướng gợi ý cho chính xác. TUYỆT ĐỐI KHÔNG nói ra đáp án đúng, KHÔNG chỉ thẳng chọn A/B/C/D hay Đúng/Sai. Chỉ được GỢI Ý — nhắc lại khái niệm liên quan, đặt câu hỏi ngược, hướng con tự suy nghĩ để tìm ra. Nếu con nài xin đáp án, hãy động viên con tự thử một lần nữa.`
   } else if (mode === 'practice') {
     task = `Con đang làm BÀI THỰC HÀNH lập trình. Hãy giảng kỹ: chỉ ra HƯỚNG làm hoặc chỗ có thể sai, gợi ý khối lệnh/câu lệnh cần dùng và các BƯỚC thao tác cụ thể. Nhưng KHÔNG viết hộ toàn bộ lời giải — để con tự làm phần chính.`
   } else {
@@ -29,6 +29,8 @@ Hãy ưu tiên dựa vào "Nội dung bài học" bên dưới (nếu có). Nế
   if (context.questionText) ctx += `\n[Câu hỏi con đang làm] ${context.questionText}`
   if (Array.isArray(context.options) && context.options.length) ctx += `\n[Các lựa chọn] ${context.options.join(' | ')}`
   if (context.studentAnswer) ctx += `\n[Con đang chọn/đang làm] ${context.studentAnswer}`
+  if (context.correctAnswer) ctx += `\n[Đáp án đúng — CHỈ để bạn định hướng, TUYỆT ĐỐI KHÔNG tiết lộ cho học sinh] ${context.correctAnswer}`
+  if (context.hint) ctx += `\n[Gợi ý giáo viên đã soạn cho câu này] ${context.hint}`
   if (context.taskInstructions) ctx += `\n[Đề bài thực hành] ${context.taskInstructions}`
 
   return `${persona}

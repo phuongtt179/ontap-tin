@@ -809,6 +809,8 @@ function LessonQuiz({ questions, onSubmit, initialCurrent = 0, initialCorrectCou
             ? opts.map((o, oi) => `${String.fromCharCode(65 + oi)}. ${optText(o)}`)
             : q.type === 'true_false' ? ['Đúng', 'Sai'] : undefined,
           studentAnswer: answer || undefined,
+          correctAnswer: q.correct_answer || undefined,
+          hint: q.hint || undefined,
         })}
           className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 py-2 rounded-xl transition">
           🙋 Chưa hiểu? Hỏi trợ giảng
