@@ -5,8 +5,8 @@ import toast from 'react-hot-toast'
 
 const HEADER = {
   quiz: { title: 'Hỏi trợ giảng về câu này', hint: 'Trợ giảng sẽ gợi ý, không nói thẳng đáp án nhé!' },
-  practice: { title: 'Hỏi trợ giảng về bài thực hành', hint: 'Trợ giảng sẽ hướng dẫn con cách làm.' },
-  theory: { title: 'Hỏi trợ giảng', hint: 'Con thắc mắc gì trong bài cứ hỏi nhé!' },
+  practice: { title: 'Hỏi trợ giảng về bài thực hành', hint: 'Trợ giảng sẽ hướng dẫn em cách làm.' },
+  theory: { title: 'Hỏi trợ giảng', hint: 'Em thắc mắc gì trong bài cứ hỏi nhé!' },
 }
 
 export default function AskTutorModal({ open, onClose, mode = 'theory', context = {}, studentId }) {
@@ -52,8 +52,8 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.answer) {
         toast.error(res.status === 429
-          ? 'Trợ giảng đang bận, con thử lại sau chút nhé 🙏'
-          : 'Chưa hỏi được trợ giảng, con thử lại nhé')
+          ? 'Trợ giảng đang bận, em thử lại sau chút nhé 🙏'
+          : 'Chưa hỏi được trợ giảng, em thử lại nhé')
         return
       }
       setChat([...newChat, { role: 'ai', content: data.answer }])
@@ -65,7 +65,7 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
         { student_id: studentId, sender_role: 'ai', channel: 'ai', content: data.answer, context: ctxPayload, is_read: true },
       ]).then(() => {})
     } catch {
-      toast.error('Có lỗi xảy ra, con thử lại nhé')
+      toast.error('Có lỗi xảy ra, em thử lại nhé')
     } finally {
       setLoading(false)
     }
@@ -87,7 +87,7 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
       is_read: false,
     })
     setEscalating(false)
-    if (error) { toast.error('Chưa gửi được cho thầy/cô, con thử lại nhé'); return }
+    if (error) { toast.error('Chưa gửi được cho thầy/cô, em thử lại nhé'); return }
     setEscalated(true)
     toast.success('Đã gửi câu hỏi cho thầy/cô! 👩‍🏫')
   }
@@ -138,7 +138,7 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
           {chat.length === 0 && !loading && (
             <div className="text-center text-gray-400 text-sm py-8">
               <div className="text-4xl mb-2">🤖</div>
-              Con muốn hỏi gì nào? Gõ câu hỏi bên dưới nhé!
+              Em muốn hỏi gì nào? Gõ câu hỏi bên dưới nhé!
             </div>
           )}
           {chat.map((m, i) => {
@@ -175,7 +175,7 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
         {/* Escalate */}
         {escalated ? (
           <div className="mx-4 mb-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2 text-center text-xs text-green-700 font-semibold shrink-0">
-            ✅ Đã gửi cho thầy/cô. Con xem trả lời ở mục “Hỏi giáo viên” nhé!
+            ✅ Đã gửi cho thầy/cô. Em xem trả lời ở mục “Hỏi giáo viên” nhé!
           </div>
         ) : chat.some(m => m.role === 'ai') && (
           <button onClick={askTeacher} disabled={escalating}
@@ -194,7 +194,7 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
             disabled={loading}
             rows={1}
-            placeholder={chat.length ? 'Hỏi tiếp câu khác...' : 'Con muốn hỏi gì?'}
+            placeholder={chat.length ? 'Hỏi tiếp câu khác...' : 'Em muốn hỏi gì?'}
             className="flex-1 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-gray-50 resize-none overflow-y-auto leading-snug"
             style={{ maxHeight: 140 }}
           />
