@@ -15,6 +15,7 @@ import RewardModal from '../../components/student/RewardModal'
 import { updateStreak, STREAK_MILESTONES } from '../../utils/updateStreak'
 import { gradeStudent } from '../../utils/aiGrader'
 import PDFViewer from '../../components/ui/PDFViewer'
+import AskTutorModal from '../../components/student/AskTutorModal'
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5) }
 
@@ -571,7 +572,7 @@ function SubmittedFile({ url }) {
 }
 
 /* ── LessonQuiz ────────────────────────────────────────────── */
-function LessonQuiz({ questions, onSubmit, initialCurrent = 0, initialCorrectCount = 0, onProgress }) {
+function LessonQuiz({ questions, onSubmit, initialCurrent = 0, initialCorrectCount = 0, onProgress, onAskTutor }) {
   const [current, setCurrent] = useState(initialCurrent)
   const [answer, setAnswer] = useState(null)
   const [confirmed, setConfirmed] = useState(false)
@@ -799,6 +800,20 @@ function LessonQuiz({ questions, onSubmit, initialCurrent = 0, initialCorrectCou
           </button>
         </div>
       )}
+
+      {/* Hỏi trợ giảng về câu này */}
+      {onAskTutor && (
+        <button onClick={() => onAskTutor({
+          questionText: q.question,
+          options: q.type === 'multiple_choice'
+            ? opts.map((o, oi) => `${String.fromCharCode(65 + oi)}. ${optText(o)}`)
+            : q.type === 'true_false' ? ['Đúng', 'Sai'] : undefined,
+          studentAnswer: answer || undefined,
+        })}
+          className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 py-2 rounded-xl transition">
+          🙋 Chưa hiểu? Hỏi trợ giảng
+        </button>
+      )}
     </div>
   )
 }
@@ -885,6 +900,7 @@ export default function LessonPage() {
   const [showReward, setShowReward] = useState(null)    // { stickerCount, threshold } | null
   const [stickerThreshold, setStickerThreshold] = useState(50)
   const [studentGrade, setStudentGrade] = useState(null)
+  const [tutor, setTutor] = useState(null)   // { mode, context } | null
   const wasCompleted = useRef(false)
   const [pptxMarking, setPptxMarking] = useState(false)
 
@@ -1128,6 +1144,19 @@ export default function LessonPage() {
 
   if (!lesson) return null
 
+  function openTutor(mode, extra = {}) {
+    setTutor({
+      mode,
+      context: {
+        lessonId: lesson.id,
+        lessonTitle: lesson.title,
+        lessonDescription: lesson.description || '',
+        aiContext: lesson.ai_context || '',
+        ...extra,
+      },
+    })
+  }
+
   const hasVideo = !!lesson.video_url
   const hasPptx = !!lesson.pptx_url
   const hasQuiz = questions.length > 0
@@ -1180,6 +1209,22 @@ export default function LessonPage() {
           onRedeemed={() => { setShowReward(null); setStickerModal(null) }}
         />
       )}
+
+      {/* AI trợ giảng */}
+      <AskTutorModal
+        open={!!tutor}
+        mode={tutor?.mode}
+        context={tutor?.context || {}}
+        studentId={user.id}
+        onClose={() => setTutor(null)}
+      />
+
+      {/* Nút nổi "Hỏi trợ giảng" — hỏi lý thuyết cả bài */}
+      <button onClick={() => openTutor('theory')}
+        className="fixed z-40 bottom-5 right-5 flex items-center gap-2 bg-gradient-to-r from-violet-500 to-indigo-500 text-white font-bold text-sm px-4 py-3 rounded-full shadow-xl shadow-indigo-300/50 hover:scale-105 active:scale-95 transition-all">
+        <span className="text-lg leading-none">🤖</span>
+        <span className="hidden sm:inline">Hỏi trợ giảng</span>
+      </button>
 
       {/* ── Hero gradient ── */}
       <div className="bg-gradient-to-r from-[#003d8f] via-[#0055bb] to-[#0077dd] text-white px-5 pt-5 pb-4 md:px-8 shrink-0">
@@ -1321,6 +1366,7 @@ export default function LessonPage() {
                 questions={questions}
                 initialCurrent={quizInitIdx}
                 initialCorrectCount={quizInitCorrect}
+                onAskTutor={(extra) => openTutor('quiz', extra)}
                 onProgress={(idx, correct) => upsertProgress({ quiz_current_idx: idx, quiz_correct: correct })}
                 onSubmit={({ correct, total, passed }) => {
                   handleQuizSubmit({ correct, total, passed })
@@ -1505,6 +1551,15 @@ export default function LessonPage() {
                                   })()}
                                 </div>
                               )}
+
+                              {/* Hỏi trợ giảng về bài thực hành này */}
+                              <button onClick={() => openTutor('practice', {
+                                taskInstructions: task.instructions || `Bài thực hành ${i + 1}`,
+                                questionText: `Bài thực hành ${i + 1}`,
+                              })}
+                                className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 py-2 rounded-xl transition">
+                                🙋 Chưa hiểu bài? Hỏi trợ giảng
+                              </button>
 
                               {/* Submitted view */}
                               {sub && !isResubmitting ? (

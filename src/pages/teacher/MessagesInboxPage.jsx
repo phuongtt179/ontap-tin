@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { Send, Loader2, MessageCircle, Search, Trash2, Users, X, PenSquare } from 'lucide-react'
+import { Send, Loader2, MessageCircle, Search, Trash2, Users, X, PenSquare, BookOpen, Sparkles } from 'lucide-react'
 
 export default function MessagesInboxPage() {
   const { user } = useAuth()
@@ -11,6 +11,7 @@ export default function MessagesInboxPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [search, setSearch] = useState('')
+  const [showAiLog, setShowAiLog] = useState(false)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
   const lastCreatedAtRef = useRef(null)
@@ -47,6 +48,7 @@ export default function MessagesInboxPage() {
         event: 'INSERT', schema: 'public', table: 'messages',
         filter: `student_id=eq.${selected.student.id}`
       }, payload => {
+        if ((payload.new.channel || 'teacher') !== 'teacher') return  // bỏ qua log AI
         setSelected(prev => {
           if (!prev) return prev
           if (prev.messages.some(m => m.id === payload.new.id)) return prev
@@ -67,6 +69,7 @@ export default function MessagesInboxPage() {
       const { data } = await supabase
         .from('messages').select('*')
         .eq('student_id', selected.student.id)
+        .eq('channel', 'teacher')
         .gt('created_at', lastCreatedAtRef.current)
         .order('created_at', { ascending: true })
       if (data?.length) {
@@ -159,33 +162,38 @@ export default function MessagesInboxPage() {
 
   async function loadAll() {
     setLoading(true)
-    // Lấy tất cả messages
-    const { data: msgs } = await supabase.from('messages').select('*').order('created_at', { ascending: true })
-    if (!msgs || msgs.length === 0) { setLoading(false); return }
+    const { data: allMsgs } = await supabase.from('messages').select('*').order('created_at', { ascending: true })
+    if (!allMsgs || allMsgs.length === 0) { setThreads([]); setLoading(false); return }
 
-    // Lấy thông tin học sinh
-    const studentIds = [...new Set(msgs.map(m => m.student_id))]
+    // Tách kênh: 'teacher' = chat thật với giáo viên, 'ai' = log hỏi trợ giảng
+    const teacherMsgs = allMsgs.filter(m => (m.channel || 'teacher') === 'teacher')
+    const aiMsgs = allMsgs.filter(m => m.channel === 'ai')
+
+    const studentIds = [...new Set(allMsgs.map(m => m.student_id))]
     const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', studentIds)
     const { data: enrollments } = await supabase.from('student_enrollments').select('user_id, class_name').in('user_id', studentIds)
     const classMap = {}
     ;(enrollments || []).forEach(e => { classMap[e.user_id] = e.class_name })
-
     const profileMap = {}
     ;(profiles || []).forEach(p => { profileMap[p.id] = { ...p, class_name: classMap[p.id] || '' } })
 
-    // Nhóm theo student
-    const map = {}
-    msgs.forEach(m => {
-      if (!map[m.student_id]) map[m.student_id] = []
-      map[m.student_id].push(m)
-    })
+    const tMap = {}; teacherMsgs.forEach(m => { (tMap[m.student_id] ||= []).push(m) })
+    const aMap = {}; aiMsgs.forEach(m => { (aMap[m.student_id] ||= []).push(m) })
 
-    const result = Object.entries(map).map(([sid, messages]) => ({
-      student: profileMap[sid] || { id: sid, full_name: 'Học sinh', class_name: '' },
-      messages,
-      lastMsg: messages[messages.length - 1],
-      unread: messages.filter(m => m.sender_role === 'student' && !m.is_read).length,
-    })).sort((a, b) => new Date(b.lastMsg.created_at) - new Date(a.lastMsg.created_at))
+    const result = studentIds.map(sid => {
+      const messages = tMap[sid] || []
+      const aiMessages = aMap[sid] || []
+      const lastT = messages[messages.length - 1]
+      const lastA = aiMessages[aiMessages.length - 1]
+      const lastAt = Math.max(lastT ? +new Date(lastT.created_at) : 0, lastA ? +new Date(lastA.created_at) : 0)
+      return {
+        student: profileMap[sid] || { id: sid, full_name: 'Học sinh', class_name: '' },
+        messages, aiMessages,
+        lastMsg: lastT || lastA,
+        lastAt,
+        unread: messages.filter(m => m.sender_role === 'student' && !m.is_read).length,
+      }
+    }).sort((a, b) => b.lastAt - a.lastAt)
 
     setThreads(result)
     setLoading(false)
@@ -194,6 +202,7 @@ export default function MessagesInboxPage() {
   async function openThread(thread) {
     setSelected(thread)
     setInput('')
+    setShowAiLog(false)
     // Đánh dấu đã đọc
     await supabase.from('messages').update({ is_read: true })
       .eq('student_id', thread.student.id).eq('sender_role', 'student').eq('is_read', false)
@@ -378,11 +387,52 @@ export default function MessagesInboxPage() {
                   <p className="text-xs text-gray-400">{selected.student.class_name}</p>
                 )}
               </div>
+              {selected.aiMessages?.length > 0 && (
+                <button onClick={() => setShowAiLog(v => !v)}
+                  className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg transition shrink-0
+                    ${showAiLog ? 'bg-violet-600 text-white' : 'bg-violet-50 text-violet-600 hover:bg-violet-100'}`}>
+                  <Sparkles size={12} /> Hỏi đáp AI ({selected.aiMessages.filter(m => m.sender_role === 'student').length})
+                </button>
+              )}
             </div>
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-              {selected.messages.map((msg, i) => {
+              {showAiLog ? (
+                <div className="space-y-3">
+                  <div className="bg-violet-50 border border-violet-100 rounded-xl px-3 py-2 text-xs text-violet-700 flex items-center gap-1.5">
+                    <Sparkles size={13} /> Lịch sử {selected.student.full_name} hỏi AI trợ giảng
+                  </div>
+                  {selected.aiMessages.map(msg => {
+                    const isAi = msg.sender_role === 'ai'
+                    return (
+                      <div key={msg.id} className={`flex ${isAi ? 'justify-start' : 'justify-end'}`}>
+                        {isAi && (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-white shrink-0 mr-2 mt-auto mb-1">
+                            <Sparkles size={14} />
+                          </div>
+                        )}
+                        <div className={`max-w-[75%] flex flex-col gap-1 ${isAi ? 'items-start' : 'items-end'}`}>
+                          {!isAi && msg.context?.lessonTitle && (
+                            <div className="bg-white border border-indigo-100 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-500">
+                              <span className="font-bold text-indigo-600 flex items-center gap-1"><BookOpen size={10} /> {msg.context.lessonTitle}</span>
+                              {msg.context.questionText && <span className="block mt-0.5 line-clamp-2">❓ {msg.context.questionText}</span>}
+                            </div>
+                          )}
+                          <div className={`px-3.5 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap
+                            ${isAi ? 'bg-violet-50 text-gray-800 border border-violet-100 rounded-bl-md' : 'bg-indigo-500 text-white rounded-br-md'}`}>
+                            {msg.content}
+                          </div>
+                          <span className="text-[10px] text-gray-400 px-1">
+                            {new Date(msg.created_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+              selected.messages.map((msg, i) => {
                 const isTeacher = msg.sender_role === 'teacher'
                 const time = new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                 const date = new Date(msg.created_at).toLocaleDateString('vi-VN')
@@ -401,6 +451,20 @@ export default function MessagesInboxPage() {
                         </div>
                       )}
                       <div className={`max-w-[70%] flex flex-col gap-1 ${isTeacher ? 'items-end' : 'items-start'}`}>
+                        {!isTeacher && msg.context && (msg.context.lessonTitle || msg.context.questionText) && (
+                          <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2 text-[11px] text-gray-600 w-full">
+                            {msg.context.lessonTitle && (
+                              <div className="font-bold text-indigo-700 flex items-center gap-1"><BookOpen size={11} /> {msg.context.lessonTitle}</div>
+                            )}
+                            {msg.context.questionText && <div className="mt-0.5">❓ {msg.context.questionText}</div>}
+                            {msg.context.studentAnswer && <div className="mt-0.5 text-gray-400">Con đang chọn: {msg.context.studentAnswer}</div>}
+                            {msg.context.aiAnswer && (
+                              <div className="mt-1 pt-1 border-t border-indigo-100 text-violet-700">
+                                <span className="font-semibold">🤖 Trợ giảng đã gợi ý:</span> {msg.context.aiAnswer}
+                              </div>
+                            )}
+                          </div>
+                        )}
                         <div className="flex items-end gap-1.5">
                           {isTeacher && (
                             <button onClick={() => deleteMessage(msg.id)}
@@ -427,7 +491,8 @@ export default function MessagesInboxPage() {
                     </div>
                   </div>
                 )
-              })}
+              })
+              )}
               <div ref={bottomRef} />
             </div>
 

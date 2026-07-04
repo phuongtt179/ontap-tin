@@ -22,6 +22,7 @@ export default function MessagesPage() {
         event: 'INSERT', schema: 'public', table: 'messages',
         filter: `student_id=eq.${user.id}`
       }, payload => {
+        if (payload.new.channel && payload.new.channel !== 'teacher') return  // bỏ qua log AI
         setMessages(prev => prev.some(m => m.id === payload.new.id) ? prev : [...prev, payload.new])
         lastCreatedAtRef.current = payload.new.created_at
       })
@@ -33,6 +34,7 @@ export default function MessagesPage() {
       const { data } = await supabase
         .from('messages').select('*')
         .eq('student_id', user.id)
+        .eq('channel', 'teacher')
         .gt('created_at', lastCreatedAtRef.current)
         .order('created_at', { ascending: true })
       if (data?.length) {
@@ -60,6 +62,7 @@ export default function MessagesPage() {
     const { data } = await supabase
       .from('messages').select('*')
       .eq('student_id', user.id)
+      .eq('channel', 'teacher')
       .order('created_at', { ascending: true })
     setMessages(data || [])
     if (data?.length) lastCreatedAtRef.current = data[data.length - 1].created_at

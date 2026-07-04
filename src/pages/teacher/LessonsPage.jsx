@@ -180,6 +180,7 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
     grade: lesson?.grade || defaultGrade || (GRADES[0] || '3'),
     topic: lesson?.topic || defaultTopic || '',
     description: lesson?.description || '',
+    ai_context: lesson?.ai_context || '',
     video_url: lesson?.video_url || '',
     pptx_url: lesson?.pptx_url || '',
     order: lesson?.order ?? 0,
@@ -304,6 +305,7 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
       unit_id: form.unit_id || null,
       lesson_title_id: form.lesson_title_id || null,
       description: form.description.trim() || null,
+      ai_context: form.ai_context.trim() || null,
       video_url: form.video_url.trim() || null,
       pptx_url: form.pptx_url || null,
       order: form.order || 0,
@@ -443,6 +445,22 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   placeholder="Mô tả ngắn về nội dung bài học..."
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  📋 Nội dung cho AI trợ giảng <span className="text-gray-400 font-normal">(tuỳ chọn)</span>
+                </label>
+                <textarea
+                  value={form.ai_context}
+                  onChange={e => setForm({ ...form, ai_context: e.target.value })}
+                  rows={5}
+                  className="w-full border border-violet-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none bg-violet-50/40"
+                  placeholder={"Dán tóm tắt lý thuyết & các bước hướng dẫn để AI trả lời học sinh sát bài.\nVD: Bài học cách thêm trang phục cho nhân vật trong Scratch.\n- Bấm tab Trang phục ở góc trên bên trái\n- Bấm biểu tượng 🐱 để chọn trang phục mới từ thư viện..."}
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  AI trợ giảng sẽ ưu tiên dựa vào nội dung này khi học sinh hỏi. Để trống thì AI dùng tiêu đề bài + kiến thức chuẩn.
+                </p>
               </div>
 
               <div>

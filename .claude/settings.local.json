@@ -13,7 +13,22 @@
       "Bash(git push *)",
       "Bash(git commit *)",
       "Bash(xargs grep -l \"practice\\\\|attachment\\\\|file.*display\\\\|view.*file\\\\|embed\\\\|iframe\")",
-      "Bash(git reset *)"
+      "Bash(git reset *)",
+      "Bash(npm install *)",
+      "Bash(python3 -c \"import sys,json,base64; d=json.load\\(sys.stdin\\); print\\(base64.b64decode\\(d['content']\\).decode\\(\\)[:5000]\\)\")",
+      "Bash(python3 -c \"import sys; d=sys.stdin.read\\(\\); print\\(d[:200]\\)\")",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh api *)",
+      "Bash(python3 -c \"import sys,json; [print\\(x['name']\\) for x in json.load\\(sys.stdin\\)]\")",
+      "WebFetch(domain:github.com)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('dependencies',{}\\).get\\('jszip','NOT FOUND'\\)\\)\")",
+      "Bash(npx supabase *)",
+      "PowerShell(psql --version 2>$null)",
+      "PowerShell(if \\(-not $?\\) { \"no psql\" })",
+      "Bash(cat ~/.supabase/access-token 2>/dev/null || echo \"no token\")",
+      "Read(//c/Users/Administrator/.supabase/**)",
+      "Bash(git -C \"e:/UNG DUNG/ONTAP TIN \\(Tieu hoc\\)\" status)",
+      "Bash(git -C \"e:/UNG DUNG/ONTAP TIN \\(Tieu hoc\\)\" diff)"
     ]
   }
 }
