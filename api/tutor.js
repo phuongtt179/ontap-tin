@@ -1,7 +1,7 @@
 export const config = { maxDuration: 30 }
 
-// Model cho trợ giảng — chỉnh ở đây nếu muốn đổi
-const MODEL = 'gemini-2.5-flash'
+// Model cho trợ giảng — dùng chung với api/grade.js (chấm text) cho đồng bộ
+const MODEL = 'gemini-3.1-flash-lite'
 
 function buildPrompt({ mode, studentQuestion, context = {} }) {
   const persona = `Bạn là thầy/cô trợ giảng thân thiện của môn Lập trình sáng tạo (Scratch, Python) cho học sinh TIỂU HỌC (6–11 tuổi).
@@ -67,9 +67,6 @@ export default async function handler(req, res) {
           generationConfig: {
             temperature: 0.4,
             maxOutputTokens: 1024,
-            // Tắt "thinking" của gemini-2.5-flash — nếu bật, token suy nghĩ ăn hết
-            // hạn mức và câu trả lời bị cắt cụt.
-            thinkingConfig: { thinkingBudget: 0 },
           },
         }),
       }
