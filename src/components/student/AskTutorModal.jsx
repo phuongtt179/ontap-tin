@@ -16,6 +16,13 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
   const [escalated, setEscalated] = useState(false)
   const [escalating, setEscalating] = useState(false)
   const bottomRef = useRef(null)
+  const inputRef = useRef(null)
+
+  function autoGrow(el) {
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px'
+  }
 
   // Reset khi mở modal mới (ngữ cảnh mới)
   useEffect(() => {
@@ -34,6 +41,7 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
     const newChat = [...chat, { role: 'student', content: q }]
     setChat(newChat)
     setInput('')
+    if (inputRef.current) inputRef.current.style.height = 'auto'
     setLoading(true)
     try {
       const res = await fetch('/api/tutor', {
@@ -180,13 +188,15 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
         {/* Input */}
         <div className="border-t border-gray-200 bg-white px-3 py-3 flex gap-2 items-end shrink-0">
           <textarea
+            ref={inputRef}
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={e => { setInput(e.target.value); autoGrow(e.target) }}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
             disabled={loading}
             rows={1}
             placeholder={chat.length ? 'Hỏi tiếp câu khác...' : 'Con muốn hỏi gì?'}
-            className="flex-1 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-gray-50 resize-none max-h-24"
+            className="flex-1 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-gray-50 resize-none overflow-y-auto leading-snug"
+            style={{ maxHeight: 140 }}
           />
           <button onClick={send} disabled={!input.trim() || loading}
             className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:scale-100 shadow-md shrink-0">
