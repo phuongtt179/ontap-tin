@@ -2,9 +2,24 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
-import { Gift, Plus, Trash2, CheckCircle, Clock, X, Loader2, ToggleLeft, ToggleRight, Package, Settings, Save } from 'lucide-react'
+import { Gift, Plus, Trash2, CheckCircle, Clock, X, Loader2, ToggleLeft, ToggleRight, Package, Settings, Save, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 
 const EMOJI_PRESETS = ['🍬','🍭','🍫','🎮','📚','✏️','🖍️','🎨','🏆','⭐','🎯','🎁','🎀','🧸','🪀','🎲','🎵','📱','🍕','🍦','🎠','🌟','💎','🦄','🐱','🐶','🦋','🌈','🚀','💫']
+
+function SortTh({ label, col, sortBy, sortAsc, onSort }) {
+  const active = sortBy === col
+  return (
+    <th className="px-4 py-3 text-left">
+      <button onClick={() => onSort(col)}
+        className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-indigo-600 transition group">
+        {label}
+        {active
+          ? sortAsc ? <ChevronUp size={13} className="text-indigo-500" /> : <ChevronDown size={13} className="text-indigo-500" />
+          : <ChevronsUpDown size={12} className="text-gray-300 group-hover:text-indigo-400" />}
+      </button>
+    </th>
+  )
+}
 
 export default function RewardsPage() {
   const { grades } = useGrades()
@@ -29,6 +44,8 @@ export default function RewardsPage() {
   // Requests
   const [fulfilling, setFulfilling] = useState(null)
   const [filterStatus, setFilterStatus] = useState('pending')
+  const [sortBy, setSortBy] = useState('date')
+  const [sortAsc, setSortAsc] = useState(false)
 
   // Config editing
   const [editingThreshold, setEditingThreshold] = useState({})  // { [grade]: value }
@@ -156,7 +173,32 @@ export default function RewardsPage() {
   }
 
   const pendingCount = requests.filter(r => r.status === 'pending').length
-  const filteredReqs = requests.filter(r => r.status === filterStatus)
+
+  function toggleSort(col) {
+    if (sortBy === col) setSortAsc(a => !a)
+    else { setSortBy(col); setSortAsc(true) }
+  }
+
+  const filteredReqs = requests
+    .filter(r => r.status === filterStatus)
+    .sort((a, b) => {
+      let va, vb
+      if (sortBy === 'reward') {
+        va = a.reward_items?.name ?? ''; vb = b.reward_items?.name ?? ''
+        return sortAsc ? va.localeCompare(vb, 'vi') : vb.localeCompare(va, 'vi')
+      }
+      if (sortBy === 'student') {
+        va = a.profiles?.full_name ?? ''; vb = b.profiles?.full_name ?? ''
+        return sortAsc ? va.localeCompare(vb, 'vi') : vb.localeCompare(va, 'vi')
+      }
+      if (sortBy === 'class') {
+        va = a.class_name ?? ''; vb = b.class_name ?? ''
+        return sortAsc ? va.localeCompare(vb, 'vi') : vb.localeCompare(va, 'vi')
+      }
+      // date (default)
+      va = new Date(a.created_at); vb = new Date(b.created_at)
+      return sortAsc ? va - vb : vb - va
+    })
   const filteredItems = gradeFilter === '__all__'
     ? items
     : items.filter(i => (i.grade || '') === gradeFilter || (!i.grade && gradeFilter === '__all__'))
@@ -303,43 +345,70 @@ export default function RewardsPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredReqs.map(req => (
-                <div key={req.id} className={`bg-white rounded-2xl border px-5 py-4 flex items-center gap-4 ${req.status === 'pending' ? 'border-yellow-200 shadow-sm shadow-yellow-50' : 'border-gray-100'}`}>
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-100 to-yellow-100 flex items-center justify-center text-2xl shrink-0">
-                    {req.reward_items?.emoji || '🎁'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-gray-800 text-sm">{req.profiles?.full_name || 'Học sinh'}</span>
-                      {req.class_name && <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{req.class_name}</span>}
-                    </div>
-                    <div className="text-sm text-gray-600 mt-0.5">
-                      muốn đổi: <span className="font-semibold text-orange-600">{req.reward_items?.emoji} {req.reward_items?.name}</span>
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                      <span>⭐ {req.sticker_cost} sticker</span>
-                      <span>· {new Date(req.created_at).toLocaleDateString('vi-VN')}</span>
-                      {req.fulfilled_at && <span className="text-green-500">· Trao {new Date(req.fulfilled_at).toLocaleDateString('vi-VN')}</span>}
-                    </div>
-                  </div>
-                  {req.status === 'pending' && (
-                    <div className="flex gap-2 shrink-0">
-                      <button onClick={() => fulfillRequest(req)} disabled={fulfilling === req.id}
-                        className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-xl text-xs font-bold transition disabled:opacity-50">
-                        {fulfilling === req.id ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
-                        Đã trao
-                      </button>
-                      <button onClick={() => cancelRequest(req)} disabled={fulfilling === req.id}
-                        className="flex items-center gap-1.5 bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-500 px-3 py-2 rounded-xl text-xs font-bold transition">
-                        <X size={13} /> Từ chối
-                      </button>
-                    </div>
-                  )}
-                  {req.status === 'fulfilled' && <span className="text-green-500 text-xs font-bold shrink-0">✅ Đã trao</span>}
-                  {req.status === 'cancelled' && <span className="text-gray-400 text-xs font-bold shrink-0">✕ Từ chối</span>}
-                </div>
-              ))}
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="px-4 py-3 text-left font-bold text-gray-500 text-xs w-8">#</th>
+                      <SortTh label="Học sinh" col="student" sortBy={sortBy} sortAsc={sortAsc} onSort={toggleSort} />
+                      <SortTh label="Lớp" col="class" sortBy={sortBy} sortAsc={sortAsc} onSort={toggleSort} />
+                      <SortTh label="Phần thưởng" col="reward" sortBy={sortBy} sortAsc={sortAsc} onSort={toggleSort} />
+                      <th className="px-4 py-3 text-left font-bold text-gray-500 text-xs">Sticker</th>
+                      <SortTh label="Ngày" col="date" sortBy={sortBy} sortAsc={sortAsc} onSort={toggleSort} />
+                      {filterStatus === 'pending' && <th className="px-4 py-3 text-center font-bold text-gray-500 text-xs">Hành động</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filteredReqs.map((req, idx) => (
+                      <tr key={req.id} className="hover:bg-gray-50/70 transition-colors">
+                        <td className="px-4 py-3 text-xs text-gray-300 font-mono">{idx + 1}</td>
+                        <td className="px-4 py-3">
+                          <span className="font-semibold text-gray-800">{req.profiles?.full_name || 'Học sinh'}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {req.class_name
+                            ? <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">{req.class_name}</span>
+                            : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl leading-none">{req.reward_items?.emoji || '🎁'}</span>
+                            <span className="font-semibold text-orange-600">{req.reward_items?.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs font-bold text-amber-600">⭐ {req.sticker_cost}</td>
+                        <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                          {new Date(req.created_at).toLocaleDateString('vi-VN')}
+                          {req.fulfilled_at && (
+                            <div className="text-green-500 mt-0.5">
+                              Trao {new Date(req.fulfilled_at).toLocaleDateString('vi-VN')}
+                            </div>
+                          )}
+                        </td>
+                        {filterStatus === 'pending' && (
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button onClick={() => fulfillRequest(req)} disabled={fulfilling === req.id}
+                                className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold transition disabled:opacity-50">
+                                {fulfilling === req.id ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle size={11} />}
+                                Đã trao
+                              </button>
+                              <button onClick={() => cancelRequest(req)} disabled={fulfilling === req.id}
+                                className="flex items-center gap-1 bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-500 px-2.5 py-1.5 rounded-lg text-xs font-bold transition">
+                                <X size={11} /> Từ chối
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 text-xs text-gray-400">
+                {filteredReqs.length} yêu cầu
+              </div>
             </div>
           )}
         </div>
