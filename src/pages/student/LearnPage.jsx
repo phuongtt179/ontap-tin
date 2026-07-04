@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useSelectedGrade } from '../../hooks/useEnrollments'
-import { CheckCircle, Zap, ChevronLeft, ChevronRight, Gift } from 'lucide-react'
+import { CheckCircle, Zap, ChevronLeft, ChevronRight, Gift, Trophy } from 'lucide-react'
 import RewardModal from '../../components/student/RewardModal'
+import AchievementsModal from '../../components/student/AchievementsModal'
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -441,6 +442,22 @@ export default function LearnPage() {
   const [streakDays, setStreakDays] = useState(0)
   const [showReward, setShowReward] = useState(false)
   const [stickerThreshold, setStickerThreshold] = useState(50)
+  const [showAchievements, setShowAchievements] = useState(false)
+  const [rewardNotif, setRewardNotif] = useState(false)   // có quà mới được trao chưa xem
+
+  // Kiểm tra quà mới được trao (thông báo chấm đỏ)
+  useEffect(() => {
+    if (!user?.id) return
+    async function checkRewardNotif() {
+      const { data } = await supabase.from('reward_requests')
+        .select('fulfilled_at').eq('student_id', user.id).eq('status', 'fulfilled')
+        .not('fulfilled_at', 'is', null).order('fulfilled_at', { ascending: false }).limit(1)
+      if (!data?.length) return
+      const lastSeen = localStorage.getItem(`rewards_seen_${user.id}`)
+      if (!lastSeen || new Date(data[0].fulfilled_at) > new Date(lastSeen)) setRewardNotif(true)
+    }
+    checkRewardNotif()
+  }, [user?.id])
 
   useEffect(() => {
     if (selectedGrade && user) { setSelectedTopic('__all__'); loadData() }
@@ -543,6 +560,14 @@ export default function LearnPage() {
         />
       )}
 
+      {/* Achievements modal */}
+      <AchievementsModal
+        open={showAchievements}
+        onClose={() => setShowAchievements(false)}
+        userId={user.id}
+        userName={profile?.full_name}
+      />
+
       {/* ① Hero */}
       <div className="shrink-0 bg-gradient-to-r from-[#003d8f] via-[#0055bb] to-[#0077dd] text-white px-5 py-4 md:px-8 relative overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 flex items-center pr-6 opacity-10 select-none pointer-events-none text-8xl">🗺️</div>
@@ -627,6 +652,17 @@ export default function LearnPage() {
                     🎁 Đổi quà
                   </span>
                 </div>
+              </button>
+
+              {/* Thành tích */}
+              <button
+                onClick={() => { setShowAchievements(true); setRewardNotif(false) }}
+                className="relative flex flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-2 shrink-0 bg-white/15 hover:bg-white/25 transition-all hover:scale-105 active:scale-95">
+                {rewardNotif && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 border-2 border-[#0055bb]" />
+                )}
+                <Trophy size={20} className="text-yellow-300" />
+                <span className="text-[9px] font-bold leading-none text-white/80">Thành tích</span>
               </button>
             </div>
           </div>
