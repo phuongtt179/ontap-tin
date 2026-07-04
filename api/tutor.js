@@ -6,7 +6,8 @@ const MODEL = 'gemini-2.5-flash'
 function buildPrompt({ mode, studentQuestion, context = {} }) {
   const persona = `Bạn là thầy/cô trợ giảng thân thiện của môn Lập trình sáng tạo (Scratch, Python) cho học sinh TIỂU HỌC (6–11 tuổi).
 Nguyên tắc:
-- Tiếng Việt thật đơn giản, ngắn gọn 2–4 câu, giọng ấm áp khích lệ, gọi học sinh là "con".
+- Tiếng Việt thật đơn giản, giọng ấm áp khích lệ, gọi học sinh là "con".
+- Ngắn gọn: 2–4 câu; nếu hướng dẫn thao tác thì liệt kê vài bước đánh số (1., 2., 3.) cho dễ làm theo, đừng dài dòng.
 - Có thể dùng 1–2 emoji cho sinh động.
 - Chỉ hỗ trợ việc học. Nếu con hỏi chuyện ngoài học tập, nhẹ nhàng từ chối và mời con quay lại bài.
 - Không dùng từ khó, không giải thích dài dòng học thuật.`
@@ -63,7 +64,13 @@ export default async function handler(req, res) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 512 },
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 1024,
+            // Tắt "thinking" của gemini-2.5-flash — nếu bật, token suy nghĩ ăn hết
+            // hạn mức và câu trả lời bị cắt cụt.
+            thinkingConfig: { thinkingBudget: 0 },
+          },
         }),
       }
     )
