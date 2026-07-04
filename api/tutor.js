@@ -3,7 +3,7 @@ export const config = { maxDuration: 30 }
 // Model cho trợ giảng — dùng chung với api/grade.js (chấm text) cho đồng bộ
 const MODEL = 'gemini-3.1-flash-lite'
 
-function buildPrompt({ mode, studentQuestion, context = {} }) {
+function buildSystemPrompt({ mode, context = {} }) {
   const persona = `Bạn là thầy/cô trợ giảng thân thiện của môn Lập trình sáng tạo (Scratch, Python) cho học sinh TIỂU HỌC (6–11 tuổi).
 Nguyên tắc:
 - Tiếng Việt thật đơn giản, giọng ấm áp khích lệ, gọi học sinh là "con".
@@ -38,22 +38,28 @@ Hãy ưu tiên dựa vào "Nội dung bài học" bên dưới (nếu có). Nế
 
 ${task}
 ${ctx ? `\nNGỮ CẢNH:${ctx}\n` : ''}
-[Câu hỏi của con] ${studentQuestion}
-
-Trả lời (chỉ nội dung, không thêm tiêu đề hay markdown):`
+Trả lời chỉ nội dung, không thêm tiêu đề. Nhớ toàn bộ cuộc trò chuyện với con để trả lời liền mạch, không lặp lại từ đầu.`
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
-  const { mode, studentQuestion, context } = req.body || {}
-  if (!studentQuestion || !String(studentQuestion).trim())
+  // messages: [{ role: 'student'|'ai', content }] — cả đoạn hội thoại, câu mới nhất ở cuối
+  const { mode, context, messages, studentQuestion } = req.body || {}
+  const turns = Array.isArray(messages) && messages.length
+    ? messages
+    : (studentQuestion ? [{ role: 'student', content: studentQuestion }] : [])  // tương thích ngược
+  if (turns.length === 0 || !String(turns[turns.length - 1]?.content || '').trim())
     return res.status(400).json({ error: 'no_question' })
 
   const GEMINI_KEY = process.env.GEMINI_API_KEY
   if (!GEMINI_KEY) return res.status(500).json({ error: 'no_api_key' })
 
-  const prompt = buildPrompt({ mode, studentQuestion, context: context || {} })
+  const systemPrompt = buildSystemPrompt({ mode, context: context || {} })
+  const contents = turns.map(m => ({
+    role: m.role === 'ai' ? 'model' : 'user',
+    parts: [{ text: String(m.content || '') }],
+  }))
 
   let geminiRes
   try {
@@ -63,7 +69,8 @@ export default async function handler(req, res) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents,
           generationConfig: {
             temperature: 0.4,
             maxOutputTokens: 1024,
