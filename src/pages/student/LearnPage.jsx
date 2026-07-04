@@ -605,11 +605,8 @@ export default function LearnPage() {
 
               {/* Sticker */}
               <button
-                onClick={stickerCount >= stickerThreshold ? () => setShowReward(true) : undefined}
-                className={`flex items-center gap-2 rounded-xl px-2.5 py-2 shrink-0 transition-all duration-300
-                  ${stickerCount >= stickerThreshold
-                    ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-lg cursor-pointer hover:scale-105 active:scale-95'
-                    : 'bg-white/15 cursor-default'}`}>
+                onClick={() => setShowReward(true)}
+                className="flex items-center gap-2 rounded-xl px-2.5 py-2 shrink-0 transition-all duration-300 bg-gradient-to-br from-yellow-400 to-orange-500 shadow-lg cursor-pointer hover:scale-105 active:scale-95">
                 <span className="text-2xl select-none leading-none"
                   style={{ filter: 'drop-shadow(0 0 6px rgba(255,220,0,0.9))', display: 'inline-block', animation: 'sticker-float 2.5s ease-in-out infinite' }}>
                   🏆
@@ -617,17 +614,17 @@ export default function LearnPage() {
                 <div className="flex flex-col gap-0.5">
                   <div className="flex items-baseline gap-0.5 leading-none">
                     <span className="text-white font-black text-lg">{stickerCount}</span>
-                    <span className="text-white/50 text-[10px]">/{stickerThreshold}</span>
+                    <span className="text-white/70 text-[10px]">/{stickerThreshold}</span>
                   </div>
                   <div className="w-12 h-1.5 bg-white/25 rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-700"
                       style={{
                         width: `${Math.min((stickerCount / stickerThreshold) * 100, 100)}%`,
-                        background: stickerCount >= stickerThreshold ? 'white' : 'linear-gradient(90deg,#fde68a,#fb923c)'
+                        background: 'linear-gradient(90deg,#fde68a,white)'
                       }} />
                   </div>
-                  <span className={`text-[9px] font-bold leading-none ${stickerCount >= stickerThreshold ? 'text-white' : 'text-white/50'}`}>
-                    {stickerCount >= stickerThreshold ? '🎁 Đổi quà!' : 'sticker'}
+                  <span className="text-[9px] font-bold leading-none text-white/80">
+                    🎁 Đổi quà
                   </span>
                 </div>
               </button>
