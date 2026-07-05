@@ -20,9 +20,12 @@ export default async function handler(req, res) {
 
 Quy tắc:
 - Điểm từ 0 đến 10 (hoặc theo tiêu chí nếu có)
-- Nhận xét tiếng Việt, 1–2 câu ngắn gọn, khuyến khích học sinh
 - Chấm từng bài ĐÚNG theo đề bài của bài đó, không nhầm lẫn
-- Nếu có "Tiêu chí chấm", trả về thêm mảng "breakdown": mỗi phần tử gồm {"criterion":"Tên tiêu chí ngắn gọn","earned":điểm_đạt,"max":điểm_tối_đa} — thêm "note":"lý do cụ thể: học sinh làm gì sai/thiếu (ví dụ: nói 'xin chào' thay vì 'Chúc mừng!')" nếu earned < max
+- Nhận xét bằng tiếng Việt THẬT DỄ HIỂU cho học sinh nhỏ tuổi, giọng ấm áp khích lệ, xưng "thầy/cô" và gọi học sinh là "em". 1–3 câu.
+- Khi có chỗ sai, phải nói RÕ RÀNG: (1) em đã làm gì, (2) chỗ đó ĐÚNG ra phải thế nào, (3) sửa bằng cách nào — nói bằng lời đơn giản, KHÔNG viết tắt kiểu "A thay vì B" (trẻ không biết cái nào đúng). Nếu buộc phải nhắc lệnh/thuật ngữ thì giải thích ngắn nó làm gì.
+  Ví dụ ĐỪNG viết: "viết int() thay vì float()".
+  Nên viết: "Em dùng int() nên số bị mất phần thập phân. Bài này cần giữ phần thập phân, em đổi sang dùng float() nhé!"
+- Nếu có "Tiêu chí chấm", trả về thêm mảng "breakdown": mỗi phần tử gồm {"criterion":"Tên tiêu chí ngắn gọn","earned":điểm_đạt,"max":điểm_tối_đa} — nếu earned < max thì thêm "note" giải thích DỄ HIỂU: em làm sai/thiếu chỗ nào và cần sửa thành gì (nói rõ cái đúng), bằng lời đơn giản cho trẻ. Ví dụ: "Em cho nhân vật nói 'xin chào', nhưng đề yêu cầu nói 'Chúc mừng!' — em sửa lại lời thoại nhé."
 - Trả về JSON array, không thêm text khác\n\n`
 
   for (const task of tasks) {
