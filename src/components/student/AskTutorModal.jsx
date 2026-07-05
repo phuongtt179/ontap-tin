@@ -44,6 +44,8 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
     if (inputRef.current) inputRef.current.style.height = 'auto'
     setLoading(true)
     try {
+      // Chờ ngẫu nhiên chút (dàn tải, tránh dồn request cùng lúc gây hết lượt theo phút)
+      await new Promise(r => setTimeout(r, 700 + Math.random() * 2300))
       const res = await fetch('/api/tutor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

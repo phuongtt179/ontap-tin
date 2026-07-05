@@ -21,19 +21,22 @@ export async function callGeminiRotate({ model, keys, payload }) {
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload }
   )
 
+  // Xáo trộn thứ tự key → mỗi lần gọi random chọn 1 key; key nào hết lượt mới nhảy sang key khác
+  const order = [...keys].sort(() => Math.random() - 0.5)
+
   let last = null
-  for (const key of keys) {
+  for (const key of order) {
     const res = await attempt(key)
     if (res.status !== 429) return res     // thành công, hoặc lỗi khác 429 → trả luôn
     last = res                              // key này hết lượt → thử key kế tiếp
   }
 
-  // Tất cả key đều 429: nếu là giới hạn theo PHÚT (không phải theo ngày) thì chờ rồi thử lại key đầu 1 lần
-  if (last && keys.length) {
+  // Tất cả key đều 429: nếu là giới hạn theo PHÚT (không phải theo ngày) thì chờ rồi thử lại 1 lần
+  if (last && order.length) {
     const eb = await last.clone().json().catch(() => ({}))
     if (!isDailyLimit(eb)) {
       await new Promise(r => setTimeout(r, 5000))
-      return attempt(keys[0])
+      return attempt(order[0])
     }
   }
   return last
