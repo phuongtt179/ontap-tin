@@ -1,3 +1,5 @@
+import { getGeminiKeys, callGeminiRotate, isDailyLimit } from './_gemini.js'
+
 export const config = { maxDuration: 30 }
 
 // Model cho trợ giảng — dùng chung với api/grade.js (chấm text) cho đồng bộ
@@ -64,8 +66,8 @@ export default async function handler(req, res) {
   if (turns.length === 0 || !String(turns[turns.length - 1]?.content || '').trim())
     return res.status(400).json({ error: 'no_question' })
 
-  const GEMINI_KEY = process.env.GEMINI_API_KEY
-  if (!GEMINI_KEY) return res.status(500).json({ error: 'no_api_key' })
+  const keys = getGeminiKeys()
+  if (!keys.length) return res.status(500).json({ error: 'no_api_key' })
 
   const systemPrompt = buildSystemPrompt({ mode, context: context || {} })
   const contents = turns.map(m => ({
@@ -73,26 +75,15 @@ export default async function handler(req, res) {
     parts: [{ text: String(m.content || '') }],
   }))
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_KEY}`
-  const body = JSON.stringify({
+  const payload = JSON.stringify({
     systemInstruction: { parts: [{ text: systemPrompt }] },
     contents,
     generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
   })
-  const callGemini = () => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
-  const isDailyLimit = obj => /daily|per[_ ]?day|perday|rpd|quota.*day/i.test(JSON.stringify(obj || {}))
 
   let geminiRes
   try {
-    geminiRes = await callGemini()
-    // Giới hạn theo phút (RPM) → chờ rồi thử lại 1 lần; theo ngày (RPD) thì thôi
-    if (geminiRes.status === 429) {
-      const errBody = await geminiRes.clone().json().catch(() => ({}))
-      if (!isDailyLimit(errBody)) {
-        await new Promise(r => setTimeout(r, 5000))
-        geminiRes = await callGemini()
-      }
-    }
+    geminiRes = await callGeminiRotate({ model: MODEL, keys, payload })
   } catch {
     return res.status(500).json({ error: 'network' })
   }

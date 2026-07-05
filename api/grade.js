@@ -1,3 +1,5 @@
+import { getGeminiKeys, callGeminiRotate, isDailyLimit } from './_gemini.js'
+
 export const config = { maxDuration: 30 }
 
 export default async function handler(req, res) {
@@ -7,8 +9,8 @@ export default async function handler(req, res) {
   if (!Array.isArray(tasks) || tasks.length === 0)
     return res.status(400).json({ error: 'no_tasks' })
 
-  const GEMINI_KEY = process.env.GEMINI_API_KEY
-  if (!GEMINI_KEY) return res.status(500).json({ error: 'no_api_key' })
+  const keys = getGeminiKeys()
+  if (!keys.length) return res.status(500).json({ error: 'no_api_key' })
 
   const hasImage = tasks.some(t => t.type === 'image' && t.imageUrl)
   const model = hasImage ? 'gemini-2.5-flash' : 'gemini-3.1-flash-lite'
@@ -74,24 +76,16 @@ Quy tắc:
     } catch { /* skip unloadable images */ }
   }
 
-  // Call Gemini
-  const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 2048 },
-      }),
-    }
-  )
+  // Call Gemini — xoay vòng nhiều key khi hết lượt
+  const payload = JSON.stringify({
+    contents: [{ parts }],
+    generationConfig: { temperature: 0.2, maxOutputTokens: 2048 },
+  })
+  const geminiRes = await callGeminiRotate({ model, keys, payload })
 
   if (geminiRes.status === 429) {
     const body = await geminiRes.json().catch(() => ({}))
-    const msg = JSON.stringify(body).toLowerCase()
-    const isDaily = msg.includes('daily') || msg.includes('per_day') || msg.includes('rpd')
-    return res.status(429).json({ error: isDaily ? 'quota_rpd' : 'quota_rpm' })
+    return res.status(429).json({ error: isDailyLimit(body) ? 'quota_rpd' : 'quota_rpm' })
   }
 
   if (!geminiRes.ok) {
