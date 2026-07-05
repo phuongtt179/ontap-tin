@@ -25,17 +25,24 @@ export default function GradesPage() {
   const [saving, setSaving] = useState(false)
   const [editGrade, setEditGrade] = useState(null)
   const [editVal, setEditVal] = useState('')
+  const [aiScopes, setAiScopes] = useState({})     // { [value]: ai_scope }
+  const [editScope, setEditScope] = useState(null)
+  const [scopeVal, setScopeVal] = useState('')
+  const [savingScope, setSavingScope] = useState(false)
 
   useEffect(() => { fetchAll() }, [])
 
   async function fetchAll() {
     setLoading(true)
     const [gradeRes, classRes, enrollRes] = await Promise.all([
-      supabase.from('grades').select('value').order('value'),
+      supabase.from('grades').select('value, ai_scope').order('value'),
       supabase.from('classes').select('grade'),
       supabase.from('student_enrollments').select('grade').eq('is_approved', true),
     ])
     const gradeList = gradeRes.data?.map(g => g.value) || []
+    const scopeMap = {}
+    gradeRes.data?.forEach(g => { scopeMap[g.value] = g.ai_scope || '' })
+    setAiScopes(scopeMap)
     const s = {}
     gradeList.forEach(v => { s[v] = { classes: 0, students: 0 } })
     classRes.data?.forEach(c => { if (s[c.grade]) s[c.grade].classes++ })
@@ -78,6 +85,17 @@ export default function GradesPage() {
     setEditGrade(null)
     toast.success(`Đã đổi tên thành "${val}"`)
     fetchAll()
+  }
+
+  async function saveScope(value) {
+    setSavingScope(true)
+    const val = scopeVal.trim()
+    const { error } = await supabase.from('grades').update({ ai_scope: val || null }).eq('value', value)
+    setSavingScope(false)
+    if (error) { toast.error('Lưu thất bại: ' + error.message); return }
+    setAiScopes(prev => ({ ...prev, [value]: val }))
+    setEditScope(null)
+    toast.success('Đã lưu mô tả cho AI trợ giảng')
   }
 
   async function handleDelete(value) {
@@ -214,6 +232,40 @@ export default function GradesPage() {
                       <div className="text-xs text-gray-500">học sinh</div>
                     </div>
                   </div>
+                </div>
+
+                {/* Mô tả khóa cho AI trợ giảng */}
+                <div className="bg-white rounded-xl px-3 py-2.5 shadow-sm mb-4 border border-violet-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-bold text-violet-600 flex items-center gap-1">🤖 AI trợ giảng</span>
+                    {editScope !== g && (
+                      <button onClick={() => { setEditScope(g); setScopeVal(aiScopes[g] || '') }}
+                        className="text-[11px] text-indigo-500 hover:underline font-semibold">
+                        {aiScopes[g] ? 'Sửa' : 'Cài đặt'}
+                      </button>
+                    )}
+                  </div>
+                  {editScope === g ? (
+                    <div className="space-y-1.5">
+                      <textarea
+                        autoFocus value={scopeVal} onChange={e => setScopeVal(e.target.value)}
+                        rows={2}
+                        placeholder="VD: Lập trình Scratch cho học sinh tiểu học"
+                        className="w-full border border-violet-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none bg-violet-50/40"
+                      />
+                      <div className="flex gap-1.5">
+                        <button onClick={() => saveScope(g)} disabled={savingScope}
+                          className="flex-1 flex items-center justify-center gap-1 bg-violet-600 hover:bg-violet-700 text-white text-xs py-1.5 rounded-lg disabled:opacity-50">
+                          {savingScope ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} Lưu
+                        </button>
+                        <button onClick={() => setEditScope(null)} className="px-2 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">Hủy</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className={`text-xs leading-snug ${aiScopes[g] ? 'text-gray-600' : 'text-gray-300 italic'}`}>
+                      {aiScopes[g] || 'Chưa cài — AI dùng mô tả chung. Nên ghi rõ môn + đối tượng.'}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex gap-2">

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useSelectedGrade } from '../../hooks/useEnrollments'
-import { CheckCircle, Zap, ChevronLeft, ChevronRight, Gift, Trophy } from 'lucide-react'
+import { CheckCircle, Zap, ChevronLeft, ChevronRight, Gift, Trophy, X } from 'lucide-react'
 import RewardModal from '../../components/student/RewardModal'
 import AchievementsModal from '../../components/student/AchievementsModal'
 
@@ -444,6 +444,14 @@ export default function LearnPage() {
   const [stickerThreshold, setStickerThreshold] = useState(50)
   const [showAchievements, setShowAchievements] = useState(false)
   const [rewardNotif, setRewardNotif] = useState(false)   // có quà mới được trao chưa xem
+  const [nudgeClosed, setNudgeClosed] = useState(() => {
+    try { return localStorage.getItem('nudge_' + (user?.id || '')) === new Date().toDateString() } catch { return false }
+  })
+
+  function closeNudge() {
+    setNudgeClosed(true)
+    try { localStorage.setItem('nudge_' + (user?.id || ''), new Date().toDateString()) } catch {}
+  }
 
   // Kiểm tra quà mới được trao (thông báo chấm đỏ)
   useEffect(() => {
@@ -502,6 +510,19 @@ export default function LearnPage() {
     if (selectedTopic === '__all__') return lessons
     return lessons.filter(l => (l.topic || '__no_topic__') === selectedTopic)
   }, [lessons, selectedTopic])
+
+  // Lời nhắc khi vào bài học: bài mới / bài chưa hoàn thành
+  const nudge = useMemo(() => {
+    if (nudgeClosed || displayedLessons.length === 0) return null
+    const firstName = (profile?.full_name || '').trim().split(/\s+/).slice(-1)[0] || 'em'
+    const incomplete = displayedLessons.filter(l => !progressMap[l.id]?.completed)
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    const fresh = displayedLessons.filter(l =>
+      !progressMap[l.id] && l.created_at && new Date(l.created_at).getTime() > weekAgo)
+    if (fresh.length > 0) return { emoji: '🎉', text: `Chào ${firstName}! Khóa vừa có ${fresh.length} bài mới, làm ngay nhé!` }
+    if (incomplete.length > 0) return { emoji: '💪', text: `Chào ${firstName}! Em còn ${incomplete.length} bài chưa hoàn thành, cố lên nhé!` }
+    return { emoji: '🌟', text: `Chào ${firstName}! Em đã hoàn thành hết bài rồi, giỏi lắm!` }
+  }, [nudgeClosed, displayedLessons, progressMap, profile?.full_name])
 
   const groups = useMemo(() => {
     const unitMap = {}
@@ -683,6 +704,19 @@ export default function LearnPage() {
 
       {/* ③ Unit cards — CHỈ phần này cuộn */}
       <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Lời nhắc trợ giảng */}
+        {nudge && (
+          <div className="max-w-2xl mx-auto px-4 pt-3">
+            <div className="flex items-center gap-3 bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 rounded-2xl px-4 py-3">
+              <div className="text-2xl shrink-0 select-none">{nudge.emoji}</div>
+              <p className="flex-1 text-sm font-semibold text-indigo-800 leading-snug">{nudge.text}</p>
+              <button onClick={closeNudge} className="text-indigo-300 hover:text-indigo-500 shrink-0" title="Ẩn">
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Legend */}
         <div className="max-w-2xl mx-auto px-4 pt-3 flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-1.5 text-xs text-gray-400">

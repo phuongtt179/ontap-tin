@@ -881,7 +881,7 @@ function SectionCard({ icon, iconBg, iconColor, title, badge, done, locked, lock
 export default function LessonPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
 
   const [lesson, setLesson] = useState(null)
   const [questions, setQuestions] = useState([])
@@ -903,6 +903,8 @@ export default function LessonPage() {
   const [stickerThreshold, setStickerThreshold] = useState(50)
   const [studentGrade, setStudentGrade] = useState(null)
   const [tutor, setTutor] = useState(null)   // { mode, context } | null
+  const [courseScope, setCourseScope] = useState('')       // mô tả khóa cho AI
+  const [lessonsCompleted, setLessonsCompleted] = useState(0)  // số bài đã hoàn thành (ước lượng trình độ)
   const wasCompleted = useRef(false)
   const [pptxMarking, setPptxMarking] = useState(false)
 
@@ -924,6 +926,15 @@ export default function LessonPage() {
       const { data: cfgData } = await supabase.from('reward_configs').select('sticker_threshold').eq('grade', grade).maybeSingle()
       if (cfgData?.sticker_threshold) setStickerThreshold(cfgData.sticker_threshold)
     }
+
+    // 1b. Mô tả khóa cho AI + số bài đã hoàn thành (ước lượng trình độ)
+    if (lessonData.grade) {
+      supabase.from('grades').select('ai_scope').eq('value', lessonData.grade).maybeSingle()
+        .then(({ data }) => setCourseScope(data?.ai_scope || ''))
+    }
+    supabase.from('lesson_progress').select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id).eq('completed', true)
+      .then(({ count }) => setLessonsCompleted(count || 0))
 
     // 2. Fetch questions if any
     if (lessonData.question_ids?.length > 0) {
@@ -1154,6 +1165,9 @@ export default function LessonPage() {
         lessonTitle: lesson.title,
         lessonDescription: lesson.description || '',
         aiContext: lesson.ai_context || '',
+        courseScope,
+        studentName: profile?.full_name || '',
+        lessonsCompleted,
         ...extra,
       },
     })
