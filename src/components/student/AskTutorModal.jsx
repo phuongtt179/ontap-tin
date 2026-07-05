@@ -51,9 +51,13 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.answer) {
-        toast.error(res.status === 429
-          ? 'Trợ giảng đang bận, em thử lại sau chút nhé 🙏'
-          : 'Chưa hỏi được trợ giảng, em thử lại nhé')
+        if (res.status === 429) {
+          toast.error(data.error === 'quota_rpd'
+            ? 'Trợ giảng đã hết lượt hỏi hôm nay rồi, mai em hỏi tiếp nhé 🙏'
+            : 'Nhiều bạn đang hỏi cùng lúc, em chờ một chút rồi hỏi lại nhé 🙏')
+        } else {
+          toast.error('Chưa hỏi được trợ giảng, em thử lại nhé')
+        }
         return
       }
       setChat([...newChat, { role: 'ai', content: data.answer }])

@@ -73,28 +73,34 @@ export default async function handler(req, res) {
     parts: [{ text: String(m.content || '') }],
   }))
 
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_KEY}`
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    contents,
+    generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
+  })
+  const callGemini = () => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+  const isDailyLimit = obj => /daily|per[_ ]?day|perday|rpd|quota.*day/i.test(JSON.stringify(obj || {}))
+
   let geminiRes
   try {
-    geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents,
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 1024,
-          },
-        }),
+    geminiRes = await callGemini()
+    // Giới hạn theo phút (RPM) → chờ rồi thử lại 1 lần; theo ngày (RPD) thì thôi
+    if (geminiRes.status === 429) {
+      const errBody = await geminiRes.clone().json().catch(() => ({}))
+      if (!isDailyLimit(errBody)) {
+        await new Promise(r => setTimeout(r, 5000))
+        geminiRes = await callGemini()
       }
-    )
+    }
   } catch {
     return res.status(500).json({ error: 'network' })
   }
 
-  if (geminiRes.status === 429) return res.status(429).json({ error: 'quota' })
+  if (geminiRes.status === 429) {
+    const errBody = await geminiRes.json().catch(() => ({}))
+    return res.status(429).json({ error: isDailyLimit(errBody) ? 'quota_rpd' : 'quota_rpm' })
+  }
   if (!geminiRes.ok) {
     const body = await geminiRes.json().catch(() => ({}))
     return res.status(500).json({ error: 'gemini_error', details: body })
