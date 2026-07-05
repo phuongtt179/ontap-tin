@@ -5,6 +5,14 @@ export const config = { maxDuration: 30 }
 // Model cho trợ giảng — dùng chung với api/grade.js (chấm text) cho đồng bộ
 const MODEL = 'gemini-3.1-flash-lite'
 
+// Hướng dẫn dùng ứng dụng "Lập Trình Sáng Tạo BNP" — để AI trả lời khi được hỏi cách dùng
+const APP_GUIDE = `- HỌC BÀI: vào mục "Bài học", chọn 1 bài. Trong bài có thể có video, slide/PDF, câu hỏi trắc nghiệm (làm từng câu, sai thì làm lại và có gợi ý), và bài thực hành.
+- NỘP BÀI THỰC HÀNH: ở bài thực hành, tải file lên (ví dụ .sb3 cho Scratch, .py cho Python, hoặc ảnh) hoặc gõ bài trực tiếp rồi bấm nộp. Bài sẽ được AI hoặc thầy/cô chấm và nhận xét; nếu chưa tốt em có thể làm lại và nộp lại.
+- STICKER & CHUỖI NGÀY (streak): hoàn thành bài học sẽ nhận sticker; học đều mỗi ngày sẽ tăng "chuỗi ngày". Sticker dùng để đổi quà.
+- ĐỔI QUÀ: khi đủ sticker, vào mục phần thưởng để đổi quà; sau đó chờ thầy/cô trao quà.
+- THÀNH TÍCH: bấm nút "Thành tích" để xem bảng vinh danh của lớp, các huy hiệu đã đạt, và quà của mình.
+- HỎI BÀI: bấm nút trợ giảng (chính là mình đây) để hỏi AI ngay trong bài; nếu vẫn chưa hiểu, bấm "Hỏi thầy/cô" để gửi câu hỏi cho giáo viên ở mục "Hỏi giáo viên".`
+
 function buildSystemPrompt({ mode, context = {} }) {
   const scope = (context.courseScope || '').trim()
   const name = (context.studentName || '').trim()
@@ -23,6 +31,10 @@ Nguyên tắc:
 - Ngắn gọn: 2–4 câu; nếu hướng dẫn thao tác thì liệt kê vài bước đánh số (1., 2., 3.), đừng dài dòng.
 - Có thể dùng 1–2 emoji cho sinh động.
 - PHẠM VI: Em đang học bài thuộc khóa${scope ? ` "${scope}"` : ' Tin học / lập trình'} — hãy ƯU TIÊN bám khóa này. Nhưng nếu em tò mò hỏi thêm về các chủ đề Tin học / lập trình / tin học văn phòng khác (kể cả ngoài khóa hiện tại), cứ VUI VẺ trả lời ở mức phù hợp lứa tuổi và khuyến khích em tìm hiểu. CHỈ từ chối khi câu hỏi HOÀN TOÀN không liên quan Tin học (môn Toán/Văn/Tiếng Anh..., chuyện đời sống, giải trí, tán gẫu, chuyện riêng tư): khi đó nhẹ nhàng nói thầy/cô là trợ giảng Tin học nên chỉ giúp phần này thôi, rồi mời em quay lại bài.
+- NGOÀI giúp bài học, hãy trả lời NHIỆT TÌNH 2 loại câu hỏi sau (đây là hợp lệ, KHÔNG từ chối):
+  (a) CHƯƠNG TRÌNH / LỘ TRÌNH của khóa: khóa này học những gì, theo thứ tự nào, sắp tới học gì — dựa vào "[Lộ trình khóa học]" trong NGỮ CẢNH (nếu không có dữ liệu thì dựa vào mô tả khóa). Người hỏi có thể là PHỤ HUYNH muốn tìm hiểu con sẽ học gì.
+  (b) CÁCH DÙNG ỨNG DỤNG (làm bài, nộp bài, sticker, đổi quà, xem thành tích, hỏi giáo viên...) — dựa vào phần "HƯỚNG DẪN DÙNG ỨNG DỤNG" ở cuối.
+- Nếu người hỏi có vẻ là PHỤ HUYNH (xưng "con tôi", "cháu", hỏi thay cho con...), hãy trả lời lịch sự, gọi "anh/chị" và xưng "mình", không gọi "em".
 - Nếu em nói tục, chửi bậy, trêu chọc, spam hay nội dung không phù hợp lứa tuổi: TUYỆT ĐỐI không lặp lại hay hùa theo. Hãy nhắc nhở thật nhẹ nhàng, lịch sự rằng mình cùng nói chuyện văn minh và tập trung học nhé, rồi mời em đặt câu hỏi về bài. Luôn bình tĩnh, tử tế.
 - Không dùng từ khó, không giải thích dài dòng học thuật.`
 
@@ -47,12 +59,16 @@ Hãy ưu tiên dựa vào "Nội dung bài học" bên dưới (nếu có). Nế
   if (context.correctAnswer) ctx += `\n[Đáp án đúng — CHỈ để bạn định hướng, TUYỆT ĐỐI KHÔNG tiết lộ cho học sinh] ${context.correctAnswer}`
   if (context.hint) ctx += `\n[Gợi ý giáo viên đã soạn cho câu này] ${context.hint}`
   if (context.taskInstructions) ctx += `\n[Đề bài thực hành] ${context.taskInstructions}`
+  if (context.courseRoadmap) ctx += `\n[Lộ trình khóa học — các bài theo thứ tự]\n${context.courseRoadmap}`
 
   return `${persona}
 
 ${task}
 ${ctx ? `\nNGỮ CẢNH:${ctx}\n` : ''}
-Trả lời chỉ nội dung, không thêm tiêu đề. Nhớ toàn bộ cuộc trò chuyện với em để trả lời liền mạch, không lặp lại từ đầu.`
+HƯỚNG DẪN DÙNG ỨNG DỤNG (chỉ dùng khi được hỏi về cách sử dụng app):
+${APP_GUIDE}
+
+Trả lời chỉ nội dung, không thêm tiêu đề. Nhớ toàn bộ cuộc trò chuyện để trả lời liền mạch, không lặp lại từ đầu.`
 }
 
 export default async function handler(req, res) {

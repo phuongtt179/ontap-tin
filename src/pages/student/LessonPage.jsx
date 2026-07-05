@@ -905,6 +905,7 @@ export default function LessonPage() {
   const [tutor, setTutor] = useState(null)   // { mode, context } | null
   const [courseScope, setCourseScope] = useState('')       // mô tả khóa cho AI
   const [lessonsCompleted, setLessonsCompleted] = useState(0)  // số bài đã hoàn thành (ước lượng trình độ)
+  const [courseRoadmap, setCourseRoadmap] = useState('')   // lộ trình khóa (cho AI trả lời câu hỏi chương trình)
   const wasCompleted = useRef(false)
   const [pptxMarking, setPptxMarking] = useState(false)
 
@@ -931,6 +932,23 @@ export default function LessonPage() {
     if (lessonData.grade) {
       supabase.from('grades').select('ai_scope').eq('value', lessonData.grade).maybeSingle()
         .then(({ data }) => setCourseScope(data?.ai_scope || ''))
+
+      // Lộ trình khóa: đơn vị (sort_order) → bài (order) — cho AI trả lời câu hỏi chương trình học
+      Promise.all([
+        supabase.from('units').select('id, name, sort_order').eq('grade', lessonData.grade).order('sort_order'),
+        supabase.from('lessons').select('title, unit_id, order').eq('grade', lessonData.grade).eq('is_published', true).order('order'),
+      ]).then(([uRes, lRes]) => {
+        const us = uRes.data || []
+        const ls = lRes.data || []
+        const lines = []
+        us.forEach(u => {
+          const titles = ls.filter(l => l.unit_id === u.id).map(l => l.title)
+          if (titles.length) lines.push(`• ${u.name}: ${titles.join(', ')}`)
+        })
+        const noUnit = ls.filter(l => !l.unit_id).map(l => l.title)
+        if (noUnit.length) lines.push(`• Bài khác: ${noUnit.join(', ')}`)
+        setCourseRoadmap(lines.join('\n'))
+      })
     }
     supabase.from('lesson_progress').select('id', { count: 'exact', head: true })
       .eq('user_id', user.id).eq('completed', true)
@@ -1166,6 +1184,7 @@ export default function LessonPage() {
         lessonDescription: lesson.description || '',
         aiContext: lesson.ai_context || '',
         courseScope,
+        courseRoadmap,
         studentName: profile?.full_name || '',
         lessonsCompleted,
         ...extra,

@@ -64,7 +64,7 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
       }
       setChat([...newChat, { role: 'ai', content: data.answer }])
       // Lưu mọi lần hỏi AI (kênh 'ai') để giáo viên xem lại — KHÔNG lưu đáp án/hint
-      const { correctAnswer, hint, ...safeContext } = context
+      const { correctAnswer, hint, courseRoadmap, aiContext, courseScope, lessonsCompleted, studentName, ...safeContext } = context
       const ctxPayload = { ...safeContext, mode }
       supabase.from('messages').insert([
         { student_id: studentId, sender_role: 'student', channel: 'ai', content: q, context: ctxPayload, is_read: true },
@@ -80,7 +80,7 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
   async function askTeacher() {
     if (escalating) return
     setEscalating(true)
-    const { correctAnswer, hint, ...safeContext } = context
+    const { correctAnswer, hint, courseRoadmap, aiContext, courseScope, lessonsCompleted, studentName, ...safeContext } = context
     const lastStudent = [...chat].reverse().find(m => m.role === 'student')
     const lastAi = [...chat].reverse().find(m => m.role === 'ai')
     const ctxPayload = { ...safeContext, mode, aiAnswer: lastAi?.content || null }
