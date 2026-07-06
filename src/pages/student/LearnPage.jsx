@@ -578,6 +578,22 @@ export default function LearnPage() {
     [lessons, progressMap]
   )
 
+  // Tách marker [[BÀI: tên]] trong câu trả lời AI → nút bấm vào bài
+  function parseLessonLinks(content) {
+    const re = /\[\[\s*BÀI\s*:\s*(.+?)\s*\]\]/gi
+    const buttons = []
+    const seen = new Set()
+    let m
+    while ((m = re.exec(content)) !== null) {
+      const q = m[1].trim().toLowerCase()
+      const lesson = lessons.find(l => l.title.trim().toLowerCase() === q)
+        || lessons.find(l => { const t = l.title.trim().toLowerCase(); return t.includes(q) || q.includes(t) })
+      if (lesson && !seen.has(lesson.id)) { seen.add(lesson.id); buttons.push({ id: lesson.id, title: lesson.title }) }
+    }
+    const text = content.replace(re, '').replace(/\n{3,}/g, '\n\n').trim()
+    return { text, buttons }
+  }
+
   // Mascot chào khi vào: giới thiệu bài mới / nhắc bài chưa hoàn thành
   const nudge = useMemo(() => {
     if (displayedLessons.length === 0) return null
@@ -853,6 +869,7 @@ export default function LearnPage() {
               {/* Tin nhắn hội thoại */}
               {chatMsgs.map((m, i) => {
                 const isAi = m.role === 'ai'
+                const parsed = isAi ? parseLessonLinks(m.content) : null
                 return (
                   <div key={i} className={`flex ${isAi ? 'justify-start' : 'justify-end'}`}>
                     {isAi && (
@@ -860,9 +877,31 @@ export default function LearnPage() {
                         <Sparkles size={13} />
                       </div>
                     )}
-                    <div className={`max-w-[82%] px-3.5 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${isAi ? 'bg-white text-gray-800 border border-indigo-100 rounded-bl-md shadow-sm' : 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white rounded-br-md shadow'}`}>
-                      {m.content}
-                    </div>
+                    {isAi ? (
+                      <div className="max-w-[82%] flex flex-col gap-1.5 items-start">
+                        {parsed.text && (
+                          <div className="px-3.5 py-2 rounded-2xl rounded-bl-md text-sm leading-relaxed whitespace-pre-wrap bg-white text-gray-800 border border-indigo-100 shadow-sm">
+                            {parsed.text}
+                          </div>
+                        )}
+                        {parsed.buttons.map(b => (
+                          <button
+                            key={b.id}
+                            onClick={() => navigate(`/student/learn/${b.id}`)}
+                            className="w-full flex items-center gap-2 text-left bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-xl px-2.5 py-2 transition group"
+                          >
+                            <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-white shrink-0 group-hover:scale-105 transition-transform">
+                              <ChevronRight size={14} />
+                            </span>
+                            <span className="flex-1 min-w-0 text-[13px] font-bold text-violet-800 truncate">Vào học: {b.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="max-w-[82%] px-3.5 py-2 rounded-2xl rounded-br-md text-sm leading-relaxed whitespace-pre-wrap bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow">
+                        {m.content}
+                      </div>
+                    )}
                   </div>
                 )
               })}
