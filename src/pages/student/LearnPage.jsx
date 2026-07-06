@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useSelectedGrade } from '../../hooks/useEnrollments'
-import { CheckCircle, Zap, ChevronLeft, ChevronRight, Gift, Trophy, X } from 'lucide-react'
+import { CheckCircle, Zap, ChevronLeft, ChevronRight, Gift, Trophy, X, Send, Loader2, Sparkles } from 'lucide-react'
+import toast from 'react-hot-toast'
 import RewardModal from '../../components/student/RewardModal'
 import AchievementsModal from '../../components/student/AchievementsModal'
 
@@ -454,6 +455,52 @@ export default function LearnPage() {
     try { localStorage.setItem('nudge_' + (user?.id || ''), new Date().toDateString()) } catch {}
   }
 
+  // Chat với AI ngay trong khung mascot
+  const [courseScope, setCourseScope] = useState('')
+  const [chatMsgs, setChatMsgs] = useState([])       // [{role:'student'|'ai', content}]
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const chatEndRef = useRef(null)
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMsgs, chatLoading])
+
+  async function sendChat() {
+    const q = chatInput.trim()
+    if (!q || chatLoading) return
+    const newMsgs = [...chatMsgs, { role: 'student', content: q }]
+    setChatMsgs(newMsgs)
+    setChatInput('')
+    setChatLoading(true)
+    try {
+      await new Promise(r => setTimeout(r, 500 + Math.random() * 1500))
+      const res = await fetch('/api/tutor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'theory',
+          context: { courseScope, courseRoadmap, studentName: profile?.full_name || '', lessonsCompleted },
+          messages: newMsgs,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.answer) {
+        toast.error(res.status === 429
+          ? (data.error === 'quota_rpd' ? 'Trợ lý đã hết lượt hỏi hôm nay, mai con hỏi tiếp nhé 🙏' : 'Nhiều bạn đang hỏi cùng lúc, con chờ chút rồi hỏi lại nhé 🙏')
+          : 'Chưa hỏi được trợ lý, con thử lại nhé')
+        return
+      }
+      setChatMsgs([...newMsgs, { role: 'ai', content: data.answer }])
+      supabase.from('messages').insert([
+        { student_id: user.id, sender_role: 'student', channel: 'ai', content: q, context: { from: 'home', grade: selectedGrade }, is_read: true },
+        { student_id: user.id, sender_role: 'ai', channel: 'ai', content: data.answer, context: { from: 'home', grade: selectedGrade }, is_read: true },
+      ]).then(() => {})
+    } catch {
+      toast.error('Có lỗi xảy ra, con thử lại nhé')
+    } finally {
+      setChatLoading(false)
+    }
+  }
+
   // Kiểm tra quà mới được trao (thông báo chấm đỏ)
   useEffect(() => {
     if (!user?.id) return
@@ -474,7 +521,7 @@ export default function LearnPage() {
 
   async function loadData() {
     setLoading(true)
-    const [{ data: topicsData }, { data: lessonsData }, { data: progressData }, { data: unitsData }, { data: profData }, { data: cfgData }] = await Promise.all([
+    const [{ data: topicsData }, { data: lessonsData }, { data: progressData }, { data: unitsData }, { data: profData }, { data: cfgData }, { data: scopeData }] = await Promise.all([
       supabase.from('topics').select('*').in('grade', [selectedGrade, 'all']),
       supabase.from('lessons').select('*').eq('is_published', true).eq('grade', selectedGrade)
         .order('order', { ascending: true }).order('created_at', { ascending: true }),
@@ -482,7 +529,9 @@ export default function LearnPage() {
       supabase.from('units').select('*').eq('grade', selectedGrade).order('sort_order').order('name'),
       supabase.from('profiles').select('sticker_count, streak_days').eq('id', user.id).single(),
       supabase.from('reward_configs').select('sticker_threshold').eq('grade', selectedGrade).maybeSingle(),
+      supabase.from('grades').select('ai_scope').eq('value', selectedGrade).maybeSingle(),
     ])
+    setCourseScope(scopeData?.ai_scope || '')
     setLessons(lessonsData || [])
     setUnits(unitsData || [])
     setTopics((topicsData || []).sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true })))
@@ -511,6 +560,23 @@ export default function LearnPage() {
     if (selectedTopic === '__all__') return lessons
     return lessons.filter(l => (l.topic || '__no_topic__') === selectedTopic)
   }, [lessons, selectedTopic])
+
+  // Lộ trình khóa (đơn vị → bài) cho AI trả lời câu hỏi chương trình học
+  const courseRoadmap = useMemo(() => {
+    const lines = []
+    units.forEach(u => {
+      const titles = lessons.filter(l => l.unit_id === u.id).map(l => l.title)
+      if (titles.length) lines.push(`• ${u.name}: ${titles.join(', ')}`)
+    })
+    const noUnit = lessons.filter(l => !l.unit_id).map(l => l.title)
+    if (noUnit.length) lines.push(`• Bài khác: ${noUnit.join(', ')}`)
+    return lines.join('\n')
+  }, [units, lessons])
+
+  const lessonsCompleted = useMemo(
+    () => lessons.filter(l => progressMap[l.id]?.completed).length,
+    [lessons, progressMap]
+  )
 
   // Mascot chào khi vào: giới thiệu bài mới / nhắc bài chưa hoàn thành
   const nudge = useMemo(() => {
@@ -743,49 +809,108 @@ export default function LearnPage() {
 
       {/* Khung chat mascot — nổi góc phải dưới */}
       {nudge && nudgeOpen && (
-        <div className="fixed bottom-4 right-4 z-50 w-[min(92vw,360px)]">
-          <div className="bg-white rounded-3xl shadow-2xl border-2 border-violet-200 overflow-hidden">
+        <div className="fixed bottom-4 right-4 z-50 w-[min(94vw,370px)]">
+          <div className="bg-white rounded-3xl shadow-2xl border-2 border-violet-200 overflow-hidden flex flex-col" style={{ height: 'min(78vh, 560px)' }}>
             {/* Header */}
-            <div className="flex items-center gap-2.5 bg-gradient-to-r from-violet-500 to-indigo-500 px-4 py-3 text-white">
+            <div className="flex items-center gap-2.5 bg-gradient-to-r from-violet-500 to-indigo-500 px-4 py-3 text-white shrink-0">
               <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-2xl animate-bounce select-none" style={{ animationDuration: '2.5s' }}>
                 🤖
               </div>
               <div className="flex-1 min-w-0 leading-tight">
                 <div className="font-black text-sm">Trợ lý học tập</div>
-                <div className="text-white/80 text-[11px]">luôn ở đây cùng con nè!</div>
+                <div className="text-white/80 text-[11px]">hỏi bài, hỏi chương trình, cách dùng app...</div>
               </div>
               <button onClick={closeNudge} className="w-7 h-7 rounded-full hover:bg-white/20 flex items-center justify-center" title="Thu gọn">
                 <X size={16} />
               </button>
             </div>
 
-            {/* Nội dung */}
-            <div className="p-4">
-              <div className="font-black text-indigo-800 text-base leading-tight">{nudge.greeting}</div>
-              <p className="text-sm text-gray-600 mt-0.5 leading-snug">{nudge.message}</p>
+            {/* Hội thoại */}
+            <div className="flex-1 overflow-y-auto px-4 py-3 bg-gray-50/50 space-y-3">
+              {/* Lời chào + chọn bài */}
+              <div className="bg-white border border-violet-100 rounded-2xl rounded-tl-md px-3.5 py-3 shadow-sm">
+                <div className="font-black text-indigo-800 text-[15px] leading-tight">{nudge.greeting}</div>
+                <p className="text-sm text-gray-600 mt-0.5 leading-snug">{nudge.message}</p>
+                {nudge.items.length > 0 && (
+                  <div className="mt-2.5 space-y-1.5">
+                    {nudge.items.map(it => (
+                      <button
+                        key={it.id}
+                        onClick={() => navigate(`/student/learn/${it.id}`)}
+                        className="w-full flex items-center gap-2 text-left bg-violet-50 hover:bg-violet-100 border border-violet-100 rounded-xl px-2.5 py-2 transition group"
+                      >
+                        <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-white shrink-0 group-hover:scale-105 transition-transform">
+                          <ChevronRight size={14} />
+                        </span>
+                        <span className="flex-1 min-w-0 text-[13px] font-bold text-violet-800 truncate">{it.title}</span>
+                      </button>
+                    ))}
+                    {nudge.more > 0 && <p className="text-xs text-gray-400 pt-0.5">…và {nudge.more} bài khác ở danh sách</p>}
+                  </div>
+                )}
+              </div>
 
-              {nudge.items.length > 0 && (
-                <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
-                  {nudge.items.map(it => (
-                    <button
-                      key={it.id}
-                      onClick={() => navigate(`/student/learn/${it.id}`)}
-                      className="w-full flex items-center gap-2 text-left bg-violet-50 hover:bg-violet-100 border border-violet-100 rounded-xl px-3 py-2.5 transition group"
-                    >
-                      <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-white shrink-0 group-hover:scale-105 transition-transform">
-                        <ChevronRight size={16} />
-                      </span>
-                      <span className="flex-1 min-w-0 text-sm font-bold text-violet-800 truncate">{it.title}</span>
-                    </button>
-                  ))}
-                  {nudge.more > 0 && (
-                    <p className="text-xs text-gray-400 text-center pt-0.5">…và {nudge.more} bài khác ở danh sách bên dưới</p>
-                  )}
+              {/* Tin nhắn hội thoại */}
+              {chatMsgs.map((m, i) => {
+                const isAi = m.role === 'ai'
+                return (
+                  <div key={i} className={`flex ${isAi ? 'justify-start' : 'justify-end'}`}>
+                    {isAi && (
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-white shrink-0 mr-2 mt-auto mb-0.5">
+                        <Sparkles size={13} />
+                      </div>
+                    )}
+                    <div className={`max-w-[82%] px-3.5 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${isAi ? 'bg-white text-gray-800 border border-indigo-100 rounded-bl-md shadow-sm' : 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white rounded-br-md shadow'}`}>
+                      {m.content}
+                    </div>
+                  </div>
+                )
+              })}
+              {chatLoading && (
+                <div className="flex justify-start">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-white shrink-0 mr-2">
+                    <Sparkles size={13} />
+                  </div>
+                  <div className="bg-white border border-indigo-100 rounded-2xl rounded-bl-md px-4 py-2.5 shadow-sm">
+                    <Loader2 size={15} className="animate-spin text-indigo-400" />
+                  </div>
                 </div>
               )}
 
-              <button onClick={closeNudge} className="w-full mt-3 text-sm font-semibold text-gray-400 hover:text-gray-600 py-1.5">
-                Để sau
+              {/* Gợi ý câu hỏi (chỉ khi chưa chat) */}
+              {chatMsgs.length === 0 && !chatLoading && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {['Khóa này học những gì?', 'Làm sao nộp bài?', 'Sticker để làm gì?'].map(s => (
+                    <button
+                      key={s}
+                      onClick={() => { setChatInput(s); setTimeout(sendChat, 0) }}
+                      className="text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-full px-3 py-1.5 transition"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Ô nhập */}
+            <div className="border-t border-gray-200 bg-white px-3 py-2.5 flex gap-2 items-end shrink-0">
+              <textarea
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat() } }}
+                disabled={chatLoading}
+                rows={1}
+                placeholder="Hỏi trợ lý bất cứ điều gì..."
+                className="flex-1 border border-gray-200 rounded-2xl px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-gray-50 resize-none max-h-20"
+              />
+              <button
+                onClick={sendChat}
+                disabled={!chatInput.trim() || chatLoading}
+                className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-white transition hover:scale-105 active:scale-95 disabled:opacity-40 disabled:scale-100 shadow shrink-0"
+              >
+                {chatLoading ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
               </button>
             </div>
           </div>
