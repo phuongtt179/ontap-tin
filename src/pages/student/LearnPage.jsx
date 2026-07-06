@@ -511,18 +511,35 @@ export default function LearnPage() {
     return lessons.filter(l => (l.topic || '__no_topic__') === selectedTopic)
   }, [lessons, selectedTopic])
 
-  // Lời nhắc khi vào bài học: bài mới / bài chưa hoàn thành
+  // Mascot chào khi vào: giới thiệu bài mới / nhắc bài chưa hoàn thành
   const nudge = useMemo(() => {
-    if (nudgeClosed || displayedLessons.length === 0) return null
+    if (displayedLessons.length === 0) return null
     const firstName = (profile?.full_name || '').trim().split(/\s+/).slice(-1)[0] || 'em'
     const incomplete = displayedLessons.filter(l => !progressMap[l.id]?.completed)
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
     const fresh = displayedLessons.filter(l =>
       !progressMap[l.id] && l.created_at && new Date(l.created_at).getTime() > weekAgo)
-    if (fresh.length > 0) return { emoji: '🎉', text: `Chào ${firstName}! Khóa vừa có ${fresh.length} bài mới, làm ngay nhé!` }
-    if (incomplete.length > 0) return { emoji: '💪', text: `Chào ${firstName}! Em còn ${incomplete.length} bài chưa hoàn thành, cố lên nhé!` }
-    return { emoji: '🌟', text: `Chào ${firstName}! Em đã hoàn thành hết bài rồi, giỏi lắm!` }
-  }, [nudgeClosed, displayedLessons, progressMap, profile?.full_name])
+    if (fresh.length > 0) return {
+      kind: 'new', emoji: '🎉', firstName,
+      greeting: `Chào ${firstName}! 👋`,
+      message: `Hôm nay có ${fresh.length} bài mới nè, con muốn học ngay không?`,
+      names: fresh.slice(0, 3).map(l => l.title),
+      targetId: fresh[0].id, cta: 'Học ngay',
+    }
+    if (incomplete.length > 0) return {
+      kind: 'incomplete', emoji: '💪', firstName,
+      greeting: `Chào ${firstName}! 👋`,
+      message: `Con còn ${incomplete.length} bài chưa hoàn thành, mình học tiếp nhé!`,
+      names: incomplete.slice(0, 3).map(l => l.title),
+      targetId: incomplete[0].id, cta: 'Học tiếp',
+    }
+    return {
+      kind: 'done', emoji: '🌟', firstName,
+      greeting: `Chào ${firstName}! 🌟`,
+      message: `Con đã hoàn thành hết bài rồi, giỏi ghê! Chờ bài mới nha.`,
+      names: [], targetId: null, cta: null,
+    }
+  }, [displayedLessons, progressMap, profile?.full_name])
 
   const groups = useMemo(() => {
     const unitMap = {}
@@ -704,15 +721,48 @@ export default function LearnPage() {
 
       {/* ③ Unit cards — CHỈ phần này cuộn */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {/* Lời nhắc trợ giảng */}
-        {nudge && (
+        {/* Mascot chào hỏi khi vào */}
+        {nudge && !nudgeClosed && (
           <div className="max-w-2xl mx-auto px-4 pt-3">
-            <div className="flex items-center gap-3 bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 rounded-2xl px-4 py-3">
-              <div className="text-2xl shrink-0 select-none">{nudge.emoji}</div>
-              <p className="flex-1 text-sm font-semibold text-indigo-800 leading-snug">{nudge.text}</p>
-              <button onClick={closeNudge} className="text-indigo-300 hover:text-indigo-500 shrink-0" title="Ẩn">
+            <div className="relative flex items-start gap-3 bg-gradient-to-br from-violet-50 via-indigo-50 to-sky-50 border-2 border-violet-200 rounded-3xl px-4 py-4 shadow-sm">
+              <button onClick={closeNudge} className="absolute top-2 right-2 text-violet-300 hover:text-violet-500" title="Ẩn">
                 <X size={16} />
               </button>
+
+              {/* Nhân vật (placeholder — thay bằng Lottie sau) */}
+              <div className="shrink-0 w-14 h-14 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-3xl shadow-md animate-bounce select-none" style={{ animationDuration: '2.5s' }}>
+                🤖
+              </div>
+
+              {/* Bong bóng thoại */}
+              <div className="flex-1 min-w-0">
+                <div className="font-black text-indigo-800 text-base leading-tight">{nudge.greeting}</div>
+                <p className="text-sm text-indigo-700 mt-0.5 leading-snug">{nudge.message}</p>
+
+                {nudge.names.length > 0 && (
+                  <ul className="mt-1.5 space-y-0.5">
+                    {nudge.names.map((t, i) => (
+                      <li key={i} className="text-sm font-semibold text-violet-700 flex items-center gap-1.5">
+                        <span className="text-violet-400">•</span> <span className="truncate">{t}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <div className="flex gap-2 mt-3">
+                  {nudge.targetId && (
+                    <button
+                      onClick={() => navigate(`/student/learn/${nudge.targetId}`)}
+                      className="flex items-center gap-1 bg-gradient-to-r from-violet-500 to-indigo-500 text-white font-bold text-sm px-4 py-2 rounded-full shadow hover:scale-105 active:scale-95 transition-transform"
+                    >
+                      {nudge.cta} <ChevronRight size={16} />
+                    </button>
+                  )}
+                  <button onClick={closeNudge} className="text-sm font-semibold text-gray-400 hover:text-gray-600 px-3 py-2">
+                    Để sau
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
