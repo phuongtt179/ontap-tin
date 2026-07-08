@@ -34,7 +34,13 @@ export default function MarkdownContent({ text, className = '' }) {
             )
           },
           table({ children }) {
-            return <div className="overflow-x-auto my-2"><table className="min-w-full text-sm">{children}</table></div>
+            return <div className="overflow-x-auto my-2"><table className="min-w-full text-sm border-collapse border border-gray-300">{children}</table></div>
+          },
+          th({ children }) {
+            return <th className="border border-gray-300 px-3 py-1.5 bg-gray-100 font-bold text-left">{children}</th>
+          },
+          td({ children }) {
+            return <td className="border border-gray-300 px-3 py-1.5 align-top">{children}</td>
           },
           p({ children }) {
             return <p className="mb-1.5 last:mb-0 leading-relaxed">{children}</p>
