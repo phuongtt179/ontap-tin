@@ -647,7 +647,7 @@ export default function LessonSubmissionsPage() {
                     const isSb3 = ext === 'sb3'
                     const isOffice = isWord || isPpt
                     const isCode = ext === 'py' || ext === 'txt'
-                    const fileName = url ? decodeURIComponent(url.split('/').pop().split('?')[0]) : ''
+                    const fileName = sub.file_name || (url ? decodeURIComponent(url.split('/').pop().split('?')[0]) : '')
                     return (
                       <div className="space-y-2">
                         <p className="text-xs text-gray-400">Nộp lúc {new Date(sub.submitted_at).toLocaleString('vi-VN')}</p>

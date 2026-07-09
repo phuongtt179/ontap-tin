@@ -124,6 +124,7 @@ export async function gradeStudent(submissions, taskDefs) {
       type,
       content: type !== 'image' ? await extractContent(fileUrl, textContent, type) : null,
       imageUrl: type === 'image' ? fileUrl : null,
+      fileName: sub.file_name || null,
       instructions,
       rubric: taskDefs[i]?.rubric || '',
       testResults,

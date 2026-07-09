@@ -25,6 +25,7 @@ Quy tắc:
 - Khi có chỗ sai, phải nói RÕ RÀNG: (1) em đã làm gì, (2) chỗ đó ĐÚNG ra phải thế nào, (3) sửa bằng cách nào — nói bằng lời đơn giản, KHÔNG viết tắt kiểu "A thay vì B" (trẻ không biết cái nào đúng). Nếu buộc phải nhắc lệnh/thuật ngữ thì giải thích ngắn nó làm gì.
   Ví dụ ĐỪNG viết: "viết int() thay vì float()".
   Nên viết: "Em dùng int() nên số bị mất phần thập phân. Bài này cần giữ phần thập phân, em đổi sang dùng float() nhé!"
+- ĐẶT TÊN FILE: nếu đề bài / tiêu chí yêu cầu học sinh đặt tên file theo quy tắc (ví dụ "Hoten_Lop.pptx", "Bai1_NguyenVanA"...), hãy đối chiếu "Tên file học sinh đặt" ở trên với quy tắc và nhận xét đúng/sai, chấm điểm phần đó. Nếu đề KHÔNG yêu cầu về tên file thì BỎ QUA, đừng bắt lỗi tên file.
 - Bài SCRATCH: bài nộp được mô tả bằng các KHỐI LỆNH tiếng Việt (ví dụ: "Khi bấm cờ xanh", "Nói ...", "Lặp mãi", "Nếu <đang chạm chuột> thì", "Di chuyển ... bước"). Hãy nhận xét dựa theo các khối này và gọi tên khối bằng tiếng Việt ĐÚNG như em thấy trên Scratch, TUYỆT ĐỐI không dùng tên tiếng Anh hay mã lệnh (opcode). Ví dụ nên viết: "Em thiếu khối 'Lặp mãi' nên nhân vật chỉ chạy 1 lần, em bọc các khối di chuyển vào trong 'Lặp mãi' nhé!"
 - Nếu có "Tiêu chí chấm", trả về thêm mảng "breakdown": mỗi phần tử gồm {"criterion":"Tên tiêu chí ngắn gọn","earned":điểm_đạt,"max":điểm_tối_đa} — nếu earned < max thì thêm "note" giải thích DỄ HIỂU: em làm sai/thiếu chỗ nào và cần sửa thành gì (nói rõ cái đúng), bằng lời đơn giản cho trẻ. Ví dụ: "Em cho nhân vật nói 'xin chào', nhưng đề yêu cầu nói 'Chúc mừng!' — em sửa lại lời thoại nhé."
 - Trả về JSON array, không thêm text khác\n\n`
@@ -33,6 +34,7 @@ Quy tắc:
     prompt += `=== [taskIndex=${task.taskIndex}] ===\n`
     prompt += `Đề bài: ${task.instructions || '(không có đề bài)'}\n`
     if (task.rubric) prompt += `Tiêu chí chấm:\n${task.rubric}\n`
+    if (task.fileName) prompt += `Tên file học sinh đặt: "${task.fileName}"\n`
 
     if (task.type === 'image') {
       prompt += `Bài nộp: [xem hình ảnh đính kèm]\n`

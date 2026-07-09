@@ -534,12 +534,13 @@ function CodeViewer({ url, ext }) {
 }
 
 /* ── SubmittedFile ──────────────────────────────────────────── */
-function SubmittedFile({ url }) {
+function SubmittedFile({ url, name }) {
   const ext = (url || '').split('.').pop().toLowerCase().split('?')[0]
   const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
   const isOffice = ['doc', 'docx', 'ppt', 'pptx'].includes(ext)
   const isCode = ext === 'py' || ext === 'txt'
-  const fileName = decodeURIComponent(url.split('/').pop().split('?')[0])
+  // Ưu tiên tên gốc học sinh đặt; nếu không có thì lấy từ URL (bị Cloudinary đổi ngẫu nhiên)
+  const fileName = name || decodeURIComponent(url.split('/').pop().split('?')[0])
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 overflow-hidden">
@@ -1104,6 +1105,7 @@ export default function LessonPage() {
         .from('lesson_submissions')
         .update({
           file_url: fileUrl,
+          file_name: file ? file.name : (existingSub?.file_name ?? null),
           text_content: note.trim() || null,
           submitted_at: new Date().toISOString(),
           allow_resubmit: false,
@@ -1144,6 +1146,7 @@ export default function LessonPage() {
         user_id: user.id,
         lesson_id: id,
         file_url: fileUrl,
+        file_name: file ? file.name : null,
         text_content: note.trim() || null,
         content_json: { task_index: taskIdx },
         submitted_at: new Date().toISOString(),
@@ -1599,7 +1602,7 @@ export default function LessonPage() {
                               {/* Submitted view */}
                               {sub && !isResubmitting ? (
                                 <div className="space-y-3">
-                                  {sub.file_url && <SubmittedFile url={sub.file_url} />}
+                                  {sub.file_url && <SubmittedFile url={sub.file_url} name={sub.file_name} />}
                                   {sub.text_content && (
                                     <div className="bg-gray-50 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-600 whitespace-pre-wrap">
                                       {sub.text_content}
