@@ -32,3 +32,15 @@ export async function uploadFile(file) {
   const data = await res.json()
   return data.secure_url
 }
+
+// Xóa file trên Cloudinary (best-effort — không chặn luồng nếu lỗi)
+export async function deleteFile(url) {
+  if (!url) return
+  try {
+    await fetch('/api/deleteFile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    })
+  } catch { /* bỏ qua, không ảnh hưởng thao tác của người dùng */ }
+}

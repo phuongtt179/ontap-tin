@@ -13,7 +13,7 @@ import {
   ChevronDown, ChevronRight, Eye, Filter,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { uploadFile } from '../../lib/cloudinary'
+import { uploadFile, deleteFile } from '../../lib/cloudinary'
 import QuizSession from '../../components/student/QuizSession'
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
@@ -321,8 +321,24 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
       ? await supabase.from('lessons').update(payload).eq('id', lesson.id)
       : await supabase.from('lessons').insert({ ...payload, created_by: user.id })
     setSaving(false)
-    if (error) toast.error('Lưu thất bại: ' + error.message)
-    else { toast.success(isEdit ? 'Đã cập nhật bài học' : 'Đã tạo bài học'); onDone() }
+    if (error) { toast.error('Lưu thất bại: ' + error.message); return }
+
+    // Xóa file bài giảng cũ trên Cloudinary không còn dùng (thay pptx / gỡ file task)
+    if (isEdit) {
+      const oldUrls = new Set()
+      if (lesson.pptx_url) oldUrls.add(lesson.pptx_url)
+      try {
+        const oldTasks = JSON.parse(lesson.practice_instructions || '[]')
+        if (Array.isArray(oldTasks)) oldTasks.forEach(t => { if (t?.instruction_file_url) oldUrls.add(t.instruction_file_url) })
+      } catch { /* bỏ qua */ }
+      const newUrls = new Set()
+      if (form.pptx_url) newUrls.add(form.pptx_url)
+      form.practice_tasks.forEach(t => { if (t?.instruction_file_url) newUrls.add(t.instruction_file_url) })
+      oldUrls.forEach(u => { if (!newUrls.has(u) && /res\.cloudinary\.com/.test(u)) deleteFile(u) })
+    }
+
+    toast.success(isEdit ? 'Đã cập nhật bài học' : 'Đã tạo bài học')
+    onDone()
   }
 
   return (

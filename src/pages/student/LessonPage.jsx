@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code, Lock } from 'lucide-react'
-import { uploadFile } from '../../lib/cloudinary'
+import { uploadFile, deleteFile } from '../../lib/cloudinary'
 import QuestionText from '../../components/ui/QuestionText'
 import MarkdownContent from '../../components/ui/MarkdownContent'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -1099,7 +1099,8 @@ export default function LessonPage() {
     const existingSub = taskSubmissions[taskIdx]
     setTaskSubmitting(taskIdx)
     try {
-      let fileUrl = existingSub?.file_url ?? null
+      const oldUrl = existingSub?.file_url ?? null
+      let fileUrl = oldUrl
       if (file) fileUrl = await uploadFile(file)
       const { data: updated, error } = await supabase
         .from('lesson_submissions')
@@ -1118,6 +1119,8 @@ export default function LessonPage() {
         .eq('id', existingSub.id)
         .select().single()
       if (error) throw error
+      // Nộp file mới → xóa file cũ trên Cloudinary cho đỡ tốn dung lượng
+      if (file && oldUrl && oldUrl !== fileUrl) deleteFile(oldUrl)
       const newSubs = [...taskSubmissions]; newSubs[taskIdx] = updated; setTaskSubmissions(newSubs)
       setResubmitTask(null)
       triggerAiGrade(updated, taskIdx)
