@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Trash2, Check, X, Upload, CheckCircle2, AlertCircle, Loader2, BookOpen, List } from 'lucide-react'
+import { Plus, Pencil, Trash2, Check, X, Upload, CheckCircle2, AlertCircle, Loader2, BookOpen, List, ChevronUp, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 // ─── Modal quản lý tiêu đề bài học nhỏ bên trong 1 bài (unit) ────────────────
@@ -51,6 +51,18 @@ function LessonTitleManagerModal({ unit, user, canDelete, onClose }) {
     const { error } = await supabase.from('lesson_titles').delete().eq('id', id)
     if (error) toast.error('Xóa thất bại')
     else { toast.success('Đã xóa'); fetchTitles() }
+  }
+
+  // Di chuyển lên/xuống (chèn giữa) — gán lại sort_order theo thứ tự mới
+  async function handleMove(idx, dir) {
+    const j = idx + dir
+    if (j < 0 || j >= titles.length) return
+    const arr = [...titles]
+    ;[arr[idx], arr[j]] = [arr[j], arr[idx]]
+    setTitles(arr)
+    await Promise.all(
+      arr.map((t, i) => t.sort_order === i ? null : supabase.from('lesson_titles').update({ sort_order: i }).eq('id', t.id)).filter(Boolean)
+    )
   }
 
   return (
@@ -103,6 +115,12 @@ function LessonTitleManagerModal({ unit, user, canDelete, onClose }) {
                   ) : (
                     <>
                       <span className="flex-1 text-sm font-medium text-gray-800">{t.name}</span>
+                      <div className="flex flex-col shrink-0 -my-1">
+                        <button onClick={() => handleMove(idx, -1)} disabled={idx === 0}
+                          className="text-gray-300 hover:text-indigo-600 disabled:opacity-25 leading-none" title="Lên"><ChevronUp size={14} /></button>
+                        <button onClick={() => handleMove(idx, 1)} disabled={idx === titles.length - 1}
+                          className="text-gray-300 hover:text-indigo-600 disabled:opacity-25 leading-none" title="Xuống"><ChevronDown size={14} /></button>
+                      </div>
                       <button onClick={() => { setEditId(t.id); setEditName(t.name) }}
                         className="text-gray-400 hover:text-indigo-600 p-1 transition"><Pencil size={13} /></button>
                       {canDelete && (
@@ -182,6 +200,18 @@ function UnitManagerModal({ topic, user, canDelete, onClose }) {
     const { error } = await supabase.from('units').delete().eq('id', id)
     if (error) toast.error('Xóa thất bại')
     else { toast.success('Đã xóa'); fetchUnits() }
+  }
+
+  // Di chuyển lên/xuống (chèn giữa) — gán lại sort_order theo thứ tự mới
+  async function handleMove(idx, dir) {
+    const j = idx + dir
+    if (j < 0 || j >= units.length) return
+    const arr = [...units]
+    ;[arr[idx], arr[j]] = [arr[j], arr[idx]]
+    setUnits(arr)
+    await Promise.all(
+      arr.map((u, i) => u.sort_order === i ? null : supabase.from('units').update({ sort_order: i }).eq('id', u.id)).filter(Boolean)
+    )
   }
 
   // Bulk import
@@ -333,6 +363,12 @@ function UnitManagerModal({ topic, user, canDelete, onClose }) {
                   ) : (
                     <>
                       <span className="flex-1 text-sm font-medium text-gray-800">{u.name}</span>
+                      <div className="flex flex-col shrink-0 -my-1">
+                        <button onClick={() => handleMove(idx, -1)} disabled={idx === 0}
+                          className="text-gray-300 hover:text-indigo-600 disabled:opacity-25 leading-none" title="Lên"><ChevronUp size={14} /></button>
+                        <button onClick={() => handleMove(idx, 1)} disabled={idx === units.length - 1}
+                          className="text-gray-300 hover:text-indigo-600 disabled:opacity-25 leading-none" title="Xuống"><ChevronDown size={14} /></button>
+                      </div>
                       <button
                         onClick={() => setSelectedUnit(u)}
                         className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-500 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition shrink-0"
