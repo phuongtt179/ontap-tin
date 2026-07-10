@@ -115,11 +115,11 @@ function LessonTitleManagerModal({ unit, user, canDelete, onClose }) {
                   ) : (
                     <>
                       <span className="flex-1 text-sm font-medium text-gray-800">{t.name}</span>
-                      <div className="flex flex-col shrink-0 -my-1">
+                      <div className="flex flex-col shrink-0 border border-gray-300 rounded-md overflow-hidden bg-white">
                         <button onClick={() => handleMove(idx, -1)} disabled={idx === 0}
-                          className="text-gray-300 hover:text-indigo-600 disabled:opacity-25 leading-none" title="Lên"><ChevronUp size={14} /></button>
+                          className="px-1.5 py-0.5 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-30 leading-none" title="Chuyển lên"><ChevronUp size={14} /></button>
                         <button onClick={() => handleMove(idx, 1)} disabled={idx === titles.length - 1}
-                          className="text-gray-300 hover:text-indigo-600 disabled:opacity-25 leading-none" title="Xuống"><ChevronDown size={14} /></button>
+                          className="px-1.5 py-0.5 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-30 leading-none border-t border-gray-200" title="Chuyển xuống"><ChevronDown size={14} /></button>
                       </div>
                       <button onClick={() => { setEditId(t.id); setEditName(t.name) }}
                         className="text-gray-400 hover:text-indigo-600 p-1 transition"><Pencil size={13} /></button>
@@ -363,11 +363,11 @@ function UnitManagerModal({ topic, user, canDelete, onClose }) {
                   ) : (
                     <>
                       <span className="flex-1 text-sm font-medium text-gray-800">{u.name}</span>
-                      <div className="flex flex-col shrink-0 -my-1">
+                      <div className="flex flex-col shrink-0 border border-gray-300 rounded-md overflow-hidden bg-white">
                         <button onClick={() => handleMove(idx, -1)} disabled={idx === 0}
-                          className="text-gray-300 hover:text-indigo-600 disabled:opacity-25 leading-none" title="Lên"><ChevronUp size={14} /></button>
+                          className="px-1.5 py-0.5 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-30 leading-none" title="Chuyển lên"><ChevronUp size={14} /></button>
                         <button onClick={() => handleMove(idx, 1)} disabled={idx === units.length - 1}
-                          className="text-gray-300 hover:text-indigo-600 disabled:opacity-25 leading-none" title="Xuống"><ChevronDown size={14} /></button>
+                          className="px-1.5 py-0.5 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-30 leading-none border-t border-gray-200" title="Chuyển xuống"><ChevronDown size={14} /></button>
                       </div>
                       <button
                         onClick={() => setSelectedUnit(u)}
