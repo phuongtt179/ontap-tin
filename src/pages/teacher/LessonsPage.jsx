@@ -15,6 +15,8 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { uploadFile, deleteFile } from '../../lib/cloudinary'
 import QuizSession from '../../components/student/QuizSession'
+import JSZip from 'jszip'
+import { generateSb3Text } from '../../utils/sb3Text'
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 const TYPE_LABELS = {
@@ -35,7 +37,9 @@ function parseTasks(instructions) {
 function TaskEditor({ index, task, onChange, onRemove, autoFocus }) {
   const [tab, setTab] = useState('edit')
   const [uploading, setUploading] = useState(false)
+  const [sb3Loading, setSb3Loading] = useState(false)
   const fileRef = useRef(null)
+  const sb3Ref = useRef(null)
 
   async function handleFileUpload(e) {
     const file = e.target.files?.[0]
@@ -48,6 +52,25 @@ function TaskEditor({ index, task, onChange, onRemove, autoFocus }) {
       toast.error('Upload thất bại')
     }
     setUploading(false)
+    e.target.value = ''
+  }
+
+  // Thả file .sb3 mẫu → đọc thành sơ đồ khối text → chèn vào rubric (chỉnh sửa được)
+  async function handleSb3Sample(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setSb3Loading(true)
+    try {
+      const zip = await JSZip.loadAsync(await file.arrayBuffer())
+      const jsonStr = await zip.file('project.json').async('string')
+      const text = generateSb3Text(JSON.parse(jsonStr))
+      const block = `\n\n[SƠ ĐỒ KHỐI MẪU — MỘT cách làm ĐÚNG, chấp nhận cách tương đương; không bắt lỗi các khối điều chỉnh tọa độ hợp lý]\n${text}\n`
+      onChange({ ...task, rubric: (task.rubric || '').trimEnd() + block })
+      toast.success('Đã chèn code mẫu từ .sb3 vào rubric')
+    } catch {
+      toast.error('Không đọc được file .sb3')
+    }
+    setSb3Loading(false)
     e.target.value = ''
   }
 
@@ -119,15 +142,22 @@ function TaskEditor({ index, task, onChange, onRemove, autoFocus }) {
 
           {/* Rubric chấm */}
           <div className="border-t border-gray-100 px-3 py-3 space-y-1.5">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <p className="text-xs font-semibold text-gray-600">Tiêu chí chấm (Rubric)</p>
               <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Chỉ AI đọc · Học sinh không thấy</span>
+              <button type="button" onClick={() => sb3Ref.current?.click()} disabled={sb3Loading}
+                className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg px-2 py-1 transition disabled:opacity-50"
+                title="Thả file .sb3 lời giải mẫu → tự chuyển thành sơ đồ khối và chèn vào rubric">
+                {sb3Loading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                Chèn code mẫu (.sb3)
+              </button>
+              <input ref={sb3Ref} type="file" accept=".sb3" className="hidden" onChange={handleSb3Sample} />
             </div>
             <textarea
               value={task.rubric || ''}
               onChange={e => onChange({ ...task, rubric: e.target.value })}
               rows={4}
-              placeholder={'Ví dụ:\n1. Có khối "Khi bấm cờ xanh": 2 điểm\n2. Có vòng lặp Forever: 3 điểm\n3. Nhân vật di chuyển đúng: 5 điểm'}
+              placeholder={'Ví dụ:\n1. Có khối "Khi bấm cờ xanh": 2 điểm\n2. Có vòng lặp Forever: 3 điểm\n3. Nhân vật di chuyển đúng: 5 điểm\n\nMẹo: bấm "Chèn code mẫu (.sb3)" để thả file lời giải mẫu → tự thêm sơ đồ khối.'}
               className="w-full px-3 py-2 text-sm border border-amber-200 bg-amber-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 resize-y font-mono min-h-[90px] placeholder-gray-400"
             />
           </div>
