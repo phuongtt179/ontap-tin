@@ -4,12 +4,30 @@ import remarkBreaks from 'remark-breaks'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
+// Cho phép dùng <br> để xuống dòng (kể cả TRONG ô bảng, nơi Enter không xuống dòng được)
+// mà không phải bật render HTML thô. Thay <br> bằng 1 ký tự Private Use rồi tự chèn <br/> khi render.
+const BR = ''  // ky tu Private Use - khong xuat hien trong noi dung that
+function withBreaks(children) {
+  const out = []
+  ;(Array.isArray(children) ? children : [children]).forEach(node => {
+    if (typeof node === 'string' && node.includes(BR)) {
+      const parts = node.split(BR)
+      parts.forEach((p, j) => {
+        if (p) out.push(p)
+        if (j < parts.length - 1) out.push(<br key={`br-${out.length}`} />)
+      })
+    } else {
+      out.push(node)
+    }
+  })
+  return out
+}
+
 export default function MarkdownContent({ text, className = '' }) {
   if (!text) return null
+  const src = text.replace(/<br\s*\/?>/gi, BR)
   return (
     <div className={`prose prose-sm max-w-none
-      prose-table:border-collapse prose-td:border prose-td:border-gray-300 prose-td:px-3 prose-td:py-1.5
-      prose-th:border prose-th:border-gray-300 prose-th:px-3 prose-th:py-1.5 prose-th:bg-gray-100
       prose-headings:font-bold prose-strong:font-bold
       prose-ul:pl-5 prose-ol:pl-5 prose-li:my-0.5
       ${className}`}>
@@ -37,17 +55,20 @@ export default function MarkdownContent({ text, className = '' }) {
             return <div className="overflow-x-auto my-2"><table className="min-w-full text-sm border-collapse border border-gray-300">{children}</table></div>
           },
           th({ children }) {
-            return <th className="border border-gray-300 px-3 py-1.5 bg-gray-100 font-bold text-left">{children}</th>
+            return <th className="border border-gray-300 px-3 py-1.5 bg-gray-100 font-bold text-left align-top">{withBreaks(children)}</th>
           },
           td({ children }) {
-            return <td className="border border-gray-300 px-3 py-1.5 align-top">{children}</td>
+            return <td className="border border-gray-300 px-3 py-1.5 align-top">{withBreaks(children)}</td>
           },
           p({ children }) {
-            return <p className="mb-1.5 last:mb-0 leading-relaxed">{children}</p>
+            return <p className="mb-1.5 last:mb-0 leading-relaxed">{withBreaks(children)}</p>
+          },
+          li({ children }) {
+            return <li>{withBreaks(children)}</li>
           },
         }}
       >
-        {text}
+        {src}
       </ReactMarkdown>
     </div>
   )
