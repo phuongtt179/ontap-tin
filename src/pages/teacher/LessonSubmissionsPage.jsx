@@ -1126,6 +1126,28 @@ export default function LessonSubmissionsPage() {
                       </button>
                     )}
                   </div>
+                  {sub.ai_breakdown?.length > 0 && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-[11px] font-bold text-amber-700 mb-1.5">🤖 Bảng điểm chi tiết của AI</p>
+                      <table className="w-full text-xs border-collapse">
+                        <tbody>
+                          {sub.ai_breakdown.map((row, ri) => (
+                            <tr key={ri} className={ri % 2 === 0 ? 'bg-white/60' : ''}>
+                              <td className="py-1 pr-2 text-gray-700 leading-snug align-top">{row.criterion}</td>
+                              <td className="py-1 text-right whitespace-nowrap font-semibold align-top">
+                                <span className={row.earned >= row.max ? 'text-green-600' : 'text-red-500'}>
+                                  {row.earned}/{row.max}đ
+                                </span>
+                              </td>
+                              {row.note && (
+                                <td className="py-1 pl-2 text-gray-500 italic leading-snug align-top">{row.note}</td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-gray-500 shrink-0">Điểm:</label>
                     <input type="number" min={0} max={10} step={0.5}
