@@ -25,15 +25,18 @@ export function parseTestCases(instructions) {
 }
 
 async function runPythonTest(code, input, expected, points) {
+  // Cho phép \n trong test để mô tả input/output NHIỀU DÒNG
+  const stdin = input.replace(/\\n/g, '\n')
+  const exp = expected.replace(/\\n/g, '\n')
   try {
     const res = await fetch('https://emkc.org/api/v2/piston/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ language: 'python', version: '3.10', files: [{ content: code }], stdin: input }),
+      body: JSON.stringify({ language: 'python', version: '3.10', files: [{ content: code }], stdin }),
     })
     const data = await res.json()
     const actual = (data.run?.stdout || '').trim()
-    return { input, expected, actual, passed: actual === expected.trim(), points }
+    return { input, expected, actual, passed: actual === exp.trim(), points }
   } catch {
     return { input, expected, actual: '', passed: false, points }
   }
@@ -110,7 +113,8 @@ export async function gradeStudent(submissions, taskDefs) {
 
     let testResults = null
     if (type === 'py') {
-      const testCases = parseTestCases(instructions)
+      // Đọc test từ cả đề bài lẫn Rubric (Rubric ẩn với học sinh → giấu được đáp án test)
+      const testCases = parseTestCases(instructions + '\n' + (taskDefs[i]?.rubric || ''))
       if (testCases.length > 0) {
         const code = await extractContent(fileUrl, textContent, 'py')
         testResults = await Promise.all(
