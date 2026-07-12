@@ -3,8 +3,9 @@ import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
-import { Upload, Trash2, X, AlertCircle, CheckCircle2, Loader2, Search, UserPlus, Pencil, Clock, UserCheck, UserX } from 'lucide-react'
+import { Upload, Trash2, X, AlertCircle, CheckCircle2, Loader2, Search, UserPlus, Pencil, Clock, UserCheck, UserX, BarChart3 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import StudentReportModal from '../../components/teacher/StudentReportModal'
 
 // Tạo user qua Edge Function (tránh lỗi "Forbidden use of secret API key in browser")
 async function adminCreateUser(email, password, metadata) {
@@ -622,6 +623,7 @@ export default function StudentsPage() {
   const [showImport, setShowImport] = useState(false)
   const [editStudent, setEditStudent] = useState(null)
   const [enrollStudent, setEnrollStudent] = useState(null)
+  const [reportStudent, setReportStudent] = useState(null)
   const [showPending, setShowPending] = useState(false)
   const [approvingId, setApprovingId] = useState(null)
   const [selectedIds, setSelectedIds] = useState(new Set())
@@ -944,6 +946,7 @@ export default function StudentsPage() {
                   <div className="flex items-center justify-between gap-1">
                     <span className="font-semibold text-gray-800 text-sm truncate">{s.full_name}</span>
                     <div className="flex items-center gap-0.5 shrink-0">
+                      <button onClick={() => setReportStudent(s)} className="text-gray-300 hover:text-violet-600 p-1" title="Bảng thành tích"><BarChart3 size={14} /></button>
                       <button onClick={() => setEnrollStudent(s)} className="text-gray-300 hover:text-green-600 p-1" title="Khoá học"><UserPlus size={14} /></button>
                       <button onClick={() => setEditStudent(s)} className="text-gray-300 hover:text-indigo-500 p-1" title="Sửa"><Pencil size={14} /></button>
                       {canDelete && <button onClick={() => handleDelete(s)} className="text-gray-300 hover:text-red-500 p-1" title="Xóa"><Trash2 size={14} /></button>}
@@ -1043,6 +1046,13 @@ export default function StudentsPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <button
+                        onClick={() => setReportStudent(s)}
+                        className="text-gray-300 hover:text-violet-600 transition p-1"
+                        title="Bảng thành tích"
+                      >
+                        <BarChart3 size={15} />
+                      </button>
+                      <button
                         onClick={() => setEnrollStudent(s)}
                         className="text-gray-300 hover:text-green-600 transition p-1"
                         title="Thêm vào khoá học"
@@ -1098,6 +1108,9 @@ export default function StudentsPage() {
           onClose={() => setEnrollStudent(null)}
           onDone={() => { setEnrollStudent(null); fetchStudents() }}
         />
+      )}
+      {reportStudent && (
+        <StudentReportModal student={reportStudent} onClose={() => setReportStudent(null)} />
       )}
     </div>
   )
