@@ -39,15 +39,13 @@ export default function StudentReportModal({ student, onClose }) {
   async function load() {
     setLoading(true)
     const grades = [...new Set((student.enrollments || []).map(e => e.grade).filter(Boolean))]
-    const [prof, prog, subs, exams, rewards, allLessons, attRec, attSess] = await Promise.all([
+    const [prof, prog, subs, exams, rewards, allLessons] = await Promise.all([
       supabase.from('profiles').select('sticker_count, sticker_total, streak_days, streak_max').eq('id', student.id).single(),
       supabase.from('lesson_progress').select('lesson_id, completed, quiz_passed, quiz_total, lessons(title)').eq('user_id', student.id),
       supabase.from('lesson_submissions').select('score, teacher_comment, graded_by, submitted_at, lessons(title)').eq('user_id', student.id).order('submitted_at', { ascending: false }),
       supabase.from('exam_sessions').select('score, correct, total, submitted_at, exams(title)').eq('user_id', student.id).order('submitted_at', { ascending: false }),
       supabase.from('reward_requests').select('status').eq('student_id', student.id),
       grades.length ? supabase.from('lessons').select('id', { count: 'exact', head: true }).in('grade', grades).eq('is_published', true) : Promise.resolve({ count: 0 }),
-      supabase.from('attendance_records').select('checked_at, attendance_sessions(session_date, grade, class_name)').eq('user_id', student.id),
-      grades.length ? supabase.from('attendance_sessions').select('session_date, grade, class_name').in('grade', grades) : Promise.resolve({ data: [] }),
     ])
     setD({
       profile: prof.data || {},
@@ -56,8 +54,6 @@ export default function StudentReportModal({ student, onClose }) {
       exams: exams.data || [],
       hasReward: (rewards.data || []).some(r => r.status === 'fulfilled'),
       totalLessons: allLessons.count || 0,
-      attRecords: attRec.data || [],
-      attSessions: attSess.data || [],
       grades,
     })
     setLoading(false)
@@ -75,23 +71,17 @@ export default function StudentReportModal({ student, onClose }) {
     const subs = d.submissions.filter(x => x.score != null && inPeriod(x.submitted_at))
     const exams = d.exams.filter(x => inPeriod(x.submitted_at))
     const avgPractice = subs.length ? subs.reduce((s, x) => s + Number(x.score), 0) / subs.length : null
-    // Chuyên cần theo kỳ
-    const classes = new Set((student.enrollments || []).map(e => e.class_name).filter(Boolean))
-    const relevant = s => s && d.grades.includes(s.grade) && (classes.size === 0 || classes.has(s.class_name))
-    const totalSessions = d.attSessions.filter(s => relevant(s) && inPeriod(s.session_date)).length
-    const attended = d.attRecords.filter(r => relevant(r.attendance_sessions) && inPeriod(r.attendance_sessions?.session_date)).length
     const badges = computeBadges({ streakMax: p.streak_max ?? 0, stickerTotal: p.sticker_total ?? 0, lessonsDone: completed.length, hasReward: d.hasReward })
     // Xếp loại tổng quan
     const basis = avgPractice != null ? avgPractice : (d.totalLessons ? (completed.length / d.totalLessons) * 10 : 0)
     const rating = basis >= 8 ? { label: 'Tốt', cls: 'bg-green-100 text-green-700' } : basis >= 6.5 ? { label: 'Khá', cls: 'bg-blue-100 text-blue-700' } : { label: 'Cần cố gắng', cls: 'bg-amber-100 text-amber-700' }
-    return { p, completed, quizzesTaken, quizzesPassed, subs, exams, avgPractice, totalSessions, attended, badges, rating }
+    return { p, completed, quizzesTaken, quizzesPassed, subs, exams, avgPractice, badges, rating }
   }, [d, month, allTime])
 
   const summary = view ? [
     `- Bài học hoàn thành: ${view.completed.length}/${d.totalLessons || '?'}`,
     `- Quiz đạt: ${view.quizzesPassed.length}/${view.quizzesTaken.length}`,
     `- Điểm thực hành trung bình (${periodLabel}): ${view.avgPractice != null ? view.avgPractice.toFixed(1) + '/10' : 'chưa có'}`,
-    `- Chuyên cần (${periodLabel}): đi ${view.attended}/${view.totalSessions} buổi`,
     `- Chuỗi ngày học liên tục: ${view.p.streak_days ?? 0} (cao nhất ${view.p.streak_max ?? 0})`,
     `- Sticker tích lũy: ${view.p.sticker_total ?? 0}`,
     view.exams.length ? `- Kết quả thi (${periodLabel}): ${view.exams.map(e => `${e.exams?.title || 'Bài thi'} đúng ${e.correct}/${e.total}`).join('; ')}` : '',
@@ -179,7 +169,7 @@ export default function StudentReportModal({ student, onClose }) {
               {/* KPI */}
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 <Kpi icon={<GraduationCap size={18} />} color="text-indigo-500" value={`${view.completed.length}${d.totalLessons ? `/${d.totalLessons}` : ''}`} label="Bài hoàn thành" sub="tổng" />
-                <Kpi icon={<CalendarCheck size={18} />} color="text-teal-500" value={`${view.attended}/${view.totalSessions}`} label="Chuyên cần" sub={periodLabel} />
+                <Kpi icon={<CheckCircle2 size={18} />} color="text-green-500" value={`${view.quizzesPassed.length}/${view.quizzesTaken.length}`} label="Quiz đạt" sub="tổng" />
                 <Kpi icon={<FileText size={18} />} color="text-amber-500" value={view.avgPractice != null ? view.avgPractice.toFixed(1) : '—'} label="Điểm TH TB" sub={view.subs.length ? `${view.subs.length} bài` : periodLabel} />
                 <Kpi icon={<Flame size={18} />} color="text-orange-500" value={view.p.streak_days ?? 0} label="Chuỗi ngày" sub={`cao nhất ${view.p.streak_max ?? 0}`} />
                 <Kpi icon={<Star size={18} />} color="text-yellow-500" value={view.p.sticker_total ?? 0} label="Sticker" sub="tổng" />
