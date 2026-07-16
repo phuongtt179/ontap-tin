@@ -69,8 +69,13 @@ async function extractContent(fileUrl, textContent, type) {
   if (type === 'docx') {
     const zip = await JSZip.loadAsync(buf)
     const xml = await zip.file('word/document.xml').async('string')
-    const matches = xml.match(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g) || []
-    return matches.map(m => m.replace(/<[^>]+>/g, '')).join(' ').replace(/\s+/g, ' ').trim()
+    // Tách theo đoạn <w:p>; trong mỗi đoạn nối các "run" <w:t> KHÔNG chèn khoảng trắng
+    // (Word thường tách 1 từ thành nhiều run — nối bằng dấu cách sẽ làm "thích" → "th ích")
+    const paras = xml.split(/<\/w:p>/).map(p => {
+      const runs = p.match(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g) || []
+      return runs.map(m => m.replace(/<[^>]+>/g, '')).join('')
+    }).filter(t => t.trim())
+    return paras.join('\n').replace(/[ \t]+/g, ' ').trim()
   }
 
   if (type === 'pptx') {
