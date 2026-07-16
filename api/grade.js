@@ -29,7 +29,11 @@ Quy tắc:
   Nên viết: "Em dùng int() nên số bị mất phần thập phân. Bài này cần giữ phần thập phân, em đổi sang dùng float() nhé!"
 - ĐẶT TÊN FILE: nếu đề bài / tiêu chí yêu cầu học sinh đặt tên file theo quy tắc (ví dụ "Hoten_Lop.pptx", "Bai1_NguyenVanA"...), hãy đối chiếu "Tên file học sinh đặt" ở trên với quy tắc và nhận xét đúng/sai, chấm điểm phần đó. Nếu đề KHÔNG yêu cầu về tên file thì BỎ QUA, đừng bắt lỗi tên file.
 - Bài SCRATCH: bài nộp được mô tả bằng các KHỐI LỆNH tiếng Việt (ví dụ: "Khi bấm cờ xanh", "Nói ...", "Lặp mãi", "Nếu <đang chạm chuột> thì", "Di chuyển ... bước"). Hãy nhận xét dựa theo các khối này và gọi tên khối bằng tiếng Việt ĐÚNG như em thấy trên Scratch, TUYỆT ĐỐI không dùng tên tiếng Anh hay mã lệnh (opcode). Ví dụ nên viết: "Em thiếu khối 'Lặp mãi' nên nhân vật chỉ chạy 1 lần, em bọc các khối di chuyển vào trong 'Lặp mãi' nhé!"
-- Nếu có "Tiêu chí chấm", trả về thêm mảng "breakdown": mỗi phần tử gồm {"criterion":"Tên tiêu chí ngắn gọn","earned":điểm_đạt,"max":điểm_tối_đa} — nếu earned < max thì thêm "note" giải thích DỄ HIỂU: em làm sai/thiếu chỗ nào và cần sửa thành gì (nói rõ cái đúng), bằng lời đơn giản cho trẻ. Ví dụ: "Em cho nhân vật nói 'xin chào', nhưng đề yêu cầu nói 'Chúc mừng!' — em sửa lại lời thoại nhé."
+- Nếu có "Tiêu chí chấm", trả về thêm mảng "breakdown": mỗi phần tử gồm {"criterion":"Tên tiêu chí ngắn gọn","earned":điểm_đạt,"max":điểm_tối_đa}. QUY TẮC BẮT BUỘC để tránh mâu thuẫn:
+  • "earned" phải KHỚP với thực tế: nếu em làm ĐÚNG tiêu chí đó thì earned = max; CHỈ hạ earned < max khi thật sự CÓ LỖI/THIẾU.
+  • "note" phải KHỚP với "earned": nếu earned = max thì KHÔNG viết note (hoặc note khen ngắn); nếu earned < max thì note PHẢI chỉ ra CÁI SAI/THIẾU và cách sửa — TUYỆT ĐỐI không được vừa cho earned < max vừa viết note khen kiểu "em làm đúng rồi". Ngược lại, nếu em làm đúng thì phải cho đủ điểm, không được cho 0 rồi khen.
+  • Ví dụ note khi earned < max: "Em cho nhân vật nói 'xin chào', nhưng đề yêu cầu nói 'Chúc mừng!' — em sửa lại lời thoại nhé."
+- ĐIỂM TỔNG ("score") = TỔNG các "earned" trong breakdown (không tự ý ghi số khác). Ví dụ breakdown cộng lại 10 thì score = 10, cộng lại 8 thì score = 8.
 - Trả về JSON array, không thêm text khác\n\n`
 
   for (const task of tasks) {
@@ -106,8 +110,18 @@ Quy tắc:
   const cleaned = text.replace(/```json\s*|\s*```/g, '').trim()
 
   try {
-    const results = JSON.parse(cleaned)
-    return res.status(200).json({ results: Array.isArray(results) ? results : [results] })
+    let results = JSON.parse(cleaned)
+    if (!Array.isArray(results)) results = [results]
+    // Đồng bộ điểm tổng với bảng tiêu chí: điểm = tổng điểm đạt / tổng điểm tối đa × 10
+    // (tránh trường hợp AI ghi score lệch với breakdown, hoặc bảng cộng ra 10 mà score ghi 8)
+    for (const r of results) {
+      if (Array.isArray(r?.breakdown) && r.breakdown.length) {
+        const earned = r.breakdown.reduce((s, b) => s + (Number(b.earned) || 0), 0)
+        const max = r.breakdown.reduce((s, b) => s + (Number(b.max) || 0), 0)
+        if (max > 0) r.score = Math.round((earned / max) * 10 * 10) / 10
+      }
+    }
+    return res.status(200).json({ results })
   } catch {
     return res.status(500).json({ error: 'parse_error', raw: text })
   }
