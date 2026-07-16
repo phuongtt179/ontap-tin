@@ -21,7 +21,7 @@ const PROP_VI = {
 const tr = v => (v == null ? v : (MENU_VI[v] ?? KEY_VI[v] ?? v))
 
 // Đọc 1 input → chuỗi mô tả. Xử lý cả literal, menu, và reporter lồng nhau.
-function describeInput(blocks, input) {
+export function describeInput(blocks, input) {
   if (!input) return null
   const inner = input[1]
   // shadow literal: [1, [type, value]]

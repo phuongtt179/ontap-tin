@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import JSZip from 'jszip'
 import { Loader2, ExternalLink } from 'lucide-react'
+import { describeInput } from '../../utils/sb3Text'
 
 // Lấy giá trị từ input của block (literal hoặc sub-block menu)
 function resolveInput(blocks, input) {
@@ -104,12 +105,12 @@ function formatBlock(blocks, block) {
     // ── Điều khiển ──
     case 'control_forever':       return 'Liên tục (lặp mãi)'
     case 'control_repeat':        return `Lặp lại ${n(v('TIMES'))} lần`
-    case 'control_if':            return 'Nếu ... thì'
-    case 'control_if_else':       return 'Nếu ... thì ... nếu không thì'
+    case 'control_if':            return `Nếu <${describeInput(blocks, inputs.CONDITION) ?? '...'}> thì`
+    case 'control_if_else':       return `Nếu <${describeInput(blocks, inputs.CONDITION) ?? '...'}> thì ... nếu không thì`
     case 'control_wait':          return `Đợi ${n(v('DURATION'))} giây`
-    case 'control_wait_until':    return 'Đợi đến khi ...'
-    case 'control_repeat_until':  return 'Lặp lại cho đến khi ...'
-    case 'control_while':         return 'Trong khi ...'
+    case 'control_wait_until':    return `Đợi đến khi <${describeInput(blocks, inputs.CONDITION) ?? '...'}>`
+    case 'control_repeat_until':  return `Lặp lại cho đến khi <${describeInput(blocks, inputs.CONDITION) ?? '...'}>`
+    case 'control_while':         return `Trong khi <${describeInput(blocks, inputs.CONDITION) ?? '...'}>`
     case 'control_stop':          return `Dừng ${STOP_VI[f('STOP_OPTION')] ?? f('STOP_OPTION') ?? '...'}`
     case 'control_start_as_clone':   return 'Khi tôi bắt đầu là một bản sao'
     case 'control_create_clone_of':  return `Tạo bản sao của ${n(v('CLONE_OPTION') ?? f('CLONE_OPTION'))}`
