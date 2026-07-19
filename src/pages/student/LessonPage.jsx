@@ -1071,7 +1071,7 @@ export default function LessonPage() {
       const { results } = await gradeStudent([sub], [taskDef])
       const result = results[0]
       if (!result) return
-      const updates = { score: result.score, teacher_comment: result.comment, graded_by: 'ai', ai_graded_at: new Date().toISOString(), ai_breakdown: result.breakdown || null }
+      const updates = { score: result.score, teacher_comment: result.comment, graded_by: 'ai', ai_graded_at: new Date().toISOString(), ai_breakdown: result.breakdown || null, ai_suspect: !!result.ai_suspect, ai_suspect_reason: result.ai_suspect_reason || null }
       await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
       setTaskSubmissions(prev => { const next = [...prev]; next[taskIdx] = { ...sub, ...updates }; return next })
     } catch { /* quota or network — fail silently, giáo viên sẽ chấm tay */ }

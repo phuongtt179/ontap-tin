@@ -39,6 +39,12 @@ Quy tắc:
   • "note" phải KHỚP với "earned": nếu earned = max thì KHÔNG viết note (hoặc note khen ngắn); nếu earned < max thì note PHẢI chỉ ra CÁI SAI/THIẾU và cách sửa — TUYỆT ĐỐI không được vừa cho earned < max vừa viết note khen kiểu "em làm đúng rồi". Ngược lại, nếu em làm đúng thì phải cho đủ điểm, không được cho 0 rồi khen.
   • Ví dụ note khi earned < max: "Em cho nhân vật nói 'xin chào', nhưng đề yêu cầu nói 'Chúc mừng!' — em sửa lại lời thoại nhé."
 - ĐIỂM TỔNG ("score") = TỔNG các "earned" trong breakdown (không tự ý ghi số khác). Ví dụ breakdown cộng lại 10 thì score = 10, cộng lại 8 thì score = 8.
+- CỜ NGHI NGỜ DÙNG AI ("ai_suspect"): sau khi đọc bài, đánh giá xem bài nộp có DẤU HIỆU do AI viết hộ không. Các dấu hiệu THƯỜNG GẶP của code do AI sinh (với học sinh nhỏ tuổi):
+  • Có CHÚ THÍCH (comment) giải thích chi tiết, dùng thuật ngữ chuẩn xác kiểu sách vở (ví dụ "# chuyển sang kiểu số thực float", "# kiểm tra điều kiện và lựa chọn...") — trẻ tự làm hiếm khi viết comment như vậy.
+  • Tên biến MÔ TẢ DÀI, đúng chuẩn (quang_duong, so_luong_hoc_sinh) thay vì ngắn gọn/tùy tiện (km, a, x).
+  • Chuỗi tiếng Việt gõ ĐẦY ĐỦ DẤU chuẩn ("Đi bộ", "Ô tô", "Xe đạp") — nhiều học sinh nhỏ gõ KHÔNG DẤU hoặc thiếu dấu ("Di bo", "O to").
+  • Phong cách trình bày quá chỉn chu, kỹ thuật vượt XA trình độ bài học / những gì đề đã dạy.
+  Đặt "ai_suspect": true khi có VÀI dấu hiệu rõ (đặc biệt là comment chuẩn + tên biến chuẩn + đủ dấu tiếng Việt cùng lúc). Nếu true thì thêm "ai_suspect_reason" = lý do ngắn gọn 1 câu (tiếng Việt, nêu dấu hiệu cụ thể). MẶC ĐỊNH false — thà bỏ sót còn hơn nghi oan; đây CHỈ là gợi ý để giáo viên xem kỹ, KHÔNG ảnh hưởng điểm và KHÔNG được nhắc trong phần nhận xét cho học sinh.
 - Trả về JSON array, không thêm text khác\n\n`
 
   for (const task of tasks) {
@@ -72,9 +78,9 @@ Quy tắc:
   // JSON mẫu dùng đúng taskIndex thực — AI copy theo, không tự đặt số
   const example = tasks.map(t => {
     if (t.rubric) {
-      return `{"taskIndex":${t.taskIndex},"score":8,"comment":"Nhận xét...","breakdown":[{"criterion":"Tên tiêu chí","earned":1,"max":1},{"criterion":"Tiêu chí khác","earned":2,"max":3,"note":"Lý do trừ"}]}`
+      return `{"taskIndex":${t.taskIndex},"score":8,"comment":"Nhận xét...","breakdown":[{"criterion":"Tên tiêu chí","earned":1,"max":1},{"criterion":"Tiêu chí khác","earned":2,"max":3,"note":"Lý do trừ"}],"ai_suspect":false}`
     }
-    return `{"taskIndex":${t.taskIndex},"score":8,"comment":"Nhận xét..."}`
+    return `{"taskIndex":${t.taskIndex},"score":8,"comment":"Nhận xét...","ai_suspect":false}`
   }).join(',')
   prompt += `Trả về JSON array (không có markdown, không text thêm):\n[${example}]`
 
@@ -132,6 +138,9 @@ Quy tắc:
         }
         if (max > 0) r.score = Math.round((earned / max) * 10 * 10) / 10
       }
+      // Chuẩn hóa cờ nghi ngờ AI
+      r.ai_suspect = !!r?.ai_suspect
+      if (!r.ai_suspect) r.ai_suspect_reason = null
     }
     return res.status(200).json({ results })
   } catch {

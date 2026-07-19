@@ -353,10 +353,10 @@ export default function LessonSubmissionsPage() {
     const taskSubs = taskDefs.map((_, i) => subs.find(s => (s.content_json?.task_index ?? 0) === i) || null)
     const { results } = await gradeStudent(taskSubs, taskDefs)
     const now = new Date().toISOString()
-    for (const { taskIndex, score, comment } of results) {
+    for (const { taskIndex, score, comment, breakdown, ai_suspect, ai_suspect_reason } of results) {
       const sub = taskSubs[taskIndex]
       if (!sub) continue
-      const updates = { score, teacher_comment: comment, graded_by: 'ai', ai_graded_at: now }
+      const updates = { score, teacher_comment: comment, graded_by: 'ai', ai_graded_at: now, ai_breakdown: breakdown || null, ai_suspect: !!ai_suspect, ai_suspect_reason: ai_suspect_reason || null }
       await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
       setSubmissionMap(prev => ({
         ...prev,
@@ -853,12 +853,14 @@ export default function LessonSubmissionsPage() {
                             {sub ? (
                               <button
                                 onClick={e => openGradeModal(e, student, i)}
+                                title={sub.ai_suspect ? `🚩 Nghi ngờ dùng AI: ${sub.ai_suspect_reason || 'xem kỹ code'}` : undefined}
                                 className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg transition
-                                  ${waiting ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                  ${sub.ai_suspect ? 'ring-2 ring-rose-400 ' : ''}${waiting ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
                                     : aiGraded ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                                     : reviewed ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
                                     : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
                               >
+                                {sub.ai_suspect && <span title="Nghi ngờ dùng AI">🚩</span>}
                                 {waiting ? <><RefreshCw size={10} /> chờ</>
                                   : aiGraded ? <>🤖 {sub.score != null ? `${sub.score}đ` : '?'}</>
                                   : reviewed ? (sub.score != null ? `${sub.score}đ` : '✓ chấm')
@@ -1126,6 +1128,16 @@ export default function LessonSubmissionsPage() {
                       </button>
                     )}
                   </div>
+                  {sub.ai_suspect && (
+                    <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 flex items-start gap-2">
+                      <span className="text-lg shrink-0">🚩</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-rose-700">Nghi ngờ học sinh dùng AI viết hộ</p>
+                        {sub.ai_suspect_reason && <p className="text-xs text-rose-600 mt-0.5 leading-snug">{sub.ai_suspect_reason}</p>}
+                        <p className="text-[10px] text-rose-400 mt-0.5">Chỉ là gợi ý của AI — thầy/cô mở xem code và tự quyết định.</p>
+                      </div>
+                    </div>
+                  )}
                   {sub.ai_breakdown?.length > 0 && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                       <p className="text-[11px] font-bold text-amber-700 mb-1.5">🤖 Bảng điểm chi tiết của AI</p>
