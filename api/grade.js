@@ -30,11 +30,13 @@ Quy tắc:
 - Khi có chỗ sai, mỗi lỗi nói RÕ RÀNG: (1) em đã làm gì, (2) chỗ đó ĐÚNG ra phải thế nào, (3) sửa bằng cách nào — nói bằng lời đơn giản, KHÔNG viết tắt kiểu "A thay vì B" (trẻ không biết cái nào đúng). Nếu buộc phải nhắc lệnh/thuật ngữ thì giải thích ngắn nó làm gì.
   Ví dụ ĐỪNG viết: "viết int() thay vì float()".
   Nên viết: "Em dùng int() nên số bị mất phần thập phân. Bài này cần giữ phần thập phân, em đổi sang dùng float() nhé!"
-- ĐẶT TÊN FILE: nếu đề bài / tiêu chí yêu cầu học sinh đặt tên file theo quy tắc (ví dụ "Hoten_Lop.pptx", "Bai1_NguyenVanA"...), hãy đối chiếu "Tên file học sinh đặt" ở trên với quy tắc và nhận xét đúng/sai, chấm điểm phần đó. Nếu đề KHÔNG yêu cầu về tên file thì BỎ QUA, đừng bắt lỗi tên file.
+- ĐẶT TÊN FILE: CHỈ chấm phần tên file khi đề bài / tiêu chí GHI RÕ yêu cầu đặt tên theo quy tắc (ví dụ "Hoten_Lop.pptx", "Bai1_NguyenVanA"...). Khi đó đối chiếu "Tên file học sinh đặt" với quy tắc và cho điểm phần đó. Nếu đề / tiêu chí KHÔNG hề nhắc tới việc đặt tên file thì TUYỆT ĐỐI KHÔNG tự thêm tiêu chí "Đặt tên file" vào breakdown, KHÔNG nhận xét và KHÔNG trừ điểm gì về tên file — coi như không có yêu cầu đó.
 - Bài SCRATCH: bài nộp được mô tả bằng các KHỐI LỆNH tiếng Việt (ví dụ: "Khi bấm cờ xanh", "Nói ...", "Lặp mãi", "Nếu <đang chạm chuột> thì", "Di chuyển ... bước"). Hãy nhận xét dựa theo các khối này và gọi tên khối bằng tiếng Việt ĐÚNG như em thấy trên Scratch, TUYỆT ĐỐI không dùng tên tiếng Anh hay mã lệnh (opcode). Ví dụ nên viết: "Em thiếu khối 'Lặp mãi' nên nhân vật chỉ chạy 1 lần, em bọc các khối di chuyển vào trong 'Lặp mãi' nhé!"
 - CÁCH ĐỌC LỒNG KHỐI (RẤT QUAN TRỌNG, đừng đọc sai): các khối cùng MỨC LỀ chạy tuần tự từ trên xuống. Khối thụt vào SÂU hơn (dấu "└" và lề rộng hơn) là NẰM BÊN TRONG khối phía trên (vòng lặp / "Nếu"). Khối lùi trở lại lề NGOÀI là NẰM SAU/NGOÀI khối đó. Ví dụ: một khối "Nói ..." ở lề ngoài, ngay dưới "Lặp lại cho đến khi <...>" nghĩa là em cho nói SAU KHI thoát vòng lặp — ĐÓ LÀ HỢP LỆ, đừng bảo em đặt sai hay còn thiếu. Chỉ kết luận "thiếu/đặt sai chỗ" khi thật sự chắc chắn theo sơ đồ.
 - CHỈ đánh giá dựa trên NỘI DUNG BÀI NỘP thực tế ở trên, không suy diễn. Nếu một từ / khối lệnh / phần tử KHÔNG còn xuất hiện trong bài nộp thì coi như em ĐÃ xóa/đã bỏ nó — đừng khẳng định ngược lại. Đọc kỹ bài nộp trước khi kết luận em thiếu hay đã làm.
-- Nếu có "Tiêu chí chấm", trả về thêm mảng "breakdown": mỗi phần tử gồm {"criterion":"Tên tiêu chí ngắn gọn","earned":điểm_đạt,"max":điểm_tối_đa}. "earned" của mỗi tiêu chí KHÔNG BAO GIỜ vượt quá "max" của tiêu chí đó (ví dụ max=2 thì earned tối đa là 2). QUY TẮC BẮT BUỘC để tránh mâu thuẫn:
+- Nếu có "Tiêu chí chấm", trả về thêm mảng "breakdown": mỗi phần tử gồm {"criterion":"Tên tiêu chí ngắn gọn","earned":điểm_đạt,"max":điểm_tối_đa}.
+  ‼️ TỔNG tất cả "max" trong breakdown PHẢI BẰNG 10 (thang điểm tổng). Mỗi "max" là PHẦN điểm của tiêu chí đó — hãy CHIA 10 điểm cho các tiêu chí theo mức quan trọng. Ví dụ 2 tiêu chí: Logic 7đ + Đặt tên file 3đ = 10đ. TUYỆT ĐỐI KHÔNG cho mỗi tiêu chí max=10 (2 tiêu chí sẽ thành 20). Nếu "Tiêu chí chấm" đã ghi sẵn số điểm cho từng phần thì dùng ĐÚNG số đó.
+  "earned" của mỗi tiêu chí KHÔNG BAO GIỜ vượt quá "max" của nó (max=3 thì earned tối đa là 3). QUY TẮC để tránh mâu thuẫn:
   • "earned" phải KHỚP với thực tế: nếu em làm ĐÚNG tiêu chí đó thì earned = max; CHỈ hạ earned < max khi thật sự CÓ LỖI/THIẾU.
   • "note" phải KHỚP với "earned": nếu earned = max thì KHÔNG viết note (hoặc note khen ngắn); nếu earned < max thì note PHẢI chỉ ra CÁI SAI/THIẾU và cách sửa — TUYỆT ĐỐI không được vừa cho earned < max vừa viết note khen kiểu "em làm đúng rồi". Ngược lại, nếu em làm đúng thì phải cho đủ điểm, không được cho 0 rồi khen.
   • Ví dụ note khi earned < max: "Em cho nhân vật nói 'xin chào', nhưng đề yêu cầu nói 'Chúc mừng!' — em sửa lại lời thoại nhé."
@@ -78,7 +80,7 @@ Quy tắc:
   // JSON mẫu dùng đúng taskIndex thực — AI copy theo, không tự đặt số
   const example = tasks.map(t => {
     if (t.rubric) {
-      return `{"taskIndex":${t.taskIndex},"score":8,"comment":"Nhận xét...","breakdown":[{"criterion":"Tên tiêu chí","earned":1,"max":1},{"criterion":"Tiêu chí khác","earned":2,"max":3,"note":"Lý do trừ"}],"ai_suspect":false}`
+      return `{"taskIndex":${t.taskIndex},"score":9,"comment":"Nhận xét...","breakdown":[{"criterion":"Tiêu chí 1","earned":7,"max":7},{"criterion":"Tiêu chí 2","earned":2,"max":3,"note":"Lý do trừ"}],"ai_suspect":false}`
     }
     return `{"taskIndex":${t.taskIndex},"score":8,"comment":"Nhận xét...","ai_suspect":false}`
   }).join(',')
