@@ -142,8 +142,6 @@ export default function AiAssistantPage() {
   // Chỉ giáo viên (không phải trợ giảng) được dùng tính năng này.
   if (profile && profile.role !== 'teacher') return <Navigate to="/teacher" replace />
 
-  const classesInGrade = classes.filter(c => c.grade === grade)
-
   async function handleAsk(q) {
     const text = (q ?? question).trim()
     if (!text || asking) return
@@ -171,7 +169,7 @@ export default function AiAssistantPage() {
       const ambiguous = [...mentionedClasses.map(c => c.name), ...mentionedGrades]
       const msg = ambiguous.length > 1
         ? `Có nhiều lựa chọn khớp (${ambiguous.join(', ')}), thầy/cô ghi rõ hơn giúp em nhé.`
-        : 'Thầy/cô cho em biết đang hỏi về khoá/lớp nào ạ (vd: "lớp KN46 ..." hoặc "khoá KN-Tiểu học ..."), hoặc chọn ở ô phía trên.'
+        : 'Thầy/cô cho em biết đang hỏi về khoá/lớp nào ạ (vd: "lớp KN46 ..." hoặc "khoá KN-Tiểu học ...").'
       setMessages(m => [...m, { role: 'ai', content: msg }])
       return
     }
@@ -208,71 +206,95 @@ export default function AiAssistantPage() {
     }
   }
 
+  function autoGrow(el) {
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px'
+  }
+
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto flex flex-col h-full">
-      <div className="flex items-center gap-2 mb-1">
-        <Sparkles size={22} className="text-indigo-600" />
-        <h1 className="text-xl font-bold text-gray-800">Hỏi AI về tiến độ lớp</h1>
-      </div>
-      <p className="text-sm text-gray-500 mb-4">
-        Ghi tên khoá hoặc lớp thẳng trong câu hỏi (vd: "lớp KN46 ..." hoặc "khoá KN-Tiểu học ...") hoặc chọn ở dưới để khỏi phải gõ lại mỗi lần. AI trả lời dựa trên dữ liệu tiến độ học bài / nộp bài thực hành thực tế — không dùng cho điểm danh hay đề thi.
-      </p>
+    <div className="p-4 md:p-6 max-w-2xl mx-auto flex flex-col h-full">
+      <div className="bg-white rounded-3xl shadow-lg flex-1 flex flex-col overflow-hidden min-h-[500px]">
 
-      <div className="flex gap-2 mb-4">
-        <select value={grade} onChange={e => { setGrade(e.target.value); setClassName('') }}
-          className="border rounded-lg px-3 py-2 text-sm flex-1">
-          <option value="">-- Khoá (tuỳ chọn) --</option>
-          {grades.map(g => <option key={g} value={g}>{g}</option>)}
-        </select>
-        <select value={className} onChange={e => setClassName(e.target.value)} disabled={!grade}
-          className="border rounded-lg px-3 py-2 text-sm flex-1 disabled:bg-gray-100">
-          <option value="">-- Lớp (tuỳ chọn) --</option>
-          {classesInGrade.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-        </select>
-      </div>
-
-      <div className="flex-1 overflow-y-auto border rounded-xl bg-gray-50 p-4 space-y-3 min-h-[300px]">
-        {messages.length === 0 && (
-          <div className="space-y-2">
-            <p className="text-sm text-gray-400 text-center py-2">Gõ câu hỏi có tên lớp, hoặc thử gợi ý:</p>
-            {SUGGESTIONS.map(s => (
-              <button key={s} onClick={() => handleAsk(s)}
-                className="block w-full text-left text-sm bg-white border rounded-lg px-3 py-2 hover:bg-indigo-50">
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap
-              ${m.role === 'user' ? 'bg-indigo-600 text-white' : m.error ? 'bg-red-50 text-red-600' : 'bg-white border text-gray-700'}`}>
-              {m.content}
+        {/* Header */}
+        <div className="bg-gradient-to-r from-violet-500 via-indigo-500 to-blue-500 px-5 py-4 text-white shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <h2 className="font-black text-base leading-tight">Hỏi AI về tiến độ lớp</h2>
+              <p className="text-white/80 text-xs">
+                {grade && className ? `Đang hỏi về lớp ${className} (${grade})` : grade ? `Đang hỏi về khoá ${grade}` : 'Ghi tên khoá hoặc lớp trong câu hỏi nhé'}
+              </p>
             </div>
           </div>
-        ))}
-        {asking && (
-          <div className="flex justify-start">
-            <div className="bg-white border rounded-xl px-3 py-2 text-sm text-gray-400 flex items-center gap-2">
-              <Loader2 size={14} className="animate-spin" /> Đang lấy dữ liệu & trả lời...
-            </div>
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
+        </div>
 
-      <div className="flex gap-2 mt-3">
-        <input
-          value={question}
-          onChange={e => setQuestion(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleAsk()}
-          placeholder='Nhập câu hỏi (vd: "lớp KN46 tiến độ mới nhất")...'
-          className="flex-1 border rounded-lg px-3 py-2 text-sm"
-        />
-        <button onClick={() => handleAsk()} disabled={asking || !question.trim()}
-          className="bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50 flex items-center gap-1.5">
-          <Send size={15} /> Gửi
-        </button>
+        {/* Hội thoại */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50/50">
+          {messages.length === 0 && !asking && (
+            <div className="space-y-2">
+              <div className="text-center text-gray-400 text-sm py-4">
+                <div className="text-4xl mb-2">🤖</div>
+                Thầy/cô muốn hỏi gì về tiến độ lớp nào?
+              </div>
+              {SUGGESTIONS.map(s => (
+                <button key={s} onClick={() => handleAsk(s)}
+                  className="block w-full text-left text-sm bg-white border border-indigo-100 shadow-sm rounded-2xl px-4 py-2.5 hover:bg-indigo-50 transition">
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+          {messages.map((m, i) => {
+            const isAi = m.role === 'ai'
+            return (
+              <div key={i} className={`flex ${isAi ? 'justify-start' : 'justify-end'}`}>
+                {isAi && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-white shrink-0 mr-2 mt-auto mb-1">
+                    <Sparkles size={14} />
+                  </div>
+                )}
+                <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap
+                  ${isAi
+                    ? `bg-white text-gray-800 rounded-bl-md shadow-sm ${m.error ? 'border border-red-200 text-red-600' : 'border border-indigo-100'}`
+                    : 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white rounded-br-md shadow-md'}`}>
+                  {m.content}
+                </div>
+              </div>
+            )
+          })}
+          {asking && (
+            <div className="flex justify-start">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-white shrink-0 mr-2">
+                <Sparkles size={14} />
+              </div>
+              <div className="bg-white border border-indigo-100 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
+                <Loader2 size={16} className="animate-spin text-indigo-400" />
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        <div className="border-t border-gray-200 bg-white px-3 py-3 flex gap-2 items-end shrink-0">
+          <textarea
+            value={question}
+            onChange={e => { setQuestion(e.target.value); autoGrow(e.target) }}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAsk() } }}
+            disabled={asking}
+            rows={1}
+            placeholder='Nhập câu hỏi (vd: "lớp KN46 tiến độ mới nhất")...'
+            className="flex-1 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-gray-50 resize-none overflow-y-auto leading-snug"
+            style={{ maxHeight: 140 }}
+          />
+          <button onClick={() => handleAsk()} disabled={!question.trim() || asking}
+            className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:scale-100 shadow-md shrink-0">
+            {asking ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+          </button>
+        </div>
       </div>
     </div>
   )
