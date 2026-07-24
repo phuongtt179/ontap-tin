@@ -112,7 +112,7 @@ export default function Layout({ children }) {
     return isTeacher ? (
       <div className={`flex items-center gap-2 px-5 py-5 border-b ${sidebarBorder}`}>
         <BookOpen size={22} />
-        <span className="font-bold text-lg">Ôn Tập Tin</span>
+        <span className="font-bold text-lg">Lập Trình Sáng Tạo BNP</span>
       </div>
     ) : (
       <div className={`flex items-center gap-3 px-4 py-4 border-b ${sidebarBorder}`}>
@@ -159,7 +159,7 @@ export default function Layout({ children }) {
                 onError={e => { e.target.style.display='none' }} />
             </div>
           )}
-          <span className="font-bold">{isTeacher ? 'Ôn Tập Tin' : 'Lập Trình Sáng Tạo BNP'}</span>
+          <span className="font-bold">Lập Trình Sáng Tạo BNP</span>
         </div>
         <button onClick={() => setSidebarOpen(true)} className="text-white/70 hover:text-white p-1">
           <Menu size={22} />

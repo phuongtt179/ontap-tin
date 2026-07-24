@@ -34,7 +34,7 @@ export default function LoginPage() {
           <div className="bg-indigo-600 text-white rounded-full p-3 mb-3">
             <BookOpen size={32} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Ôn Tập Tin Học</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Lập Trình Sáng Tạo BNP</h1>
           <p className="text-gray-500 text-sm mt-1">Tiểu học khối 3, 4, 5</p>
         </div>
 
