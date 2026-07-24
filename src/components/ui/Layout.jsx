@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useEnrollments } from '../../hooks/useEnrollments'
-import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle } from 'lucide-react'
+import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle, Sparkles } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 export default function Layout({ children }) {
@@ -47,7 +47,10 @@ export default function Layout({ children }) {
         { to: '/teacher/attendance', icon: <CheckSquare size={18} />, label: 'Điểm danh' },
         { to: '/teacher/rewards', icon: <Gift size={18} />, label: 'Phần thưởng' },
         { to: '/teacher/messages', icon: <MessageCircle size={18} />, label: 'Tin nhắn' },
-        ...(profile?.role === 'teacher' ? [{ to: '/teacher/assistants', icon: <Users size={18} />, label: 'Trợ giảng' }] : []),
+        ...(profile?.role === 'teacher' ? [
+          { to: '/teacher/ai-assistant', icon: <Sparkles size={18} />, label: 'Hỏi AI' },
+          { to: '/teacher/assistants', icon: <Users size={18} />, label: 'Trợ giảng' },
+        ] : []),
       ]
     : [
         { to: '/student/learn', icon: <BookMarked size={18} />, label: 'Bài học' },

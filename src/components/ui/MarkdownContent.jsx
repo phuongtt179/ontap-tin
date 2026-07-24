@@ -1,8 +1,11 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import 'katex/dist/katex.min.css'
 
 // Cho phép dùng <br> để xuống dòng (kể cả TRONG ô bảng, nơi Enter không xuống dòng được)
 // mà không phải bật render HTML thô. Thay <br> bằng 1 ký tự Private Use rồi tự chèn <br/> khi render.
@@ -32,7 +35,8 @@ export default function MarkdownContent({ text, className = '' }) {
       prose-ul:pl-5 prose-ol:pl-5 prose-li:my-0.5
       ${className}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks]}
+        remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
         components={{
           code({ node, inline, className: cls, children, ...props }) {
             const match = /language-(\w+)/.exec(cls || '')
