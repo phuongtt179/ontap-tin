@@ -69,11 +69,36 @@ async function extractContent(fileUrl, textContent, type) {
   if (type === 'docx') {
     const zip = await JSZip.loadAsync(buf)
     const xml = await zip.file('word/document.xml').async('string')
-    // Tách theo đoạn <w:p>; trong mỗi đoạn nối các "run" <w:t> KHÔNG chèn khoảng trắng
-    // (Word thường tách 1 từ thành nhiều run — nối bằng dấu cách sẽ làm "thích" → "th ích")
+    // Tách theo đoạn <w:p>; trong mỗi đoạn duyệt từng "run" <w:r> để vừa lấy chữ (<w:t>)
+    // vừa lấy định dạng (<w:rPr>: đậm/nghiêng/gạch chân/màu chữ/tô nền/font/cỡ chữ) — nếu chỉ
+    // lấy text thuần thì AI chấm bài không có cách nào biết học sinh đã định dạng đúng hay chưa.
     const paras = xml.split(/<\/w:p>/).map(p => {
-      const runs = p.match(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g) || []
-      return runs.map(m => m.replace(/<[^>]+>/g, '')).join('')
+      const runs = p.match(/<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g) || []
+      return runs.map(run => {
+        const tMatch = run.match(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/)
+        const text = tMatch ? tMatch[1] : ''
+        if (!text) return ''
+        const rPr = (run.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/) || [])[1] || ''
+        const flag = tag => {
+          const m = rPr.match(new RegExp(`<w:${tag}(?:\\s+w:val="([^"]*)")?\\s*/>`))
+          if (!m) return false
+          return m[1] === undefined || !['0', 'false', 'off'].includes(m[1].toLowerCase())
+        }
+        const tags = []
+        if (flag('b')) tags.push('b')
+        if (flag('i')) tags.push('i')
+        const uVal = (rPr.match(/<w:u\s+w:val="([^"]+)"/) || [])[1]
+        if (uVal && uVal !== 'none') tags.push('u')
+        const color = (rPr.match(/<w:color\s+w:val="([0-9A-Fa-f]{6})"/) || [])[1]
+        if (color) tags.push(`color=#${color.toUpperCase()}`)
+        const hl = (rPr.match(/<w:highlight\s+w:val="([a-zA-Z]+)"/) || [])[1]
+        if (hl && hl !== 'none') tags.push(`bg=${hl}`)
+        const font = (rPr.match(/<w:rFonts\b[^>]*\bw:ascii="([^"]+)"/) || [])[1]
+        if (font) tags.push(`font=${font}`)
+        const sz = (rPr.match(/<w:sz\s+w:val="(\d+)"/) || [])[1]
+        if (sz) tags.push(`size=${Number(sz) / 2}pt`)
+        return tags.length ? `[${tags.join(' ')}]${text}[/]` : text
+      }).join('')
     }).filter(t => t.trim())
     return paras.join('\n').replace(/[ \t]+/g, ' ').trim()
   }
