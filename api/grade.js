@@ -104,9 +104,11 @@ Quy tắc:
   }
 
   // Call Gemini — xoay vòng nhiều key khi hết lượt
+  // maxOutputTokens rộng rãi hơn vì bài Word có chú thích định dạng [b color=... bg=...] làm
+  // JSON trả về (đặc biệt phần breakdown/comment) dài hơn bình thường, tránh bị cắt cụt giữa chừng.
   const payload = JSON.stringify({
     contents: [{ parts }],
-    generationConfig: { temperature: 0.2, maxOutputTokens: 2048 },
+    generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
   })
   const geminiRes = await callGeminiRotate({ model, keys, payload })
 
@@ -124,8 +126,21 @@ Quy tắc:
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
   const cleaned = text.replace(/```json\s*|\s*```/g, '').trim()
 
+  let parsed
   try {
-    let results = JSON.parse(cleaned)
+    parsed = JSON.parse(cleaned)
+  } catch {
+    // Phòng trường hợp bị cắt cụt giữa chừng (hết maxOutputTokens): cắt tới object hoàn chỉnh
+    // cuối cùng trong mảng rồi đóng ngoặc lại, thay vì báo lỗi luôn.
+    const lastComplete = cleaned.lastIndexOf('},')
+    if (lastComplete > 0) {
+      try { parsed = JSON.parse(cleaned.slice(0, lastComplete + 1) + ']') } catch {}
+    }
+  }
+  if (parsed === undefined) return res.status(500).json({ error: 'parse_error', raw: text })
+
+  try {
+    let results = parsed
     if (!Array.isArray(results)) results = [results]
     // Đồng bộ điểm tổng với bảng tiêu chí: điểm = tổng điểm đạt / tổng điểm tối đa × 10
     // (tránh trường hợp AI ghi score lệch với breakdown, hoặc bảng cộng ra 10 mà score ghi 8)

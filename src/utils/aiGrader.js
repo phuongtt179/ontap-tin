@@ -180,6 +180,9 @@ export async function gradeStudent(submissions, taskDefs) {
     throw e
   }
 
-  if (!res.ok) throw new Error('grade_error')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error ? `grade_error (${err.error})` : 'grade_error')
+  }
   return res.json()
 }
