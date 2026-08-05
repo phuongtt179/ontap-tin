@@ -14,11 +14,18 @@ export function AuthProvider({ children }) {
   const isAuthenticatedRef = useRef(false)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
-      else setLoading(false)
-    })
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setUser(session?.user ?? null)
+        if (session?.user) fetchProfile(session.user.id)
+        else setLoading(false)
+      })
+      .catch(() => {
+        // Supabase Auth tạm thời lỗi mạng/timeout khi làm mới phiên (vd 504) — đừng để
+        // loading treo mãi gây trắng trang, coi như chưa đăng nhập để hiện màn đăng nhập.
+        setUser(null)
+        setLoading(false)
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
