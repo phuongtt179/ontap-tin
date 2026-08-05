@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
-import { X, Sparkles, Loader2, Send, GraduationCap, BookOpen } from 'lucide-react'
+import { X, Sparkles, Loader2, Send, BookOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const HEADER = {
@@ -13,8 +13,6 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
   const [input, setInput] = useState('')
   const [chat, setChat] = useState([])        // [{ role:'student'|'ai', content }]
   const [loading, setLoading] = useState(false)
-  const [escalated, setEscalated] = useState(false)
-  const [escalating, setEscalating] = useState(false)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -26,7 +24,7 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
 
   // Reset khi mở modal mới (ngữ cảnh mới)
   useEffect(() => {
-    if (open) { setChat([]); setInput(''); setEscalated(false) }
+    if (open) { setChat([]); setInput('') }
   }, [open])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chat, loading])
@@ -77,29 +75,8 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
     }
   }
 
-  async function askTeacher() {
-    if (escalating) return
-    setEscalating(true)
-    const { correctAnswer, hint, courseRoadmap, aiContext, courseScope, lessonsCompleted, studentName, ...safeContext } = context
-    const lastStudent = [...chat].reverse().find(m => m.role === 'student')
-    const lastAi = [...chat].reverse().find(m => m.role === 'ai')
-    const ctxPayload = { ...safeContext, mode, aiAnswer: lastAi?.content || null }
-    const { error } = await supabase.from('messages').insert({
-      student_id: studentId,
-      sender_role: 'student',
-      channel: 'teacher',
-      content: lastStudent?.content || '(Con cần thầy/cô giúp câu này ạ)',
-      context: ctxPayload,
-      is_read: false,
-    })
-    setEscalating(false)
-    if (error) { toast.error('Chưa gửi được cho thầy/cô, em thử lại nhé'); return }
-    setEscalated(true)
-    toast.success('Đã gửi câu hỏi cho thầy/cô! 👩‍🏫')
-  }
-
   function handleClose() {
-    setChat([]); setInput(''); setEscalated(false)
+    setChat([]); setInput('')
     onClose?.()
   }
 
@@ -178,18 +155,7 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
           <div ref={bottomRef} />
         </div>
 
-        {/* Escalate */}
-        {escalated ? (
-          <div className="mx-4 mb-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2 text-center text-xs text-green-700 font-semibold shrink-0">
-            ✅ Đã gửi cho thầy/cô. Em xem trả lời ở mục “Hỏi giáo viên” nhé!
-          </div>
-        ) : chat.some(m => m.role === 'ai') && (
-          <button onClick={askTeacher} disabled={escalating}
-            className="mx-4 mb-2 py-2 rounded-xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition flex items-center justify-center gap-2 disabled:opacity-50 shrink-0">
-            {escalating ? <Loader2 size={14} className="animate-spin" /> : <GraduationCap size={15} />}
-            Vẫn chưa hiểu → Hỏi thầy/cô
-          </button>
-        )}
+        {/* Escalate — tạm ẩn (2026-08): tính năng "Hỏi giáo viên" đang khoá để giảm tải Supabase */}
 
         {/* Input */}
         <div className="border-t border-gray-200 bg-white px-3 py-3 flex gap-2 items-end shrink-0">

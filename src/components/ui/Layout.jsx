@@ -3,7 +3,6 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useEnrollments } from '../../hooks/useEnrollments'
 import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle, Sparkles } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
 
 export default function Layout({ children }) {
   const { profile, user, signOut, isTeacher } = useAuth()
@@ -11,20 +10,6 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [unreadMessages, setUnreadMessages] = useState(0)
-
-  useEffect(() => {
-    if (isTeacher || !user) return
-    async function fetchUnread() {
-      const { count } = await supabase.from('messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('student_id', user.id).eq('sender_role', 'teacher').eq('is_read', false)
-      setUnreadMessages(count || 0)
-    }
-    fetchUnread()
-    const interval = setInterval(fetchUnread, 15000)
-    return () => clearInterval(interval)
-  }, [user?.id, isTeacher])
 
   async function handleSignOut() {
     await signOut()
@@ -54,7 +39,6 @@ export default function Layout({ children }) {
       ]
     : [
         { to: '/student/learn', icon: <BookMarked size={18} />, label: 'Bài học' },
-        { to: '/student/messages', icon: <MessageCircle size={18} />, label: 'Hỏi giáo viên', badge: unreadMessages },
       ]
 
   function NavLinks({ onLinkClick }) {
