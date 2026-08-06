@@ -17,6 +17,7 @@ import { uploadFile, deleteFile } from '../../lib/cloudinary'
 import QuizSession from '../../components/student/QuizSession'
 import JSZip from 'jszip'
 import { generateSb3Text } from '../../utils/sb3Text'
+import { parsePracticeTasks } from '../../utils/practiceTaskParser'
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 const TYPE_LABELS = {
@@ -228,6 +229,8 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
   const [filterLessonTitle, setFilterLessonTitle] = useState('')
   const [randomCount, setRandomCount] = useState(10)
   const [currentTaskIdx, setCurrentTaskIdx] = useState(0)
+  const [showBulkPaste, setShowBulkPaste] = useState(false)
+  const [bulkText, setBulkText] = useState('')
   const [saving, setSaving] = useState(false)
   const [loadingQ, setLoadingQ] = useState(false)
   const [pptxUploading, setPptxUploading] = useState(false)
@@ -314,6 +317,20 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
       return { ...f, practice_tasks: next }
     })
   }
+  function handleBulkSplit() {
+    const parsed = parsePracticeTasks(bulkText)
+    if (parsed.length === 0) { toast.error('Không tách được bài nào, kiểm tra lại nội dung dán vào'); return }
+    setForm(f => {
+      // Giữ lại các bài đã soạn có nội dung; bỏ bài trống mặc định ban đầu
+      const kept = f.practice_tasks.filter(t => (t.instructions || '').trim() || (t.rubric || '').trim() || t.instruction_file_url)
+      const next = [...kept, ...parsed.map(p => ({ instructions: p.instructions, rubric: p.rubric, instruction_file_url: '' }))]
+      setCurrentTaskIdx(kept.length)
+      return { ...f, practice_tasks: next }
+    })
+    toast.success(`Đã tách thành ${parsed.length} bài`)
+    setBulkText('')
+    setShowBulkPaste(false)
+  }
   function removeTask(idx) {
     setForm(f => {
       const next = f.practice_tasks.filter((_, i) => i !== idx)
@@ -342,7 +359,7 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
       has_practice: form.has_practice,
       practice_type: null,
       practice_instructions: form.has_practice
-        ? JSON.stringify(form.practice_tasks.filter(t => (t.instructions || '').trim() || t.instruction_file_url))
+        ? JSON.stringify(form.practice_tasks.filter(t => (t.instructions || '').trim() || (t.rubric || '').trim() || t.instruction_file_url))
         : null,
       is_published: form.is_published,
       question_ids: form.question_ids,
@@ -678,37 +695,73 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
                   >
                     <Plus size={14} />
                   </button>
-                </div>
-                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    disabled={currentTaskIdx === 0}
-                    onClick={() => setCurrentTaskIdx(i => i - 1)}
-                    className="px-2 py-1 text-xs rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 transition"
+                    onClick={() => setShowBulkPaste(v => !v)}
+                    className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition ml-1
+                      ${showBulkPaste ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                    title="Dán 1 đoạn text nhiều bài, tự tách thành từng bài + tiêu chí chấm"
                   >
-                    ← Trước
-                  </button>
-                  <span className="text-xs text-gray-400">{currentTaskIdx + 1}/{form.practice_tasks.length}</span>
-                  <button
-                    type="button"
-                    disabled={currentTaskIdx === form.practice_tasks.length - 1}
-                    onClick={() => setCurrentTaskIdx(i => i + 1)}
-                    className="px-2 py-1 text-xs rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 transition"
-                  >
-                    Sau →
+                    <ClipboardList size={13} /> Dán nhiều bài
                   </button>
                 </div>
+                {!showBulkPaste && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={currentTaskIdx === 0}
+                      onClick={() => setCurrentTaskIdx(i => i - 1)}
+                      className="px-2 py-1 text-xs rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 transition"
+                    >
+                      ← Trước
+                    </button>
+                    <span className="text-xs text-gray-400">{currentTaskIdx + 1}/{form.practice_tasks.length}</span>
+                    <button
+                      type="button"
+                      disabled={currentTaskIdx === form.practice_tasks.length - 1}
+                      onClick={() => setCurrentTaskIdx(i => i + 1)}
+                      className="px-2 py-1 text-xs rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 transition"
+                    >
+                      Sau →
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {/* Single task editor */}
-              <TaskEditor
-                key={currentTaskIdx}
-                index={currentTaskIdx}
-                task={form.practice_tasks[currentTaskIdx]}
-                onChange={taskObj => updateTask(currentTaskIdx, taskObj)}
-                onRemove={form.practice_tasks.length > 1 ? () => removeTask(currentTaskIdx) : null}
-                autoFocus
-              />
+              {showBulkPaste ? (
+                /* Dán nhiều bài cùng lúc — tự tách theo "BÀI <số>" và tự tách "Tiêu chí chấm" ở cuối mỗi bài */
+                <div className="border border-indigo-200 rounded-xl overflow-hidden">
+                  <div className="bg-indigo-50 border-b border-indigo-100 px-3 py-2 text-xs text-indigo-700 space-y-0.5">
+                    <p>Dán đề nhiều bài vào đây. Mỗi bài bắt đầu bằng dòng <strong>"BÀI 1 – ..."</strong>, <strong>"BÀI 2 – ..."</strong> (nếu chỉ 1 bài thì không cần).</p>
+                    <p>Trong mỗi bài, nếu có phần <strong>"Tiêu chí chấm"</strong> ở cuối thì sẽ tự tách riêng vào ô Rubric (chỉ AI đọc) — không bắt buộc phải có.</p>
+                  </div>
+                  <textarea
+                    value={bulkText}
+                    onChange={e => setBulkText(e.target.value)}
+                    rows={12}
+                    autoFocus
+                    placeholder={'BÀI 1 – Tên bài...\n(nội dung đề bài)\n\nTiêu chí chấm\n(tiêu chí, có thể bỏ trống)\n\nBÀI 2 – Tên bài...\n...'}
+                    className="w-full px-3 py-2.5 text-sm focus:outline-none resize-y font-mono min-h-[220px]"
+                  />
+                  <div className="flex justify-end gap-2 bg-gray-50 border-t border-gray-100 px-3 py-2">
+                    <button type="button" onClick={() => { setShowBulkPaste(false); setBulkText('') }}
+                      className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">Hủy</button>
+                    <button type="button" onClick={handleBulkSplit} disabled={!bulkText.trim()}
+                      className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-40 transition">
+                      Tách bài tập
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <TaskEditor
+                  key={currentTaskIdx}
+                  index={currentTaskIdx}
+                  task={form.practice_tasks[currentTaskIdx]}
+                  onChange={taskObj => updateTask(currentTaskIdx, taskObj)}
+                  onRemove={form.practice_tasks.length > 1 ? () => removeTask(currentTaskIdx) : null}
+                  autoFocus
+                />
+              )}
 
               <p className="text-xs text-gray-400">Mỗi bài yêu cầu học sinh nộp 1 file (.pptx · .docx · .sb3).</p>
             </div>
