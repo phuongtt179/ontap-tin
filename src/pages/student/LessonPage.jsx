@@ -1338,7 +1338,10 @@ export default function LessonPage() {
       </div>
 
       {/* ── Content sections ── */}
-      <div className="flex-1 max-w-5xl w-full mx-auto px-4 md:px-8 py-6 space-y-4">
+      <div className="flex-1 max-w-[1600px] w-full mx-auto px-4 md:px-8 py-6 md:flex md:items-start md:gap-5">
+
+      {/* Cột trái: Lý thuyết/Video/Bài giảng/Bài tập — Bài thực hành tách riêng ở dưới */}
+      <div className="md:w-1/2 min-w-0 space-y-4 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto md:pr-2">
 
         {/* Lý thuyết */}
         {hasTheory && (
@@ -1447,8 +1450,12 @@ export default function LessonPage() {
           </SectionCard>
         )}
 
-        {/* Practice */}
-        {hasPractice && (
+      </div>
+      {/* Kết thúc cột trái */}
+
+      {/* Cột phải (desktop): Bài thực hành, dính khi cuộn. Mobile: xếp cuối như cột trái. */}
+      {hasPractice && (
+        <div className="mt-4 md:mt-0 md:w-1/2 md:shrink-0 md:pl-5 md:border-l-2 md:border-gray-300 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto">
           <SectionCard icon={<Upload size={18} />} iconBg="bg-emerald-100" iconColor="text-emerald-600"
             title="Bài thực hành" badge={`${submittedCount}/${practiceTasks.length} đã nộp`}
             done={practiceOk} locked={practiceLocked}
@@ -1467,9 +1474,11 @@ export default function LessonPage() {
                 ]
                 return (
                   <>
-                    {/* ── Node map: 3 bài/dòng trên mobile, 6 trên desktop ── */}
+                    {/* ── Node map: 3 bài/dòng trên mobile, 6 trên desktop; ẩn trên desktop khi đã chọn 1 bài ── */}
+                    <div className={activeTaskIdx !== null ? 'md:hidden' : ''}>
                     {(() => {
-                      const TASKS_PER_ROW = window.innerWidth < 768 ? 3 : 6
+                      // Khung này giờ chỉ chiếm nửa màn hình (không còn full-width) nên bớt số bài/hàng lại
+                      const TASKS_PER_ROW = window.innerWidth < 768 ? 3 : window.innerWidth < 1400 ? 3 : 4
                       const nodeIcons = ['⚡','🎯','🔥','⭐','🚀']
                       const rows = []
                       for (let r = 0; r < practiceTasks.length; r += TASKS_PER_ROW)
@@ -1527,8 +1536,9 @@ export default function LessonPage() {
                         </div>
                       )
                     })()}
+                    </div>
 
-                    {/* ── Task popup modal ── */}
+                    {/* ── Chi tiết bài đã chọn: hộp thoại nổi trên mobile, hiện ngay tại chỗ trên desktop ── */}
                     {activeTaskIdx !== null && (() => {
                       const i = activeTaskIdx
                       const task = practiceTasks[i]
@@ -1551,46 +1561,37 @@ export default function LessonPage() {
                         }
                       }
 
-                      return (
-                        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-                          onClick={closeModal}>
-                          {/* Backdrop */}
-                          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-
-                          {/* Sheet */}
-                          <div className="relative w-full sm:max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
-                            onClick={e => e.stopPropagation()}>
-
-                            {/* Header */}
-                            <div className="px-5 py-4 flex items-center gap-3 shrink-0"
-                              style={{ background: sub
-                                ? 'linear-gradient(135deg, #d1fae5, #bbf7d0)'
-                                : `linear-gradient(135deg, ${p.from}28, ${p.to}14)` }}>
-                              <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-md shrink-0"
-                                style={{ background: sub
-                                  ? 'linear-gradient(135deg, #16a34a, #059669)'
-                                  : `linear-gradient(135deg, ${p.from}, ${p.to})` }}>
-                                {sub ? '✓' : i + 1}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-black text-gray-800 text-base">Bài thực hành {i + 1}</p>
-                                <p className="text-xs font-medium mt-0.5 text-gray-500">
-                                  {sub ? `✅ Đã nộp · ${new Date(sub.submitted_at).toLocaleDateString('vi-VN')}` : '📤 Chưa nộp'}
-                                </p>
-                              </div>
-                              {sub?.score != null && (
-                                <div className="text-center bg-white/70 rounded-xl px-3 py-1.5 shrink-0">
-                                  <div className="text-2xl font-black" style={{ color: p.from }}>{sub.score}</div>
-                                  <div className="text-[10px] text-gray-500 font-semibold">ĐIỂM</div>
-                                </div>
-                              )}
-                              <button onClick={closeModal}
-                                className="w-8 h-8 rounded-full bg-white/60 hover:bg-white flex items-center justify-center text-gray-500 transition shrink-0">
-                                ✕
-                              </button>
+                      const header = (
+                        <div className="px-5 py-4 flex items-center gap-3 shrink-0"
+                          style={{ background: sub
+                            ? 'linear-gradient(135deg, #d1fae5, #bbf7d0)'
+                            : `linear-gradient(135deg, ${p.from}28, ${p.to}14)` }}>
+                          <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-md shrink-0"
+                            style={{ background: sub
+                              ? 'linear-gradient(135deg, #16a34a, #059669)'
+                              : `linear-gradient(135deg, ${p.from}, ${p.to})` }}>
+                            {sub ? '✓' : i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-black text-gray-800 text-base">Bài thực hành {i + 1}</p>
+                            <p className="text-xs font-medium mt-0.5 text-gray-500">
+                              {sub ? `✅ Đã nộp · ${new Date(sub.submitted_at).toLocaleDateString('vi-VN')}` : '📤 Chưa nộp'}
+                            </p>
+                          </div>
+                          {sub?.score != null && (
+                            <div className="text-center bg-white/70 rounded-xl px-3 py-1.5 shrink-0">
+                              <div className="text-2xl font-black" style={{ color: p.from }}>{sub.score}</div>
+                              <div className="text-[10px] text-gray-500 font-semibold">ĐIỂM</div>
                             </div>
+                          )}
+                          <button onClick={closeModal}
+                            className="w-8 h-8 rounded-full bg-white/60 hover:bg-white flex items-center justify-center text-gray-500 transition shrink-0">
+                            ✕
+                          </button>
+                        </div>
+                      )
 
-                            {/* Scrollable body */}
+                      const body = (
                             <div className="overflow-y-auto flex-1 p-5 space-y-4">
                               {/* Instructions */}
                               {(task.instructions || task.instruction_file_url) && (
@@ -1762,8 +1763,31 @@ export default function LessonPage() {
                                 </div>
                               )}
                             </div>
+                      )
+
+                      return (
+                        <>
+                          {/* Desktop: hiện ngay tại chỗ, không hộp thoại nổi */}
+                          <div className="hidden md:flex md:flex-col md:bg-white md:rounded-2xl md:border md:border-gray-100 md:shadow-sm md:overflow-hidden">
+                            <button onClick={closeModal}
+                              className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-700 px-4 pt-3 pb-1 shrink-0">
+                              ← Quay lại danh sách
+                            </button>
+                            {header}
+                            {body}
                           </div>
-                        </div>
+
+                          {/* Mobile: hộp thoại nổi như cũ */}
+                          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 md:hidden"
+                            onClick={closeModal}>
+                            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+                            <div className="relative w-full sm:max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
+                              onClick={e => e.stopPropagation()}>
+                              {header}
+                              {body}
+                            </div>
+                          </div>
+                        </>
                       )
                     })()}
                   </>
@@ -1771,8 +1795,10 @@ export default function LessonPage() {
               })()}
             </div>
           </SectionCard>
-        )}
+        </div>
+      )}
       </div>
+      {/* Kết thúc bố cục 2 cột */}
     </div>
   )
 }
