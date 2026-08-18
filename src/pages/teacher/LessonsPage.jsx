@@ -321,6 +321,16 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
       return { ...f, practice_tasks: next }
     })
   }
+  // Phòng hờ: nếu AI lỡ trả rubric dạng object thay vì string thì chuyển thành text đọc được.
+  function rubricToText(rubric) {
+    if (!rubric) return ''
+    if (typeof rubric === 'string') return rubric
+    if (typeof rubric === 'object') {
+      return Object.entries(rubric).map(([k, v]) => `${k}: ${v}đ`).join('\n')
+    }
+    return String(rubric)
+  }
+
   async function handleGenerateWithAi() {
     if (!form.title.trim()) { toast.error('Nhập tiêu đề bài học trước đã'); return }
     setAiGenerating(true)
@@ -343,7 +353,7 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
         ai_context: data.theory || f.ai_context,
         has_practice: data.practice_tasks?.length > 0 ? true : f.has_practice,
         practice_tasks: data.practice_tasks?.length > 0
-          ? data.practice_tasks.map(t => ({ instructions: t.instructions || '', rubric: t.rubric || '', instruction_file_url: '' }))
+          ? data.practice_tasks.map(t => ({ instructions: t.instructions || '', rubric: rubricToText(t.rubric), instruction_file_url: '' }))
           : f.practice_tasks,
       }))
       setCurrentTaskIdx(0)

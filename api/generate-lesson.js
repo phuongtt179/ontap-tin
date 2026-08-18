@@ -24,7 +24,7 @@ Hãy soạn:
    - Ngôn ngữ đơn giản, câu ngắn, đúng lứa tuổi ${grade || 'tiểu học'}. Độ dài khoảng 200-400 từ — đủ để giải thích trọn vẹn, không lan man.
 3. "practice_tasks": mảng bài thực hành liên quan trực tiếp tới lý thuyết vừa soạn, mỗi phần tử gồm:
    - "instructions": đề bài thực hành (markdown), rõ ràng, có bước làm cụ thể, học sinh đọc hiểu và tự làm được.
-   - "rubric": tiêu chí chấm để AI chấm bài (KHÔNG hiện cho học sinh) — liệt kê từng tiêu chí kèm số điểm, TỔNG các điểm phải bằng 10. Có thể để chuỗi rỗng "" nếu bài này không cần chấm chi tiết.
+   - "rubric": PHẢI là một CHUỖI TEXT (string) — KHÔNG được là object/JSON lồng bên trong. Viết mỗi tiêu chí trên 1 dòng dạng "Tên tiêu chí: Xđ" (xuống dòng bằng \n giữa các tiêu chí), TỔNG điểm các dòng phải bằng 10. Có thể để chuỗi rỗng "" nếu bài này không cần chấm chi tiết. Ví dụ đúng: "Gõ đúng nội dung: 4đ\nĐặt tên file đúng: 2đ\nDòng tiêu đề in đậm: 2đ\nCòn lại: 2đ".
 
    SỐ LƯỢNG bài thực hành: nếu "Yêu cầu thêm từ giáo viên" ở trên có nói rõ số lượng (ví dụ "tạo 5 bài tập", "3 bài thực hành"...) thì PHẢI tạo ĐÚNG số lượng đó, không được tự ý rút gọn. Nếu không nói rõ số lượng thì mặc định tạo 1-2 bài.
 
