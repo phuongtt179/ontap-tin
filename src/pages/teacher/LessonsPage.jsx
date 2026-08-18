@@ -10,7 +10,7 @@ import toast from 'react-hot-toast'
 import {
   Plus, Pencil, Trash2, FileText, X, Loader2, Check, Upload,
   ToggleLeft, ToggleRight, RefreshCw, PlayCircle, BookOpen, ClipboardList,
-  ChevronDown, ChevronRight, Eye, Filter,
+  ChevronDown, ChevronRight, Eye, Filter, Sparkles,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { uploadFile, deleteFile } from '../../lib/cloudinary'
@@ -231,6 +231,10 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
   const [currentTaskIdx, setCurrentTaskIdx] = useState(0)
   const [showBulkPaste, setShowBulkPaste] = useState(false)
   const [bulkText, setBulkText] = useState('')
+  const [showTheoryPreview, setShowTheoryPreview] = useState(false)
+  const [showAiGenerate, setShowAiGenerate] = useState(false)
+  const [aiBrief, setAiBrief] = useState('')
+  const [aiGenerating, setAiGenerating] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loadingQ, setLoadingQ] = useState(false)
   const [pptxUploading, setPptxUploading] = useState(false)
@@ -317,6 +321,42 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
       return { ...f, practice_tasks: next }
     })
   }
+  async function handleGenerateWithAi() {
+    if (!form.title.trim()) { toast.error('Nhập tiêu đề bài học trước đã'); return }
+    setAiGenerating(true)
+    try {
+      const res = await fetch('/api/generate-lesson', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: form.title, grade: form.grade, topic: form.topic, brief: aiBrief }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(data.error === 'quota_rpd' || data.error === 'quota_rpm'
+          ? 'AI đang quá tải, thầy/cô thử lại sau ít phút nhé'
+          : 'Không tạo được nội dung, thử lại sau')
+        return
+      }
+      setForm(f => ({
+        ...f,
+        description: data.description || f.description,
+        ai_context: data.theory || f.ai_context,
+        has_practice: data.practice_tasks?.length > 0 ? true : f.has_practice,
+        practice_tasks: data.practice_tasks?.length > 0
+          ? data.practice_tasks.map(t => ({ instructions: t.instructions || '', rubric: t.rubric || '', instruction_file_url: '' }))
+          : f.practice_tasks,
+      }))
+      setCurrentTaskIdx(0)
+      toast.success('AI đã soạn xong — thầy/cô kiểm tra & chỉnh sửa trước khi lưu nhé')
+      setShowAiGenerate(false)
+      setAiBrief('')
+    } catch {
+      toast.error('Có lỗi xảy ra, thử lại sau')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
   function handleBulkSplit() {
     const parsed = parsePracticeTasks(bulkText)
     if (parsed.length === 0) { toast.error('Không tách được bài nào, kiểm tra lại nội dung dán vào'); return }
@@ -426,7 +466,14 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
           {step === 1 ? (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu đề <span className="text-red-500">*</span></label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">Tiêu đề <span className="text-red-500">*</span></label>
+                  <button type="button" onClick={() => setShowAiGenerate(v => !v)}
+                    className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg transition
+                      ${showAiGenerate ? 'bg-violet-600 text-white' : 'bg-violet-50 text-violet-600 hover:bg-violet-100'}`}>
+                    <Sparkles size={12} /> Tạo bài học bằng AI
+                  </button>
+                </div>
                 <input
                   value={form.title}
                   onChange={e => setForm({ ...form, title: e.target.value })}
@@ -435,6 +482,30 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
                   autoFocus
                 />
               </div>
+
+              {showAiGenerate && (
+                <div className="border border-violet-200 rounded-xl overflow-hidden">
+                  <div className="bg-violet-50 border-b border-violet-100 px-3 py-2 text-xs text-violet-700">
+                    AI sẽ soạn <strong>mô tả, lý thuyết (markdown)</strong> và <strong>bài thực hành + tiêu chí chấm</strong> dựa vào tiêu đề{form.topic ? ', chủ đề' : ''} ở trên. Thầy/cô xem lại & sửa trước khi lưu — AI chỉ điền sẵn, chưa lưu gì cả.
+                  </div>
+                  <textarea
+                    value={aiBrief}
+                    onChange={e => setAiBrief(e.target.value)}
+                    rows={3}
+                    placeholder="Mô tả thêm cho AI (tuỳ chọn) — vd: tập trung vào khối lặp Forever, có ví dụ nhân vật mèo đuổi bắt bóng..."
+                    className="w-full px-3 py-2.5 text-sm focus:outline-none resize-none"
+                  />
+                  <div className="flex justify-end gap-2 bg-gray-50 border-t border-gray-100 px-3 py-2">
+                    <button type="button" onClick={() => { setShowAiGenerate(false); setAiBrief('') }}
+                      className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">Hủy</button>
+                    <button type="button" onClick={handleGenerateWithAi} disabled={aiGenerating}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white rounded-lg disabled:opacity-50 transition">
+                      {aiGenerating && <Loader2 size={12} className="animate-spin" />}
+                      {aiGenerating ? 'Đang soạn...' : 'Tạo nội dung'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -511,18 +582,32 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  📋 Nội dung cho AI trợ giảng <span className="text-gray-400 font-normal">(tuỳ chọn)</span>
-                </label>
-                <textarea
-                  value={form.ai_context}
-                  onChange={e => setForm({ ...form, ai_context: e.target.value })}
-                  rows={5}
-                  className="w-full border border-violet-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none bg-violet-50/40"
-                  placeholder={"Dán tóm tắt lý thuyết & các bước hướng dẫn để AI trả lời học sinh sát bài.\nVD: Bài học cách thêm trang phục cho nhân vật trong Scratch.\n- Bấm tab Trang phục ở góc trên bên trái\n- Bấm biểu tượng 🐱 để chọn trang phục mới từ thư viện..."}
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    💡 Lý thuyết (markdown) <span className="text-gray-400 font-normal">(tuỳ chọn)</span>
+                  </label>
+                  {form.ai_context.trim() && (
+                    <button type="button" onClick={() => setShowTheoryPreview(v => !v)}
+                      className="text-xs text-violet-600 hover:underline font-medium">
+                      {showTheoryPreview ? 'Ẩn xem trước' : 'Xem trước'}
+                    </button>
+                  )}
+                </div>
+                {showTheoryPreview && form.ai_context.trim() ? (
+                  <div className="border border-violet-200 rounded-lg px-3 py-2 bg-violet-50/40 min-h-[120px]">
+                    <MarkdownContent text={form.ai_context} />
+                  </div>
+                ) : (
+                  <textarea
+                    value={form.ai_context}
+                    onChange={e => setForm({ ...form, ai_context: e.target.value })}
+                    rows={5}
+                    className="w-full border border-violet-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none bg-violet-50/40 font-mono"
+                    placeholder={"Viết lý thuyết dạng markdown (#, ##, **đậm**, danh sách...) — vd:\n## Chuyển cảnh trong Scratch\nDùng khối **Backdrop** để đổi phông nền.\n- Bấm tab Trang phục\n- Chọn Backdrop mới từ thư viện"}
+                  />
+                )}
                 <p className="text-[11px] text-gray-400 mt-1">
-                  AI trợ giảng sẽ ưu tiên dựa vào nội dung này khi học sinh hỏi. Để trống thì AI dùng tiêu đề bài + kiến thức chuẩn.
+                  Hiển thị cho học sinh ở bước "Lý thuyết" trong bài học, đồng thời AI trợ giảng cũng dựa vào đây để trả lời sát bài. Để trống thì không có bước Lý thuyết, AI dùng tiêu đề bài + kiến thức chuẩn.
                 </p>
               </div>
 

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
-import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code, Lock } from 'lucide-react'
+import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code, Lock, Lightbulb } from 'lucide-react'
 import { uploadFile, deleteFile } from '../../lib/cloudinary'
 import QuestionText from '../../components/ui/QuestionText'
 import MarkdownContent from '../../components/ui/MarkdownContent'
@@ -476,11 +476,12 @@ function checkAnswer(type, ans, correct) {
 }
 
 function calcCompleted(prog, les) {
+  const theoryOk = !les.ai_context || prog.theory_read
   const videoOk = !les.video_url || prog.video_watched
   const pptxOk = !les.pptx_url || prog.pptx_viewed
   const quizOk = !(les.question_ids?.length > 0) || prog.quiz_passed
   const practiceOk = !les.has_practice || prog.practice_submitted
-  return videoOk && pptxOk && quizOk && practiceOk
+  return theoryOk && videoOk && pptxOk && quizOk && practiceOk
 }
 
 /* ── FileIcon ──────────────────────────────────────────────── */
@@ -836,6 +837,7 @@ function ActionButton({ onClick, disabled, loading, color = 'indigo', children }
     blue:   'bg-blue-500 hover:bg-blue-600 shadow-blue-200',
     orange: 'bg-orange-500 hover:bg-orange-600 shadow-orange-200',
     emerald:'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200',
+    amber:  'bg-amber-500 hover:bg-amber-600 shadow-amber-200',
   }
   return (
     <button onClick={onClick} disabled={disabled}
@@ -898,6 +900,7 @@ export default function LessonPage() {
   const [quizActive, setQuizActive] = useState(false)
   const [quizInitIdx, setQuizInitIdx] = useState(0)
   const [quizInitCorrect, setQuizInitCorrect] = useState(0)
+  const [theoryMarking, setTheoryMarking] = useState(false)
   const [videoMarking, setVideoMarking] = useState(false)
   const [stickerModal, setStickerModal] = useState(null) // { stickerCount, stickerTotal, threshold, reason }
   const [showReward, setShowReward] = useState(null)    // { stickerCount, threshold } | null
@@ -1024,6 +1027,14 @@ export default function LessonPage() {
       if (completed) wasCompleted.current = true
     }
     return { data, error }
+  }
+
+  async function handleMarkTheoryRead() {
+    setTheoryMarking(true)
+    const { error } = await upsertProgress({ theory_read: true })
+    setTheoryMarking(false)
+    if (error) toast.error('Có lỗi xảy ra')
+    else { toast.success('Đã đánh dấu đọc lý thuyết'); recordActivity() }
   }
 
   async function handleMarkVideoWatched() {
@@ -1198,6 +1209,7 @@ export default function LessonPage() {
     })
   }
 
+  const hasTheory = !!lesson.ai_context
   const hasVideo = !!lesson.video_url
   const hasPptx = !!lesson.pptx_url
   const hasQuiz = questions.length > 0
@@ -1206,18 +1218,20 @@ export default function LessonPage() {
   const practiceTasks = parseTasks(lesson.practice_instructions)
   const submittedCount = taskSubmissions.filter(Boolean).length
 
+  const theoryOk = !hasTheory || progress?.theory_read
   const videoOk = !hasVideo || progress?.video_watched
   const pptxOk = !hasPptx || progress?.pptx_viewed
   const quizOk = !hasQuiz || progress?.quiz_passed
   const practiceOk = !hasPractice || progress?.practice_submitted
-  const totalSteps = [hasVideo, hasPptx, hasQuiz, hasPractice].filter(Boolean).length
-  const doneSteps = [videoOk && hasVideo, pptxOk && hasPptx, quizOk && hasQuiz, practiceOk && hasPractice].filter(Boolean).length
+  const totalSteps = [hasTheory, hasVideo, hasPptx, hasQuiz, hasPractice].filter(Boolean).length
+  const doneSteps = [theoryOk && hasTheory, videoOk && hasVideo, pptxOk && hasPptx, quizOk && hasQuiz, practiceOk && hasPractice].filter(Boolean).length
 
   const pptxLocked = false
   const quizLocked = false
   const practiceLocked = false
 
   const steps = [
+    hasTheory && { key: 'theory', label: 'Lý thuyết', icon: <Lightbulb size={16} />, done: theoryOk, locked: false },
     hasVideo && { key: 'video', label: 'Video', icon: <PlayCircle size={16} />, done: videoOk, locked: false },
     hasPptx && { key: 'pptx', label: 'Bài giảng', icon: <FileText size={16} />, done: pptxOk, locked: pptxLocked },
     hasQuiz && { key: 'quiz', label: 'Bài tập', icon: <BookOpen size={16} />, done: quizOk, locked: quizLocked },
@@ -1325,6 +1339,21 @@ export default function LessonPage() {
 
       {/* ── Content sections ── */}
       <div className="flex-1 max-w-5xl w-full mx-auto px-4 md:px-8 py-6 space-y-4">
+
+        {/* Lý thuyết */}
+        {hasTheory && (
+          <SectionCard icon={<Lightbulb size={18} />} iconBg="bg-amber-100" iconColor="text-amber-600"
+            title="Lý thuyết" done={theoryOk} locked={false} lockMessage="">
+            <div className="mb-4">
+              <MarkdownContent text={lesson.ai_context} />
+            </div>
+            {theoryOk
+              ? <DoneChip label="Đã đọc lý thuyết" />
+              : <ActionButton onClick={handleMarkTheoryRead} disabled={theoryMarking} loading={theoryMarking} color="amber">
+                  Đánh dấu đã đọc
+                </ActionButton>}
+          </SectionCard>
+        )}
 
         {/* Video */}
         {hasVideo && (
