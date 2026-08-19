@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
-import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code, Lock, Lightbulb } from 'lucide-react'
+import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code, Lock, Lightbulb, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { uploadFile, deleteFile } from '../../lib/cloudinary'
 import QuestionText from '../../components/ui/QuestionText'
 import MarkdownContent from '../../components/ui/MarkdownContent'
@@ -901,6 +901,7 @@ export default function LessonPage() {
   const [quizInitIdx, setQuizInitIdx] = useState(0)
   const [quizInitCorrect, setQuizInitCorrect] = useState(0)
   const [theoryMarking, setTheoryMarking] = useState(false)
+  const [leftPanelHidden, setLeftPanelHidden] = useState(false)
   const [videoMarking, setVideoMarking] = useState(false)
   const [stickerModal, setStickerModal] = useState(null) // { stickerCount, stickerTotal, threshold, reason }
   const [showReward, setShowReward] = useState(null)    // { stickerCount, threshold } | null
@@ -1345,8 +1346,8 @@ export default function LessonPage() {
       {/* ── Content sections ── */}
       <div className="flex-1 max-w-[1600px] w-full mx-auto px-4 md:px-8 py-6 md:flex md:items-start md:gap-5">
 
-      {/* Cột trái: Lý thuyết/Video/Bài giảng/Bài tập — Bài thực hành tách riêng ở dưới */}
-      <div className="md:w-1/2 min-w-0 space-y-4 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto md:pr-2">
+      {/* Cột trái: Lý thuyết/Video/Bài giảng/Bài tập — Bài thực hành tách riêng ở dưới. Có thể ẩn trên desktop để bên phải rộng hơn. */}
+      <div className={`${leftPanelHidden ? 'md:hidden' : ''} md:w-1/2 min-w-0 space-y-4 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto md:pr-2`}>
 
         {/* Lý thuyết */}
         {hasTheory && (
@@ -1458,9 +1459,16 @@ export default function LessonPage() {
       </div>
       {/* Kết thúc cột trái */}
 
-      {/* Cột phải (desktop): Bài thực hành, dính khi cuộn. Mobile: xếp cuối như cột trái. */}
+      {/* Cột phải (desktop): Bài thực hành, dính khi cuộn. Mobile: xếp cuối như cột trái.
+          Bung rộng hết cỡ khi cột trái đang bị ẩn. */}
       {hasPractice && (
-        <div className="mt-4 md:mt-0 md:w-1/2 md:shrink-0 md:pl-5 md:border-l-2 md:border-gray-300 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto">
+        <div className={`mt-4 md:mt-0 md:shrink-0 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto
+          ${leftPanelHidden ? 'md:w-full' : 'md:w-1/2 md:pl-5 md:border-l-2 md:border-gray-300'}`}>
+          <button onClick={() => setLeftPanelHidden(v => !v)}
+            className="hidden md:flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-indigo-600 mb-2 px-1">
+            {leftPanelHidden ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
+            {leftPanelHidden ? 'Hiện lý thuyết' : 'Ẩn lý thuyết — đọc đề rộng hơn'}
+          </button>
           <SectionCard icon={<Upload size={18} />} iconBg="bg-emerald-100" iconColor="text-emerald-600"
             title="Bài thực hành" badge={`${submittedCount}/${practiceTasks.length} đã nộp`}
             done={practiceOk} locked={practiceLocked}
@@ -1482,8 +1490,11 @@ export default function LessonPage() {
                     {/* ── Node map: 3 bài/dòng trên mobile, 6 trên desktop; ẩn trên desktop khi đã chọn 1 bài ── */}
                     <div className={activeTaskIdx !== null ? 'md:hidden' : ''}>
                     {(() => {
-                      // Khung này giờ chỉ chiếm nửa màn hình (không còn full-width) nên bớt số bài/hàng lại
-                      const TASKS_PER_ROW = window.innerWidth < 768 ? 3 : window.innerWidth < 1400 ? 3 : 4
+                      // Khung này thường chỉ chiếm nửa màn hình nên bớt số bài/hàng lại; khi ẩn cột
+                      // trái (khung bung full-width) thì cho nhiều bài/hàng hơn để đỡ phí chỗ.
+                      const TASKS_PER_ROW = window.innerWidth < 768 ? 3
+                        : leftPanelHidden ? 6
+                        : window.innerWidth < 1400 ? 3 : 4
                       const nodeIcons = ['⚡','🎯','🔥','⭐','🚀']
                       const rows = []
                       for (let r = 0; r < practiceTasks.length; r += TASKS_PER_ROW)
