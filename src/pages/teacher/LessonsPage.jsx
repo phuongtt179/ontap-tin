@@ -221,7 +221,11 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
     practice_tasks: parseTasks(lesson?.practice_instructions),
     is_published: lesson?.is_published ?? false,
     question_ids: lesson?.question_ids || [],
+    restricted_audience: lesson?.restricted_audience ?? false,
+    visible_to: [],
   })
+  const [roster, setRoster] = useState([])
+  const [rosterSearch, setRosterSearch] = useState('')
   const [questions, setQuestions] = useState([])
   const [filterTopic, setFilterTopic] = useState('')
   const [filterUnit, setFilterUnit] = useState('')
@@ -262,6 +266,26 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
       setForm(f => ({ ...f, grade: defaultGrade || GRADES[0] }))
     }
   }, [GRADES])
+
+  // Danh sách học sinh thuộc khoá này (để chọn giới hạn người xem)
+  useEffect(() => {
+    if (!form.grade) { setRoster([]); return }
+    supabase.from('student_enrollments')
+      .select('user_id, profiles!inner(id, full_name)')
+      .eq('grade', form.grade).eq('is_approved', true)
+      .then(({ data }) => {
+        const list = (data || []).map(e => ({ id: e.user_id, full_name: e.profiles.full_name }))
+        list.sort((a, b) => a.full_name.localeCompare(b.full_name))
+        setRoster(list)
+      })
+  }, [form.grade])
+
+  // Danh sách học sinh đã được chọn từ trước (khi sửa bài đã bật giới hạn)
+  useEffect(() => {
+    if (!isEdit || !lesson?.restricted_audience) return
+    supabase.from('lesson_visibility').select('user_id').eq('lesson_id', lesson.id)
+      .then(({ data }) => setForm(f => ({ ...f, visible_to: (data || []).map(r => r.user_id) })))
+  }, [isEdit, lesson?.id])
 
   const filteredTopics = ALL_TOPICS.filter(
     t => !form.grade || t.grade === form.grade || t.grade === 'all'
@@ -413,12 +437,21 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
         : null,
       is_published: form.is_published,
       question_ids: form.question_ids,
+      restricted_audience: form.restricted_audience,
     }
-    const { error } = isEdit
-      ? await supabase.from('lessons').update(payload).eq('id', lesson.id)
-      : await supabase.from('lessons').insert({ ...payload, created_by: user.id })
+    const { data: savedLesson, error } = isEdit
+      ? await supabase.from('lessons').update(payload).eq('id', lesson.id).select().single()
+      : await supabase.from('lessons').insert({ ...payload, created_by: user.id }).select().single()
+    if (error) { setSaving(false); toast.error('Lưu thất bại: ' + error.message); return }
+
+    // Đồng bộ danh sách học sinh được xem (nếu bật giới hạn) — xoá hết rồi ghi lại cho đơn giản
+    await supabase.from('lesson_visibility').delete().eq('lesson_id', savedLesson.id)
+    if (form.restricted_audience && form.visible_to.length > 0) {
+      await supabase.from('lesson_visibility').insert(
+        form.visible_to.map(uid => ({ lesson_id: savedLesson.id, user_id: uid }))
+      )
+    }
     setSaving(false)
-    if (error) { toast.error('Lưu thất bại: ' + error.message); return }
 
     // Xóa file bài giảng cũ trên Cloudinary không còn dùng (thay pptx / gỡ file task)
     if (isEdit) {
@@ -589,6 +622,49 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   placeholder="Mô tả ngắn về nội dung bài học..."
                 />
+              </div>
+
+              <div className="border border-gray-200 rounded-xl p-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.restricted_audience}
+                    onChange={e => setForm({ ...form, restricted_audience: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                  <span className="text-sm font-medium text-gray-700">Chỉ hiện cho một số học sinh</span>
+                </label>
+                <p className="text-[11px] text-gray-400 mt-1 ml-6">
+                  Mặc định bài học hiện cho TẤT CẢ học sinh đã ghi danh khoá này. Bật lên để chỉ chọn vài bạn xem trước.
+                </p>
+                {form.restricted_audience && (
+                  <div className="mt-3 ml-6">
+                    <input
+                      value={rosterSearch}
+                      onChange={e => setRosterSearch(e.target.value)}
+                      placeholder="Tìm tên học sinh..."
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="max-h-48 overflow-y-auto border border-gray-100 rounded-lg divide-y">
+                      {roster.length === 0 && (
+                        <p className="text-xs text-gray-400 px-3 py-2">Chưa có học sinh nào ghi danh khoá này</p>
+                      )}
+                      {roster
+                        .filter(s => s.full_name.toLowerCase().includes(rosterSearch.trim().toLowerCase()))
+                        .map(s => (
+                          <label key={s.id} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 cursor-pointer">
+                            <input type="checkbox" checked={form.visible_to.includes(s.id)}
+                              onChange={() => setForm(f => ({
+                                ...f,
+                                visible_to: f.visible_to.includes(s.id)
+                                  ? f.visible_to.filter(id => id !== s.id)
+                                  : [...f.visible_to, s.id],
+                              }))}
+                              className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                            {s.full_name}
+                          </label>
+                        ))}
+                    </div>
+                    <p className="text-[11px] text-gray-400 mt-1">Đã chọn {form.visible_to.length} học sinh</p>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1343,6 +1419,11 @@ export default function LessonsPage() {
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${lesson.is_published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                         {lesson.is_published ? 'Đã xuất bản' : 'Nháp'}
                       </span>
+                      {lesson.restricted_audience && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">
+                          Giới hạn người xem
+                        </span>
+                      )}
                     </div>
                     <div className="flex gap-3 mt-1 text-xs text-gray-400 flex-wrap items-center">
                       <span>{lesson.question_ids?.length || 0} câu hỏi</span>

@@ -521,7 +521,7 @@ export default function LearnPage() {
 
   async function loadData() {
     setLoading(true)
-    const [{ data: topicsData }, { data: lessonsData }, { data: progressData }, { data: unitsData }, { data: profData }, { data: cfgData }, { data: scopeData }] = await Promise.all([
+    const [{ data: topicsData }, { data: lessonsData }, { data: progressData }, { data: unitsData }, { data: profData }, { data: cfgData }, { data: scopeData }, { data: visData }] = await Promise.all([
       supabase.from('topics').select('*').in('grade', [selectedGrade, 'all']),
       supabase.from('lessons').select('*').eq('is_published', true).eq('grade', selectedGrade)
         .order('order', { ascending: true }).order('created_at', { ascending: true }),
@@ -530,9 +530,13 @@ export default function LearnPage() {
       supabase.from('profiles').select('sticker_count, streak_days').eq('id', user.id).single(),
       supabase.from('reward_configs').select('sticker_threshold').eq('grade', selectedGrade).maybeSingle(),
       supabase.from('grades').select('ai_scope').eq('value', selectedGrade).maybeSingle(),
+      supabase.from('lesson_visibility').select('lesson_id').eq('user_id', user.id),
     ])
     setCourseScope(scopeData?.ai_scope || '')
-    setLessons(lessonsData || [])
+    // Bài học giới hạn người xem (restricted_audience) chỉ hiện nếu có tên mình trong danh sách
+    const allowedIds = new Set((visData || []).map(v => v.lesson_id))
+    const visibleLessons = (lessonsData || []).filter(l => !l.restricted_audience || allowedIds.has(l.id))
+    setLessons(visibleLessons)
     setUnits(unitsData || [])
     setTopics((topicsData || []).sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true })))
     const map = {}

@@ -922,6 +922,11 @@ export default function LessonPage() {
     // 1. Fetch lesson + student grade + threshold
     const { data: lessonData } = await supabase.from('lessons').select('*').eq('id', id).single()
     if (!lessonData) { toast.error('Không tìm thấy bài học'); navigate(-1); return }
+    if (lessonData.restricted_audience) {
+      const { data: visRow } = await supabase.from('lesson_visibility')
+        .select('id').eq('lesson_id', id).eq('user_id', user.id).maybeSingle()
+      if (!visRow) { toast.error('Bài học này chưa mở cho em'); navigate(-1); return }
+    }
     setLesson(lessonData)
 
     const { data: profGrade } = await supabase.from('profiles').select('grade').eq('id', user.id).single()
