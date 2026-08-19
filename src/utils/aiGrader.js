@@ -75,6 +75,17 @@ async function extractContent(fileUrl, textContent, type) {
     const paras = xml.split(/<\/w:p>/).map(p => {
       const runs = p.match(/<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g) || []
       return runs.map(run => {
+        // Run chứa ảnh (<w:drawing>) thay vì chữ — không đọc được ảnh là gì, nhưng vẫn báo
+        // cho AI biết CÓ ảnh + kích thước, để không bị chấm nhầm là "chưa chèn ảnh".
+        const extent = run.match(/<wp:extent\s+cx="(\d+)"\s+cy="(\d+)"/)
+        if (!run.includes('<w:t') && run.includes('<w:drawing')) {
+          if (extent) {
+            const cmW = (Number(extent[1]) * 2.54 / 914400).toFixed(1)
+            const cmH = (Number(extent[2]) * 2.54 / 914400).toFixed(1)
+            return `[HÌNH ẢNH — kích thước khoảng ${cmW}x${cmH}cm]`
+          }
+          return '[HÌNH ẢNH]'
+        }
         const tMatch = run.match(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/)
         const text = tMatch ? tMatch[1] : ''
         if (!text) return ''
