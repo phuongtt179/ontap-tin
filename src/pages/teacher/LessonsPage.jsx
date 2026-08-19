@@ -10,7 +10,7 @@ import toast from 'react-hot-toast'
 import {
   Plus, Pencil, Trash2, FileText, X, Loader2, Check, Upload,
   ToggleLeft, ToggleRight, RefreshCw, PlayCircle, BookOpen, ClipboardList,
-  ChevronDown, ChevronRight, Eye, Filter, Sparkles,
+  ChevronDown, ChevronRight, Eye, Filter, Sparkles, Users,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { uploadFile, deleteFile } from '../../lib/cloudinary'
@@ -971,6 +971,111 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
   )
 }
 
+/* ── LessonAudienceModal — chọn nhanh ai được xem bài học, không cần mở form sửa đầy đủ ── */
+function LessonAudienceModal({ lesson, onClose, onDone }) {
+  const [restricted, setRestricted] = useState(lesson.restricted_audience)
+  const [roster, setRoster] = useState([])
+  const [selected, setSelected] = useState([])
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from('student_enrollments')
+        .select('user_id, profiles!inner(id, full_name)')
+        .eq('grade', lesson.grade).eq('is_approved', true),
+      supabase.from('lesson_visibility').select('user_id').eq('lesson_id', lesson.id),
+    ]).then(([{ data: enr }, { data: vis }]) => {
+      const list = (enr || []).map(e => ({ id: e.user_id, full_name: e.profiles.full_name }))
+      list.sort((a, b) => a.full_name.localeCompare(b.full_name))
+      setRoster(list)
+      setSelected((vis || []).map(v => v.user_id))
+      setLoading(false)
+    })
+  }, [lesson.id, lesson.grade])
+
+  function toggleStudent(id) {
+    setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    const { error } = await supabase.from('lessons').update({ restricted_audience: restricted }).eq('id', lesson.id)
+    if (error) { setSaving(false); toast.error('Lưu thất bại: ' + error.message); return }
+    await supabase.from('lesson_visibility').delete().eq('lesson_id', lesson.id)
+    if (restricted && selected.length > 0) {
+      const { error: insErr } = await supabase.from('lesson_visibility')
+        .insert(selected.map(uid => ({ lesson_id: lesson.id, user_id: uid })))
+      if (insErr) { setSaving(false); toast.error('Lưu thất bại: ' + insErr.message); return }
+    }
+    setSaving(false)
+    toast.success('Đã cập nhật')
+    onDone()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
+          <h2 className="text-base font-bold text-gray-800 truncate">Ai được xem "{lesson.title}"?</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 shrink-0 ml-2"><X size={18} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="audience" checked={!restricted} onChange={() => setRestricted(false)}
+              className="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
+            <span className="text-sm font-medium text-gray-700">Tất cả học sinh khoá này</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="audience" checked={restricted} onChange={() => setRestricted(true)}
+              className="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
+            <span className="text-sm font-medium text-gray-700">Chỉ một số học sinh</span>
+          </label>
+
+          {restricted && (
+            loading ? (
+              <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin text-indigo-400" /></div>
+            ) : (
+              <div className="ml-6">
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Tìm tên học sinh..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <div className="max-h-56 overflow-y-auto border border-gray-100 rounded-lg divide-y">
+                  {roster.length === 0 && (
+                    <p className="text-xs text-gray-400 px-3 py-2">Chưa có học sinh nào ghi danh khoá này</p>
+                  )}
+                  {roster
+                    .filter(s => s.full_name.toLowerCase().includes(search.trim().toLowerCase()))
+                    .map(s => (
+                      <label key={s.id} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 cursor-pointer">
+                        <input type="checkbox" checked={selected.includes(s.id)} onChange={() => toggleStudent(s.id)}
+                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        {s.full_name}
+                      </label>
+                    ))}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1">Đã chọn {selected.length} học sinh</p>
+              </div>
+            )
+          )}
+        </div>
+        <div className="flex justify-end gap-2 px-5 py-4 border-t shrink-0">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Hủy</button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 transition">
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            Lưu
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── LessonPreviewModal ────────────────────────────────────── */
 function LessonPreviewModal({ lesson, onClose }) {
   const [questions, setQuestions] = useState([])
@@ -1125,6 +1230,7 @@ export default function LessonsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [editLesson, setEditLesson] = useState(null)
   const [previewLesson, setPreviewLesson] = useState(null)
+  const [audienceLesson, setAudienceLesson] = useState(null)
 
   const { units: gradeUnits } = useUnitsByGrade(selectedGrade)
   const { lessonTitles: unitLessonTitles } = useLessonTitles(selectedUnit?.id)
@@ -1447,6 +1553,13 @@ export default function LessonsPage() {
                       {lesson.is_published ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                     </button>
                     <button
+                      onClick={() => setAudienceLesson(lesson)}
+                      title={lesson.restricted_audience ? 'Đang giới hạn — bấm để đổi ai được xem' : 'Xuất bản cho tất cả — bấm để chỉ cho 1 số em xem'}
+                      className={`p-1.5 rounded-lg transition ${lesson.restricted_audience ? 'text-amber-600 hover:bg-amber-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                    >
+                      <Users size={15} />
+                    </button>
+                    <button
                       onClick={() => setPreviewLesson(lesson)}
                       className="p-1.5 text-gray-400 hover:text-indigo-600 transition"
                       title="Xem trước bài học"
@@ -1496,6 +1609,13 @@ export default function LessonsPage() {
       )}
       {previewLesson && (
         <LessonPreviewModal lesson={previewLesson} onClose={() => setPreviewLesson(null)} />
+      )}
+      {audienceLesson && (
+        <LessonAudienceModal
+          lesson={audienceLesson}
+          onClose={() => setAudienceLesson(null)}
+          onDone={() => { setAudienceLesson(null); fetchLessons() }}
+        />
       )}
     </div>
   )
