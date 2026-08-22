@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { SelectedGradeProvider } from './context/SelectedGradeContext'
+import { HeaderStatsProvider } from './context/HeaderStatsContext'
 import { ProtectedRoute } from './components/ui/ProtectedRoute'
 import Layout from './components/ui/Layout'
 
@@ -46,6 +48,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <SelectedGradeProvider>
+        <HeaderStatsProvider>
         <Toaster position="top-right" />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -193,6 +197,8 @@ export default function App() {
             </ProtectedRoute>
           } />
         </Routes>
+        </HeaderStatsProvider>
+        </SelectedGradeProvider>
       </AuthProvider>
     </BrowserRouter>
   )

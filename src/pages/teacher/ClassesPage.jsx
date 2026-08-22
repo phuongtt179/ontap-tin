@@ -3,8 +3,9 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Trash2, Check, X, Users } from 'lucide-react'
+import { Plus, Pencil, Trash2, Check, X, Users, Unlock } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import UnlockLessonsModal from './UnlockLessonsModal'
 
 export default function ClassesPage() {
   const { canDelete } = useAuth()
@@ -14,6 +15,10 @@ export default function ClassesPage() {
   const GRADES = [{ value: '', label: 'Tất cả khoá' }, ...gradeValues.map(g => ({ value: g, label: g }))]
   const [classes, setClasses] = useState([])
   const [studentCounts, setStudentCounts] = useState({})
+  // Tổng số bài đã publish theo từng khoá — chỉ để hiện gợi ý số lượng, việc
+  // mở khoá 2 tầng (chủ đề/bài) do UnlockLessonsModal tự quản lý riêng.
+  const [lessonCountByGrade, setLessonCountByGrade] = useState({})
+  const [unlockClass, setUnlockClass] = useState(null) // class đang mở popup mở bài, null = đóng
   const [loading, setLoading] = useState(true)
   const [filterGrade, setFilterGrade] = useState(searchParams.get('grade') || '')
   const [adding, setAdding] = useState(false)
@@ -35,18 +40,25 @@ export default function ClassesPage() {
 
     setClasses(data || [])
 
-    // Đếm học sinh theo lớp (dùng student_enrollments)
+    // Đếm học sinh theo lớp (dùng student_enrollments) + tổng số bài đã publish/khoá
     if (data?.length) {
-      const { data: enrollments } = await supabase
-        .from('student_enrollments')
-        .select('class_name')
-        .eq('is_approved', true)
-        .in('class_name', data.map(c => c.name))
+      const classGrades = [...new Set(data.map(c => c.grade))]
+      const [{ data: enrollments }, { data: lessonsData }] = await Promise.all([
+        supabase.from('student_enrollments').select('class_name')
+          .eq('is_approved', true).in('class_name', data.map(c => c.name)),
+        supabase.from('lessons').select('grade')
+          .eq('is_published', true).in('grade', classGrades),
+      ])
       const counts = {}
       enrollments?.forEach(e => { counts[e.class_name] = (counts[e.class_name] || 0) + 1 })
       setStudentCounts(counts)
+
+      const lessonCounts = {}
+      ;(lessonsData || []).forEach(l => { lessonCounts[l.grade] = (lessonCounts[l.grade] || 0) + 1 })
+      setLessonCountByGrade(lessonCounts)
     } else {
       setStudentCounts({})
+      setLessonCountByGrade({})
     }
     setLoading(false)
   }
@@ -163,8 +175,11 @@ export default function ClassesPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {classes.map(cls => (
-            <div key={cls.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3">
+          {classes.map(cls => {
+            const total = lessonCountByGrade[cls.grade] || 0
+            return (
+            <div key={cls.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex flex-col gap-2">
+            <div className="flex items-center gap-3">
               {editId === cls.id ? (
                 <>
                   <input
@@ -212,8 +227,26 @@ export default function ClassesPage() {
                 </>
               )}
             </div>
-          ))}
+
+            {editId !== cls.id && total > 0 && (
+              <div className="flex items-center gap-2 pl-0.5">
+                <span className="text-xs text-gray-500">{total} bài đã publish</span>
+                <button
+                  onClick={() => setUnlockClass(cls)}
+                  className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition"
+                >
+                  <Unlock size={13} /> Mở bài học
+                </button>
+              </div>
+            )}
+            </div>
+            )
+          })}
         </div>
+      )}
+
+      {unlockClass && (
+        <UnlockLessonsModal cls={unlockClass} onClose={() => setUnlockClass(null)} />
       )}
     </div>
   )

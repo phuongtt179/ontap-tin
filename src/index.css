@@ -1,6 +1,64 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* ── Font tự host (Baloo 2 = tiêu đề/số/nút, Nunito = chữ thường) ──
+   Tự host thay vì CDN Google Fonts vì học sinh dùng ở phòng máy trường học,
+   nơi mạng ra ngoài hay bị lọc/chập chờn. Cả 2 file weight dưới đây đã có sẵn
+   subset tiếng Việt (kiểm tra bằng unicode-range), không cần import riêng. */
+@import "@fontsource/baloo-2/400.css";
+@import "@fontsource/baloo-2/600.css";
+@import "@fontsource/baloo-2/700.css";
+@import "@fontsource/baloo-2/800.css";
+@import "@fontsource/nunito/400.css";
+@import "@fontsource/nunito/600.css";
+@import "@fontsource/nunito/700.css";
+
+@theme {
+  --font-display: "Baloo 2", ui-rounded, "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Nunito", "Segoe UI", system-ui, sans-serif;
+}
+
+/* ── Learning path design tokens ─────────────────────────────
+   Bản tối định nghĩa sẵn nhưng CHƯA kích hoạt (app chưa có dark mode ở đâu
+   cả — để dành cho lần làm dark mode toàn app, tránh riêng learn-page tối
+   còn các trang khác sáng). */
+:root {
+  --sky: #EAF1FF;
+  --card: #FFFFFF;
+  --ink: #27324E;
+  --ink-soft: #6B7796;
+  --grape: #7B61FF;
+  --leaf: #24C68A;
+  --sun: #FF9E2C;
+  --gold: #FFC53D;
+  --stone: #C6D0E4;
+}
+/* Bản tối (chưa kích hoạt):
+:root {
+  --sky: #0F1424;
+  --card: #1A2036;
+  --ink: #E8ECFB;
+  --ink-soft: #9AA4C4;
+  --grape: #9B87FF;
+  --leaf: #34D399;
+  --sun: #FFB661;
+  --gold: #FFD666;
+  --stone: #3A4266;
+}
+*/
+
+/* ── Giảm chuyển động cho người dùng chọn prefers-reduced-motion ──
+   !important bên ngoài thắng inline style thường (không !important) — tắt
+   được cả animation gắn qua style={{animation:...}} trong component JS. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ── TipTap / ProseMirror editor styles ────────────────────── */
 .ProseMirror {
   outline: none;

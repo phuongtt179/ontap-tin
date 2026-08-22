@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useEnrollments } from '../../hooks/useEnrollments'
-import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle, Sparkles } from 'lucide-react'
+import { useSelectedGradeContext } from '../../context/SelectedGradeContext'
+import { useHeaderStats } from '../../context/HeaderStatsContext'
+import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle, Sparkles, Check, ChevronDown, CheckCircle, Trophy } from 'lucide-react'
 
 export default function Layout({ children }) {
   const { profile, user, signOut, isTeacher } = useAuth()
@@ -71,6 +73,124 @@ export default function Layout({ children }) {
     )
   }
 
+  // Widget streak/sticker/tiến độ/thành tích — LearnPage "gửi" số liệu qua
+  // HeaderStatsContext (setStats), trang khác không gọi thì không hiện gì.
+  // Gộp vào ngay thanh điều hướng để chỉ còn 1 dòng thay vì 2 thanh xếp chồng.
+  function HeroWidgets() {
+    const { stats } = useHeaderStats()
+    if (!stats) return null
+    const { totalLessons, completedLessons, streakDays, stickerCount, stickerThreshold, rewardNotif, onOpenReward, onOpenAchievements } = stats
+
+    return (
+      <div className="flex items-center gap-1.5">
+        {totalLessons > 0 && (
+          <div className="hidden lg:flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-1.5">
+            <CheckCircle size={12} className="text-yellow-300" />
+            <span className="text-xs font-semibold text-white">{completedLessons}/{totalLessons}</span>
+          </div>
+        )}
+        <div className="flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-1.5">
+          <span className="text-sm leading-none select-none">🔥</span>
+          <span className="text-white font-black text-sm leading-none">{streakDays}</span>
+        </div>
+        <button
+          onClick={onOpenReward}
+          className="flex items-center gap-1 rounded-full px-2.5 py-1.5 bg-gradient-to-br from-yellow-400 to-orange-500 hover:scale-105 active:scale-95 transition-transform"
+          title="Đổi quà"
+        >
+          <span className="text-sm leading-none select-none">🏆</span>
+          <span className="text-white font-black text-sm leading-none">{stickerCount}</span>
+          <span className="text-white/70 text-[10px] leading-none">/{stickerThreshold}</span>
+        </button>
+        <button
+          onClick={onOpenAchievements}
+          className="relative w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition"
+          title="Thành tích"
+        >
+          {rewardNotif && (
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-[#0055bb]" />
+          )}
+          <Trophy size={15} className="text-yellow-300" />
+        </button>
+      </div>
+    )
+  }
+
+  // Menu dưới avatar (chỉ học sinh) — tên + khoá đang chọn + chuyển khoá + Đăng xuất.
+  // Trước đây dải nút chọn khoá nằm trong Hero của LearnPage, dời về đây để
+  // dùng chung được ở mọi trang học sinh, không chỉ riêng trang Bài học.
+  function AvatarMenu() {
+    const [open, setOpen] = useState(false)
+    const { selectedGrade, grades, setSelectedGrade } = useSelectedGradeContext()
+
+    return (
+      <div className="relative">
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="flex items-center gap-2 bg-white/15 hover:bg-white/25 rounded-xl pl-2 pr-3 py-1.5 transition"
+        >
+          <div className="w-8 h-8 rounded-full bg-white/25 flex items-center justify-center text-sm font-black shrink-0">
+            {(profile?.full_name || 'H').trim().charAt(0).toUpperCase()}
+          </div>
+          <div className="text-left hidden lg:block">
+            <div className="text-white text-sm font-semibold leading-tight">{profile?.full_name}</div>
+            <div className="text-blue-200 text-xs">{selectedGrade || 'Học sinh'}</div>
+          </div>
+          <ChevronDown size={14} className="text-white/70" />
+        </button>
+
+        {open && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 text-gray-700">
+              {grades.length > 0 && (
+                <>
+                  <div className="px-3 py-1 text-[11px] font-bold text-gray-400 uppercase tracking-wide">Chuyển khoá</div>
+                  {grades.map(g => (
+                    <button
+                      key={g}
+                      onClick={() => { setSelectedGrade(g); setOpen(false) }}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-50 transition
+                        ${g === selectedGrade ? 'text-indigo-600 font-semibold' : 'text-gray-700'}`}
+                    >
+                      <Check size={14} className={g === selectedGrade ? 'opacity-100' : 'opacity-0'} />
+                      {g}
+                    </button>
+                  ))}
+                  <div className="my-1 border-t border-gray-100" />
+                </>
+              )}
+              <button
+                onClick={handleSignOut}
+                className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2 transition"
+              >
+                <LogOut size={14} /> Đăng xuất
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  // Chuyển khoá trong sidebar mobile (bản thu gọn của AvatarMenu — mobile
+  // không có chỗ cho dropdown nổi, liệt kê thẳng thành nút bấm).
+  function MobileGradeSwitcher() {
+    const { selectedGrade, grades, setSelectedGrade } = useSelectedGradeContext()
+    if (grades.length === 0) return null
+    return (
+      <div className="px-3 mb-3 flex flex-wrap gap-1.5">
+        {grades.map(g => (
+          <button key={g} onClick={() => setSelectedGrade(g)}
+            className={`px-2.5 py-1 rounded-full text-xs font-semibold transition
+              ${g === selectedGrade ? 'bg-white text-blue-700' : 'bg-white/15 text-white hover:bg-white/25'}`}>
+            {g}
+          </button>
+        ))}
+      </div>
+    )
+  }
+
   function UserFooter() {
     return (
       <div className="px-3 py-4 border-t border-indigo-600">
@@ -82,6 +202,12 @@ export default function Layout({ children }) {
               ? enrollments.map(e => e.class_name || e.grade).join(' · ')
               : 'Học sinh'}
         </div>
+        {!isTeacher && <MobileGradeSwitcher />}
+        {!isTeacher && (
+          <div className="px-3 mb-3 flex flex-wrap gap-1.5">
+            <HeroWidgets />
+          </div>
+        )}
         <button
           onClick={handleSignOut}
           className="flex items-center gap-2 px-3 py-2 text-sm text-indigo-200 hover:text-white hover:bg-indigo-600 rounded-lg w-full transition"
@@ -175,17 +301,9 @@ export default function Layout({ children }) {
               </Link>
             ))}
           </nav>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-white text-sm font-semibold leading-tight">{profile?.full_name}</div>
-              <div className="text-blue-200 text-xs">
-                {enrollments.length > 0 ? enrollments.map(e => e.class_name || e.grade).join(' · ') : 'Học sinh'}
-              </div>
-            </div>
-            <button onClick={handleSignOut}
-              className="flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white text-sm font-medium px-3 py-2 rounded-xl transition">
-              <LogOut size={15} /> Đăng xuất
-            </button>
+          <div className="flex items-center gap-3">
+            <HeroWidgets />
+            <AvatarMenu />
           </div>
         </header>
       )}
