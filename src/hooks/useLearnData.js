@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { topicKeyOf } from '../utils/lessonSteps'
 
 // Bóc loadData() + các useMemo dẫn xuất của LearnPage.jsx ra hook riêng — hành vi giữ nguyên 100%.
 // `className`: lớp học sinh đang thuộc (cho khoá đang chọn) — dùng để lấy đúng
@@ -91,17 +92,25 @@ export function useLearnData(user, selectedGrade, className) {
     return from
   }, [topics, lessons])
 
-  // Lộ trình khóa (đơn vị → bài) cho AI trả lời câu hỏi chương trình học
+  // Lộ trình khóa (đơn vị → bài) cho AI trả lời câu hỏi chương trình học —
+  // CHỈ lấy bài đã MỞ KHOÁ cho lớp học sinh. Trước đây lấy hết mọi bài đã
+  // publish, khiến AI biết và có thể gợi ý/link tên bài học sinh chưa được
+  // mở, học sinh bấm vào nút "Vào học" trong câu trả lời AI là truy cập được
+  // luôn (né qua UI khoá của con đường bài học).
   const courseRoadmap = useMemo(() => {
+    const noRestriction = unlockedTopics == null || unlockedLessonMap == null
+    const unlockedForAi = noRestriction
+      ? lessons
+      : lessons.filter(l => unlockedTopics.has(topicKeyOf(l)) && unlockedLessonMap.has(l.id))
     const lines = []
     units.forEach(u => {
-      const titles = lessons.filter(l => l.unit_id === u.id).map(l => l.title)
+      const titles = unlockedForAi.filter(l => l.unit_id === u.id).map(l => l.title)
       if (titles.length) lines.push(`• ${u.name}: ${titles.join(', ')}`)
     })
-    const noUnit = lessons.filter(l => !l.unit_id).map(l => l.title)
+    const noUnit = unlockedForAi.filter(l => !l.unit_id).map(l => l.title)
     if (noUnit.length) lines.push(`• Bài khác: ${noUnit.join(', ')}`)
     return lines.join('\n')
-  }, [units, lessons])
+  }, [units, lessons, unlockedTopics, unlockedLessonMap])
 
   const lessonsCompleted = useMemo(
     () => lessons.filter(l => progressMap[l.id]?.completed).length,

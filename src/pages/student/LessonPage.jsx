@@ -13,9 +13,11 @@ import { CodeBlock, CodeBlockWithBlanks } from '../../components/ui/CodeBlock'
 import StickerModal from '../../components/student/StickerModal'
 import RewardModal from '../../components/student/RewardModal'
 import { updateStreak, STREAK_MILESTONES } from '../../utils/updateStreak'
+import { adjustStickerCount } from '../../utils/stickerAward'
 import { gradeStudent } from '../../utils/aiGrader'
 import PDFViewer from '../../components/ui/PDFViewer'
 import AskTutorModal from '../../components/student/AskTutorModal'
+import { topicKeyOf } from '../../utils/lessonSteps'
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5) }
 
@@ -928,6 +930,36 @@ export default function LessonPage() {
         .select('id').eq('lesson_id', id).eq('user_id', user.id).maybeSingle()
       if (!visRow) { toast.error('Bài học này chưa mở cho em'); navigate(-1); return }
     }
+
+    // Chặn truy cập bài bị KHOÁ (chưa publish, hoặc đã publish nhưng chủ đề/
+    // bài chưa được mở cho LỚP của học sinh) — trang con đường bài học chỉ
+    // ẩn nút bấm ở giao diện, không chặn được nếu học sinh vào thẳng URL
+    // (vd qua link AI trợ giảng gợi ý, gõ tay, bookmark...). Đây là điểm
+    // chặn THẬT SỰ — phải kiểm tra lại độc lập, không tin UI trước đó.
+    if (!lessonData.is_published) {
+      toast.error('Bài học này chưa được mở'); navigate(-1); return
+    }
+    const { data: enrollRow } = await supabase.from('student_enrollments')
+      .select('class_name').eq('user_id', user.id).eq('grade', lessonData.grade).eq('is_approved', true).maybeSingle()
+    const className = enrollRow?.class_name || null
+    let topicUnlockSet = null   // null = không thuộc lớp nào -> không giới hạn
+    let lessonUnlockSet = null
+    if (className) {
+      const [{ data: topicUnlockRows }, { data: lessonUnlockRows }] = await Promise.all([
+        supabase.from('class_topic_unlock').select('topic')
+          .eq('grade', lessonData.grade).eq('class_name', className),
+        supabase.from('class_lesson_unlock').select('lesson_id')
+          .eq('grade', lessonData.grade).eq('class_name', className),
+      ])
+      topicUnlockSet = new Set((topicUnlockRows || []).map(r => r.topic))
+      lessonUnlockSet = new Set((lessonUnlockRows || []).map(r => r.lesson_id))
+      const topicOpen = topicUnlockSet.has(topicKeyOf(lessonData))
+      const lessonOpen = lessonUnlockSet.has(lessonData.id)
+      if (!topicOpen || !lessonOpen) {
+        toast.error('Bài học này chưa được mở cho lớp của em'); navigate(-1); return
+      }
+    }
+
     setLesson(lessonData)
 
     const { data: profGrade } = await supabase.from('profiles').select('grade').eq('id', user.id).single()
@@ -943,13 +975,16 @@ export default function LessonPage() {
       supabase.from('grades').select('ai_scope').eq('value', lessonData.grade).maybeSingle()
         .then(({ data }) => setCourseScope(data?.ai_scope || ''))
 
-      // Lộ trình khóa: đơn vị (sort_order) → bài (order) — cho AI trả lời câu hỏi chương trình học
+      // Lộ trình khóa: đơn vị (sort_order) → bài (order) — cho AI trả lời câu hỏi chương trình học.
+      // CHỈ lấy bài đã mở khoá cho lớp — không để AI biết/gợi ý tên bài học
+      // sinh chưa được mở (xem cùng lý do ở useLearnData.js).
       Promise.all([
         supabase.from('units').select('id, name, sort_order').eq('grade', lessonData.grade).order('sort_order'),
-        supabase.from('lessons').select('title, unit_id, order').eq('grade', lessonData.grade).eq('is_published', true).order('order'),
+        supabase.from('lessons').select('id, title, unit_id, topic, order').eq('grade', lessonData.grade).eq('is_published', true).order('order'),
       ]).then(([uRes, lRes]) => {
         const us = uRes.data || []
-        const ls = lRes.data || []
+        const ls = (lRes.data || []).filter(l =>
+          topicUnlockSet == null || (topicUnlockSet.has(topicKeyOf(l)) && lessonUnlockSet.has(l.id)))
         const lines = []
         us.forEach(u => {
           const titles = ls.filter(l => l.unit_id === u.id).map(l => l.title)
@@ -995,16 +1030,10 @@ export default function LessonPage() {
   }
 
   async function awardSticker(count = 1, reason) {
-    const { data: prof } = await supabase
-      .from('profiles').select('sticker_count, sticker_total').eq('id', user.id).single()
     const threshold = stickerThreshold
-    const currentCount = (prof?.sticker_count ?? 0) + count
-    const totalCount = (prof?.sticker_total ?? 0) + count
-    await supabase.from('profiles').update({
-      sticker_count: currentCount,
-      sticker_total: totalCount,
-    }).eq('id', user.id)
-    setStickerModal({ stickerCount: currentCount, stickerTotal: totalCount, threshold, reason, count })
+    const { data: updated, error } = await adjustStickerCount(user.id, count, { affectsTotal: true })
+    if (error) { toast.error('Không cộng được sticker: ' + error.message); return }
+    setStickerModal({ stickerCount: updated.sticker_count, stickerTotal: updated.sticker_total, threshold, reason, count })
   }
 
   async function recordActivity() {

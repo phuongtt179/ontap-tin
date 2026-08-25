@@ -261,6 +261,8 @@ export default function LearnPage() {
         courseRoadmap={courseRoadmap}
         lessonsCompleted={lessonsCompleted}
         navigate={navigate}
+        unlockedTopics={unlockedTopics}
+        unlockedLessonMap={unlockedLessonMap}
       />
     </div>
   )

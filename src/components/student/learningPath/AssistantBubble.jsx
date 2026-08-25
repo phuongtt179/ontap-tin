@@ -2,13 +2,26 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { ChevronRight, X, Send, Loader2, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../lib/supabase'
+import { topicKeyOf } from '../../../utils/lessonSteps'
 
 // Bong bóng trợ lý AI nổi góc dưới phải — bóc nguyên khối chat mascot từ LearnPage.jsx.
 // Hành vi giữ nguyên 100%: tự mở 1 lần/ngày, gợi ý bài mới/chưa xong, chat trực tiếp /api/tutor.
+//
+// `unlockedTopics`/`unlockedLessonMap`: dùng để lọc bỏ bài CHƯA MỞ KHOÁ khỏi
+// mọi gợi ý/link (nudge lẫn nút "Vào học" trong câu trả lời AI) — trước đây
+// dùng thẳng `lessons`/`displayedLessons` không lọc khoá, khiến học sinh bấm
+// được vào bài bị khoá qua trợ lý AI dù con đường bài học đã ẩn/khoá nút đó.
 export default function AssistantBubble({
   user, profile, lessons, displayedLessons, progressMap,
   selectedGrade, courseScope, courseRoadmap, lessonsCompleted, navigate,
+  unlockedTopics, unlockedLessonMap,
 }) {
+  const isUnlockedLesson = l => {
+    if (unlockedTopics == null || unlockedLessonMap == null) return true // không thuộc lớp nào -> không giới hạn
+    return unlockedTopics.has(topicKeyOf(l)) && unlockedLessonMap.has(l.id)
+  }
+  const unlockedLessons = useMemo(() => lessons.filter(isUnlockedLesson), [lessons, unlockedTopics, unlockedLessonMap])
+  const unlockedDisplayedLessons = useMemo(() => displayedLessons.filter(isUnlockedLesson), [displayedLessons, unlockedTopics, unlockedLessonMap])
   const [nudgeOpen, setNudgeOpen] = useState(() => {
     try { return localStorage.getItem('nudge_' + (user?.id || '')) !== new Date().toDateString() } catch { return true }
   })
@@ -70,8 +83,8 @@ export default function AssistantBubble({
     let m
     while ((m = re.exec(content)) !== null) {
       const q = m[1].trim().toLowerCase()
-      const lesson = lessons.find(l => l.title.trim().toLowerCase() === q)
-        || lessons.find(l => { const t = l.title.trim().toLowerCase(); return t.includes(q) || q.includes(t) })
+      const lesson = unlockedLessons.find(l => l.title.trim().toLowerCase() === q)
+        || unlockedLessons.find(l => { const t = l.title.trim().toLowerCase(); return t.includes(q) || q.includes(t) })
       if (lesson && !seen.has(lesson.id)) { seen.add(lesson.id); buttons.push({ id: lesson.id, title: lesson.title }) }
     }
     const text = content.replace(re, '').replace(/\n{3,}/g, '\n\n').trim()
@@ -80,11 +93,11 @@ export default function AssistantBubble({
 
   // Mascot chào khi vào: giới thiệu bài mới / nhắc bài chưa hoàn thành
   const nudge = useMemo(() => {
-    if (displayedLessons.length === 0) return null
+    if (unlockedDisplayedLessons.length === 0) return null
     const firstName = (profile?.full_name || '').trim().split(/\s+/).slice(-1)[0] || 'em'
-    const incomplete = displayedLessons.filter(l => !progressMap[l.id]?.completed)
+    const incomplete = unlockedDisplayedLessons.filter(l => !progressMap[l.id]?.completed)
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-    const fresh = displayedLessons.filter(l =>
+    const fresh = unlockedDisplayedLessons.filter(l =>
       !progressMap[l.id] && l.created_at && new Date(l.created_at).getTime() > weekAgo)
     const MAX = 5
     const toItems = arr => arr.slice(0, MAX).map(l => ({ id: l.id, title: l.title }))
@@ -106,7 +119,7 @@ export default function AssistantBubble({
       message: 'Con đã hoàn thành hết bài rồi, giỏi ghê! Chờ bài mới nha.',
       items: [], more: 0,
     }
-  }, [displayedLessons, progressMap, profile?.full_name])
+  }, [unlockedDisplayedLessons, progressMap, profile?.full_name])
 
   if (!nudge) return null
 

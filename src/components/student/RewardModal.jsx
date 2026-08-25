@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { X, Gift, CheckCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { adjustStickerCount } from '../../utils/stickerAward'
 
 export default function RewardModal({ stickerCount, threshold, grade, onClose, onRedeemed }) {
   const { user } = useAuth()
@@ -12,8 +13,12 @@ export default function RewardModal({ stickerCount, threshold, grade, onClose, o
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [visible, setVisible] = useState(false)
+  const [finalCount, setFinalCount] = useState(null) // số sticker THẬT sau khi trừ (đọc lại từ DB), chỉ có sau khi đổi quà xong
 
   const cost = selected?.sticker_cost ?? threshold
+  // Chỉ để ước lượng hiển thị TRƯỚC khi bấm đổi — dựa vào prop `stickerCount`
+  // nên có thể cũ (xem handleRedeem: lúc ghi DB luôn đọc lại số THẬT, không
+  // dùng số này để tính toán thật).
   const afterRedeem = stickerCount - cost
 
   useEffect(() => {
@@ -37,6 +42,15 @@ export default function RewardModal({ stickerCount, threshold, grade, onClose, o
     if (!selected) return
     setSubmitting(true)
     try {
+      // Trừ sticker theo kiểu đọc-lại-rồi-ghi-có-khoá (xem stickerAward.js) —
+      // không tin prop `stickerCount` (ảnh chụp lúc mở trang, có thể đã cũ
+      // nếu HS mở tab khác kiếm thêm sticker hoặc giáo viên vừa cộng/trừ
+      // tay) — đây chính là nguyên nhân từng gây "mất sticker" khi trừ theo
+      // kiểu ghi đè tuyệt đối bằng số cũ.
+      const { data: updated, error: profErr, insufficient } = await adjustStickerCount(user.id, -cost)
+      if (insufficient) { toast.error('Sticker của bạn vừa thay đổi, không đủ để đổi quà này nữa'); return }
+      if (profErr) throw profErr
+
       const { error: reqErr } = await supabase.from('reward_requests').insert({
         student_id: user.id,
         reward_item_id: selected.id,
@@ -45,13 +59,9 @@ export default function RewardModal({ stickerCount, threshold, grade, onClose, o
       })
       if (reqErr) throw reqErr
 
-      const { error: profErr } = await supabase.from('profiles')
-        .update({ sticker_count: afterRedeem })
-        .eq('id', user.id)
-      if (profErr) throw profErr
-
+      setFinalCount(updated.sticker_count)
       setDone(true)
-      onRedeemed?.(afterRedeem)
+      onRedeemed?.(updated.sticker_count)
     } catch (err) {
       toast.error('Có lỗi xảy ra: ' + err.message)
     } finally {
@@ -98,7 +108,7 @@ export default function RewardModal({ stickerCount, threshold, grade, onClose, o
               </p>
               <div className="bg-yellow-50 rounded-2xl px-4 py-3 mb-5">
                 <p className="text-xs text-yellow-700">
-                  ⭐ Sticker còn lại: <span className="font-black text-yellow-600">{afterRedeem}</span>
+                  ⭐ Sticker còn lại: <span className="font-black text-yellow-600">{finalCount}</span>
                 </p>
               </div>
               <button onClick={handleClose}

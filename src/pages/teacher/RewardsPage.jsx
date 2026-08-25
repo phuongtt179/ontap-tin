@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
+import { adjustStickerCount } from '../../utils/stickerAward'
 import toast from 'react-hot-toast'
 import { Gift, Plus, Trash2, CheckCircle, Clock, X, Loader2, ToggleLeft, ToggleRight, Package, Settings, Save, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 
@@ -165,8 +166,7 @@ export default function RewardsPage() {
 
   async function cancelRequest(req) {
     if (!confirm('Từ chối yêu cầu này? Sticker sẽ được hoàn lại cho học sinh.')) return
-    const { data: prof } = await supabase.from('profiles').select('sticker_count').eq('id', req.student_id).single()
-    await supabase.from('profiles').update({ sticker_count: (prof?.sticker_count ?? 0) + req.sticker_cost }).eq('id', req.student_id)
+    await adjustStickerCount(req.student_id, req.sticker_cost)
     await supabase.from('reward_requests').update({ status: 'cancelled' }).eq('id', req.id)
     toast.success('Đã từ chối và hoàn sticker')
     setRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'cancelled' } : r))

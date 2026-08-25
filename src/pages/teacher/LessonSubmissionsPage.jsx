@@ -6,6 +6,7 @@ import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, U
 import MarkdownContent from '../../components/ui/MarkdownContent'
 import Sb3Viewer from '../../components/ui/Sb3Viewer'
 import { gradeStudent } from '../../utils/aiGrader'
+import { adjustStickerCount } from '../../utils/stickerAward'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
@@ -300,12 +301,7 @@ export default function LessonSubmissionsPage() {
     if (awardSticker) {
       const bonus = scoreToBonus(scoreVal)
       if (bonus > 0) {
-        const { data: prof } = await supabase
-          .from('profiles').select('sticker_count, sticker_total').eq('id', theStudent.id).single()
-        const { error: stickerErr } = await supabase.from('profiles').update({
-          sticker_count: (prof?.sticker_count ?? 0) + bonus,
-          sticker_total: (prof?.sticker_total ?? 0) + bonus,
-        }).eq('id', theStudent.id)
+        const { error: stickerErr } = await adjustStickerCount(theStudent.id, bonus, { affectsTotal: true })
         if (stickerErr) toast.error('Không cập nhật được sticker: ' + stickerErr.message)
         else toast.success(`Đã cộng +${bonus} ⭐ cho ${theStudent.full_name}`)
       }
@@ -412,12 +408,9 @@ export default function LessonSubmissionsPage() {
     if (awardSticker) {
       const bonus = scoreToBonus(sub.score)
       if (bonus > 0) {
-        const { data: prof } = await supabase.from('profiles').select('sticker_count, sticker_total').eq('id', student.id).single()
-        await supabase.from('profiles').update({
-          sticker_count: (prof?.sticker_count ?? 0) + bonus,
-          sticker_total: (prof?.sticker_total ?? 0) + bonus,
-        }).eq('id', student.id)
-        toast.success(`Đã cộng +${bonus} ⭐ cho ${student.full_name}`)
+        const { error: stickerErr } = await adjustStickerCount(student.id, bonus, { affectsTotal: true })
+        if (stickerErr) toast.error('Không cập nhật được sticker: ' + stickerErr.message)
+        else toast.success(`Đã cộng +${bonus} ⭐ cho ${student.full_name}`)
       }
     }
   }
@@ -456,11 +449,7 @@ export default function LessonSubmissionsPage() {
     })
     await Promise.all(Object.values(studentBonusMap).map(async ({ student, bonus }) => {
       if (bonus <= 0) return
-      const { data: prof } = await supabase.from('profiles').select('sticker_count, sticker_total').eq('id', student.id).single()
-      await supabase.from('profiles').update({
-        sticker_count: (prof?.sticker_count ?? 0) + bonus,
-        sticker_total: (prof?.sticker_total ?? 0) + bonus,
-      }).eq('id', student.id)
+      await adjustStickerCount(student.id, bonus, { affectsTotal: true })
     }))
     setApprovingAll(false)
     toast.success(`Đã duyệt ${toApprove.length} bài AI!`)
