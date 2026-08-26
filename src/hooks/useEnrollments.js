@@ -24,6 +24,14 @@ export function useSelectedGrade(userId) {
   const { enrollments, grades, loading } = useEnrollments(userId)
   const [selectedGrade, setSelectedGrade] = useState(null)
 
+  // Provider chứa hook này được mount 1 lần ở gốc app, không remount khi
+  // đăng xuất rồi đăng nhập tài khoản khác trên cùng máy (SPA, không reload
+  // trang) — nếu không reset, khoá đã chọn của tài khoản CŨ sẽ dính sang
+  // tài khoản MỚI (kể cả khi tài khoản mới chỉ có đúng 1 khoá khác hẳn).
+  useEffect(() => {
+    setSelectedGrade(null)
+  }, [userId])
+
   useEffect(() => {
     if (grades.length > 0 && !selectedGrade) setSelectedGrade(grades[0])
   }, [grades.join(',')])
