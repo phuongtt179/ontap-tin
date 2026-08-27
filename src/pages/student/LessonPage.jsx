@@ -1397,7 +1397,10 @@ export default function LessonPage() {
         {hasVideo && (
           <SectionCard icon={<PlayCircle size={18} />} iconBg="bg-blue-100" iconColor="text-blue-600"
             title="Video bài giảng" done={videoOk} locked={false} lockMessage="">
-            {embedUrl ? (
+            {/* Cột này bị ẩn hẳn (display:none) khi leftPanelHidden trên desktop — không
+                render iframe/video lúc đó để tránh giữ tài nguyên chạy ngầm trong lúc ẩn
+                (video/pptx/pdf nặng, một số máy cấu hình yếu bị treo/trắng trang). */}
+            {leftPanelHidden ? null : embedUrl ? (
               <div className="w-full aspect-video rounded-xl overflow-hidden bg-black mb-4">
                 <iframe src={embedUrl} title="Lesson video" className="w-full h-full"
                   frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
@@ -1423,7 +1426,7 @@ export default function LessonPage() {
           <SectionCard icon={<FileText size={18} />} iconBg="bg-orange-100" iconColor="text-orange-600"
             title={isPdf ? 'Bài giảng (PDF)' : 'Bài giảng (PowerPoint)'} done={pptxOk} locked={pptxLocked}
             lockMessage="Xem video trước để mở khóa">
-            {isPdf ? (
+            {leftPanelHidden ? null : isPdf ? (
               <div className="mb-4">
                 <PDFViewer url={lesson.pptx_url} />
               </div>
