@@ -159,6 +159,12 @@ function formatBlock(blocks, block) {
     case 'data_showvariable':       return `Hiện biến ${q(f('VARIABLE'))}`
     case 'data_hidevariable':       return `Ẩn biến ${q(f('VARIABLE'))}`
     case 'data_addtolist':          return `Thêm ${q(v('ITEM'))} vào ${q(f('LIST'))}`
+    case 'data_deleteoflist':       return `Xóa phần tử ${n(v('INDEX'))} của ${q(f('LIST'))}`
+    case 'data_deletealloflist':    return `Xóa tất cả trong ${q(f('LIST'))}`
+    case 'data_insertatlist':       return `Chèn ${n(v('ITEM'))} tại vị trí ${n(v('INDEX'))} của ${q(f('LIST'))}`
+    case 'data_replaceitemoflist':  return `Thay phần tử ${n(v('INDEX'))} của ${q(f('LIST'))} bằng ${n(v('ITEM'))}`
+    case 'data_showlist':           return `Hiện danh sách ${q(f('LIST'))}`
+    case 'data_hidelist':           return `Ẩn danh sách ${q(f('LIST'))}`
     case 'pen_clear':               return 'Xóa bút'
     case 'pen_penDown':             return 'Hạ bút'
     case 'pen_penUp':               return 'Nâng bút'
