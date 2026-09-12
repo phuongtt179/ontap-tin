@@ -1143,6 +1143,12 @@ export default function LessonPage() {
     const file = taskFiles[taskIdx]
     const note = taskNotes[taskIdx] || ''
     const existingSub = taskSubmissions[taskIdx]
+    // Bắt buộc phải có file (mới chọn hoặc file cũ đã nộp) — ghi chú không thay thế được
+    // file, tránh nộp bài trống/không liên quan tới đề mà vẫn được AI chấm điểm.
+    if (!file && !existingSub?.file_url) {
+      toast.error('Vui lòng chọn file để nộp bài')
+      return
+    }
     setTaskSubmitting(taskIdx)
     try {
       const oldUrl = existingSub?.file_url ?? null
@@ -1183,8 +1189,10 @@ export default function LessonPage() {
   async function handleTaskSubmit(taskIdx) {
     const file = taskFiles[taskIdx]
     const note = taskNotes[taskIdx] || ''
-    if (!file && !note.trim()) {
-      toast.error('Vui lòng chọn file hoặc nhập ghi chú')
+    // Bắt buộc phải có file — ghi chú chỉ là phần thêm, không thay thế được file, tránh
+    // nộp bài trống/không liên quan tới đề mà vẫn được AI chấm điểm.
+    if (!file) {
+      toast.error('Vui lòng chọn file để nộp bài')
       return
     }
     setTaskSubmitting(taskIdx)
@@ -1800,7 +1808,7 @@ export default function LessonPage() {
                                   />
                                   <button
                                     onClick={() => isResubmitting ? handleTaskResubmit(i) : handleTaskSubmit(i)}
-                                    disabled={isSubmitting || (!isResubmitting && !file && !note.trim())}
+                                    disabled={isSubmitting || (isResubmitting ? !file && !sub?.file_url : !file)}
                                     className="w-full flex items-center justify-center gap-2 text-white py-3.5 rounded-2xl text-sm font-black shadow-lg transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100"
                                     style={{ background: isSubmitting ? '#9ca3af' : isResubmitting
                                       ? 'linear-gradient(135deg, #f97316, #f59e0b)'
