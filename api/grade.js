@@ -23,6 +23,7 @@ Quy tắc:
 - Chấm từng bài ĐÚNG theo đề bài của bài đó, không nhầm lẫn
 - Nhận xét bằng tiếng Việt THẬT DỄ HIỂU cho học sinh nhỏ tuổi, giọng ấm áp khích lệ, xưng "thầy" và gọi học sinh là "em".
 - CHẤM CÔNG BẰNG, RỘNG LƯỢNG (RẤT QUAN TRỌNG): mặc định coi bài ĐẠT yêu cầu cho tới khi tìm thấy lỗi RÕ RÀNG, CHẮC CHẮN. Bài làm đúng/đủ yêu cầu thì cho ĐIỂM CAO hoặc TỐI ĐA (10) — đừng ngại cho 10. TUYỆT ĐỐI KHÔNG bịa lỗi, không trừ điểm vì lý do mơ hồ, không đòi hỏi thêm ngoài yêu cầu của đề. Khi phân vân mà bài vẫn đạt yêu cầu → KHÔNG trừ điểm.
+- QUY TẮC RỘNG LƯỢNG Ở TRÊN CHỈ áp dụng cho bài THẬT SỰ có làm và có liên quan tới đề bài. Nếu bài nộp TRỐNG, hoặc là chữ/ghi chú KHÔNG liên quan gì tới yêu cầu của đề (ví dụ học sinh gõ đại vài chữ, chào hỏi, hỏi bài, hoặc nội dung lạc đề hoàn toàn), hoặc có dòng "⚠ Học sinh KHÔNG nộp file" mà đề bài yêu cầu nộp file (code/hình/tài liệu) — đây là lỗi RÕ RÀNG CHẮC CHẮN (không phải mơ hồ): PHẢI chấm ĐIỂM RẤT THẤP hoặc 0, breakdown mỗi tiêu chí earned=0, TUYỆT ĐỐI không được cho điểm cao hay điểm 10 vì "không tìm thấy lỗi" — bài không làm gì thì không có gì để cho điểm.
 - CHẤP NHẬN NHIỀU CÁCH LÀM: một bài có thể đúng bằng nhiều cách (thứ tự khối, giá trị tọa độ, khối tương đương...). Chỉ cần đạt yêu cầu và cho kết quả đúng là được điểm — không bắt buộc giống một cách cố định.
 - NẾU CÓ "SƠ ĐỒ KHỐI MẪU" (bài giải mẫu giáo viên cung cấp trong tiêu chí) — đây là ĐÁP ÁN ĐÚNG: bài nộp GIỐNG hoặc TƯƠNG ĐƯƠNG sơ đồ mẫu (cùng các khối chính và cùng logic) thì cho ĐIỂM TỐI ĐA (10), kể cả khác thứ tự nhỏ hay khác tọa độ. CHỈ trừ điểm ở chỗ bài nộp THIẾU hoặc SAI so với mẫu. Nếu bài nộp trùng khớp mẫu thì bắt buộc phải 10.
 - RÀ SOÁT ĐẦY ĐỦ nhưng CHỈ báo lỗi CÓ THẬT: kiểm tra tất cả yêu cầu trong MỘT lần chấm và liệt kê hết các lỗi RÕ RÀNG (để em sửa một lần), NHƯNG không được bịa lỗi hay nống lỗi cho đủ. Nếu bài không có lỗi thì khen và cho điểm cao — không cần cố tìm lỗi. Nếu có nhiều lỗi thật, viết mỗi lỗi một ý ngắn.
@@ -58,6 +59,8 @@ Quy tắc:
     prompt += `Đề bài: ${task.instructions || '(không có đề bài)'}\n`
     if (task.rubric) prompt += `Tiêu chí chấm:\n${task.rubric}\n`
     if (task.fileName) prompt += `Tên file học sinh đặt: "${task.fileName}"\n`
+
+    if (task.noFile) prompt += `⚠ Học sinh KHÔNG nộp file — đây chỉ là GHI CHÚ học sinh tự gõ, không phải file bài làm:\n`
 
     if (task.type === 'image') {
       prompt += `Bài nộp: [xem hình ảnh đính kèm]\n`
