@@ -123,12 +123,43 @@ async function extractContent(fileUrl, textContent, type) {
         const nb = parseInt(b.match(/\d+/)?.[0] || 0)
         return na - nb
       })
+    const alignMap = { ctr: 'giữa', l: 'trái', r: 'phải', just: 'đều hai bên' }
     const slides = []
     for (let i = 0; i < slideFiles.length; i++) {
       const xml = await zip.file(slideFiles[i]).async('string')
-      const matches = xml.match(/<a:t(?:\s[^>]*)?>([^<]*)<\/a:t>/g) || []
-      const text = matches.map(m => m.replace(/<[^>]+>/g, '')).join(' ').replace(/\s+/g, ' ').trim()
-      if (text) slides.push(`[Slide ${i + 1}]: ${text}`)
+      // Tách theo từng đoạn văn <a:p>; trong mỗi đoạn duyệt từng "run" <a:r> để vừa lấy chữ
+      // (<a:t>) vừa lấy định dạng (<a:rPr>: đậm/nghiêng/gạch chân/màu chữ/cỡ chữ) + căn lề đoạn
+      // (<a:pPr algn=...>) — nếu chỉ lấy text thuần thì AI chấm bài không có cách nào biết học
+      // sinh đã định dạng/căn lề đúng hay chưa (từng gây chấm sai hàng loạt tiêu chí định dạng).
+      const paraBlocks = xml.match(/<a:p>[\s\S]*?<\/a:p>/g) || []
+      const lines = []
+      for (const p of paraBlocks) {
+        const algnVal = (p.match(/<a:pPr[^>]*\balgn="([a-z]+)"/) || [])[1]
+        const algnLabel = alignMap[algnVal]
+        const runs = p.match(/<a:r>[\s\S]*?<\/a:r>/g) || []
+        const runTexts = runs.map(run => {
+          const tMatch = run.match(/<a:t(?:\s[^>]*)?>([^<]*)<\/a:t>/)
+          const text = tMatch ? tMatch[1] : ''
+          if (!text) return ''
+          const rPrMatch = run.match(/<a:rPr([^>]*?)(?:\/>|>([\s\S]*?)<\/a:rPr>)/)
+          const attrs = rPrMatch?.[1] || ''
+          const inner = rPrMatch?.[2] || ''
+          const tags = []
+          if (/\bb="1"/.test(attrs)) tags.push('b')
+          if (/\bi="1"/.test(attrs)) tags.push('i')
+          const uVal = (attrs.match(/\bu="([a-zA-Z]+)"/) || [])[1]
+          if (uVal && uVal !== 'none') tags.push('u')
+          const color = (inner.match(/<a:srgbClr val="([0-9A-Fa-f]{6})"/) || [])[1]
+          if (color) tags.push(`color=#${color.toUpperCase()}`)
+          const sz = (attrs.match(/\bsz="(\d+)"/) || [])[1]
+          if (sz) tags.push(`size=${Math.round(Number(sz) / 100)}pt`)
+          return tags.length ? `[${tags.join(' ')}]${text}[/]` : text
+        })
+        const lineText = runTexts.join('').trim()
+        if (!lineText) continue
+        lines.push(algnLabel ? `[align=${algnLabel}]${lineText}` : lineText)
+      }
+      if (lines.length) slides.push(`[Slide ${i + 1}]:\n${lines.join('\n')}`)
     }
     return slides.join('\n')
   }
