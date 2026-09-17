@@ -41,6 +41,7 @@ export default function Layout({ children }) {
       ]
     : [
         { to: '/student/learn', icon: <BookMarked size={18} />, label: 'Bài học' },
+        { to: '/student/exams', icon: <ClipboardList size={18} />, label: 'Đề thi' },
       ]
 
   function NavLinks({ onLinkClick }) {

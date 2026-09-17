@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { useSelectedGrade } from '../../hooks/useEnrollments'
+import { useSelectedGradeContext } from '../../context/SelectedGradeContext'
 import QuizSession from '../../components/student/QuizSession'
 import WordEditor from '../../components/editor/WordEditor'
 import PPTEditor from '../../components/editor/PPTEditor'
@@ -215,7 +215,7 @@ function ExamWithPractical({ exam, questions, attemptNumber, onFinish }) {
 /* ── StudentExamsPage ────────────────────────────────────────── */
 export default function StudentExamsPage() {
   const { user } = useAuth()
-  const { grades, selectedGrade, setSelectedGrade, selectedEnrollment } = useSelectedGrade(user?.id)
+  const { selectedGrade, selectedEnrollment } = useSelectedGradeContext()
   const [exams, setExams] = useState([])
   const [attemptsMap, setAttemptsMap] = useState({})
   const [loading, setLoading] = useState(true)
@@ -300,16 +300,7 @@ export default function StudentExamsPage() {
 
   return (
     <div className="p-4 md:p-8">
-      <h1 className="text-2xl font-bold text-gray-800 mb-2">Đề thi</h1>
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
-        <span className="text-gray-500 text-sm">Khoá học:</span>
-        {grades.map(g => (
-          <button key={g} onClick={() => setSelectedGrade(g)}
-            className={`px-3 py-1 rounded-full text-sm font-medium transition ${
-              selectedGrade === g ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}>{g}</button>
-        ))}
-      </div>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Đề thi</h1>
 
       {loading ? (
         <div className="flex justify-center py-16">
