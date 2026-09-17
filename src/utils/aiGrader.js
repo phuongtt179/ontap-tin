@@ -13,6 +13,57 @@ function getFileType(fileUrl, textContent) {
   return 'text'
 }
 
+// Ghép đường dẫn tương đối kiểu OOXML (target trong file .rels) với thư mục chứa file nguồn —
+// vd resolveZipPath('ppt/slides', '../slideLayouts/slideLayout1.xml') -> 'ppt/slideLayouts/slideLayout1.xml'
+function resolveZipPath(baseDir, target) {
+  const parts = baseDir.split('/').filter(Boolean)
+  for (const seg of target.split('/')) {
+    if (seg === '..') parts.pop()
+    else if (seg !== '.') parts.push(seg)
+  }
+  return parts.join('/')
+}
+
+// PowerPoint chỉ ghi "align" vào chính file slide khi học sinh THAY ĐỔI khác với mặc định của
+// mẫu — căn giữa mặc định của tiêu đề nằm ở file slideLayout (rồi tới slideMaster nếu layout
+// cũng không ghi rõ), không nằm trong file slide. Đọc đúng 2 lớp này để biết SỰ THẬT thay vì
+// chỉ đoán/bỏ qua khi slide không ghi rõ.
+async function resolveTitleAlgn(zip, slidePath) {
+  try {
+    const slideDir = slidePath.slice(0, slidePath.lastIndexOf('/'))
+    const slideName = slidePath.slice(slidePath.lastIndexOf('/') + 1)
+    const relsXml = await zip.file(`${slideDir}/_rels/${slideName}.rels`)?.async('string')
+    const layoutTarget = (relsXml || '').match(/<Relationship[^>]*Type="[^"]*\/slideLayout"[^>]*Target="([^"]+)"/)?.[1]
+    if (!layoutTarget) return null
+    const layoutPath = resolveZipPath(slideDir, layoutTarget)
+    const layoutXml = await zip.file(layoutPath)?.async('string')
+    if (!layoutXml) return null
+
+    // Tìm shape tiêu đề (type="title"/"ctrTitle") trong layout, xem có ghi rõ algn không
+    const layoutShapes = layoutXml.match(/<p:sp>[\s\S]*?<\/p:sp>/g) || []
+    for (const shape of layoutShapes) {
+      const phType = shape.match(/<p:ph[^>]*\btype="([a-zA-Z]+)"/)?.[1]
+      if (phType !== 'title' && phType !== 'ctrTitle') continue
+      const algn = shape.match(/<a:pPr[^>]*\balgn="([a-z]+)"/)?.[1]
+      if (algn) return algn
+    }
+
+    // Layout không ghi rõ -> lần lên slideMaster, đọc titleStyle mức 1
+    const layoutDir = layoutPath.slice(0, layoutPath.lastIndexOf('/'))
+    const layoutName = layoutPath.slice(layoutPath.lastIndexOf('/') + 1)
+    const layoutRelsXml = await zip.file(`${layoutDir}/_rels/${layoutName}.rels`)?.async('string')
+    const masterTarget = (layoutRelsXml || '').match(/<Relationship[^>]*Type="[^"]*\/slideMaster"[^>]*Target="([^"]+)"/)?.[1]
+    if (!masterTarget) return null
+    const masterPath = resolveZipPath(layoutDir, masterTarget)
+    const masterXml = await zip.file(masterPath)?.async('string')
+    if (!masterXml) return null
+    const titleStyleBlock = masterXml.match(/<p:titleStyle>([\s\S]*?)<\/p:titleStyle>/)?.[1] || ''
+    return titleStyleBlock.match(/<a:lvl1pPr[^>]*\balgn="([a-z]+)"/)?.[1] || null
+  } catch {
+    return null
+  }
+}
+
 // Parse [test:Xđ] Input: ... → Output: ... lines from rubric
 export function parseTestCases(instructions) {
   const tests = []
@@ -132,6 +183,9 @@ async function extractContent(fileUrl, textContent, type) {
       // <a:p>) khiến AI luôn báo "chưa chèn ảnh" dù học sinh đã chèn.
       const shapeBlocks = xml.match(/<p:sp>[\s\S]*?<\/p:sp>|<p:pic>[\s\S]*?<\/p:pic>/g) || []
       const lines = []
+      // Chỉ đọc slideLayout/slideMaster (tốn thêm 1-2 lần đọc file zip) khi thật sự gặp tiêu đề
+      // không ghi rõ align — tránh làm chậm vô ích cho slide không có tiêu đề hoặc đã ghi rõ.
+      let resolvedTitleAlgn
       for (const shape of shapeBlocks) {
         if (shape.startsWith('<p:pic>')) {
           const extent = shape.match(/<a:ext\s+cx="(\d+)"\s+cy="(\d+)"/)
@@ -158,7 +212,13 @@ async function extractContent(fileUrl, textContent, type) {
         const paraBlocks = shape.match(/<a:p>[\s\S]*?<\/a:p>/g) || []
         for (const p of paraBlocks) {
           const pPrBlock = (p.match(/<a:pPr[^>]*\/>|<a:pPr[^>]*>[\s\S]*?<\/a:pPr>/) || [])[0] || ''
-          const algnVal = (pPrBlock.match(/\balgn="([a-z]+)"/) || [])[1]
+          let algnVal = (pPrBlock.match(/\balgn="([a-z]+)"/) || [])[1]
+          // Slide không ghi rõ align cho tiêu đề -> đây là đang dùng CĂN LỀ MẶC ĐỊNH của mẫu,
+          // đọc thật từ slideLayout/slideMaster thay vì bỏ qua/đoán mò.
+          if (!algnVal && isTitle) {
+            if (resolvedTitleAlgn === undefined) resolvedTitleAlgn = await resolveTitleAlgn(zip, slideFiles[i])
+            algnVal = resolvedTitleAlgn || undefined
+          }
           const algnLabel = alignMap[algnVal]
           const bulletTag = /<a:buNone/.test(pPrBlock) ? 'no-bullet'
             : /<a:buChar|<a:buAutoNum/.test(pPrBlock) ? 'bullet' : null
