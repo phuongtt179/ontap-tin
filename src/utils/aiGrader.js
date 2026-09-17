@@ -127,37 +127,68 @@ async function extractContent(fileUrl, textContent, type) {
     const slides = []
     for (let i = 0; i < slideFiles.length; i++) {
       const xml = await zip.file(slideFiles[i]).async('string')
-      // Tách theo từng đoạn văn <a:p>; trong mỗi đoạn duyệt từng "run" <a:r> để vừa lấy chữ
-      // (<a:t>) vừa lấy định dạng (<a:rPr>: đậm/nghiêng/gạch chân/màu chữ/cỡ chữ) + căn lề đoạn
-      // (<a:pPr algn=...>) — nếu chỉ lấy text thuần thì AI chấm bài không có cách nào biết học
-      // sinh đã định dạng/căn lề đúng hay chưa (từng gây chấm sai hàng loạt tiêu chí định dạng).
-      const paraBlocks = xml.match(/<a:p>[\s\S]*?<\/a:p>/g) || []
+      // Duyệt theo TỪNG SHAPE theo đúng thứ tự trong slide (<p:sp> = khung chữ, <p:pic> = ảnh) —
+      // trước đây chỉ gom hết <a:p> trong cả slide nên hoàn toàn bỏ sót ảnh (<p:pic> không chứa
+      // <a:p>) khiến AI luôn báo "chưa chèn ảnh" dù học sinh đã chèn.
+      const shapeBlocks = xml.match(/<p:sp>[\s\S]*?<\/p:sp>|<p:pic>[\s\S]*?<\/p:pic>/g) || []
       const lines = []
-      for (const p of paraBlocks) {
-        const algnVal = (p.match(/<a:pPr[^>]*\balgn="([a-z]+)"/) || [])[1]
-        const algnLabel = alignMap[algnVal]
-        const runs = p.match(/<a:r>[\s\S]*?<\/a:r>/g) || []
-        const runTexts = runs.map(run => {
-          const tMatch = run.match(/<a:t(?:\s[^>]*)?>([^<]*)<\/a:t>/)
-          const text = tMatch ? tMatch[1] : ''
-          if (!text) return ''
-          const rPrMatch = run.match(/<a:rPr([^>]*?)(?:\/>|>([\s\S]*?)<\/a:rPr>)/)
-          const attrs = rPrMatch?.[1] || ''
-          const inner = rPrMatch?.[2] || ''
-          const tags = []
-          if (/\bb="1"/.test(attrs)) tags.push('b')
-          if (/\bi="1"/.test(attrs)) tags.push('i')
-          const uVal = (attrs.match(/\bu="([a-zA-Z]+)"/) || [])[1]
-          if (uVal && uVal !== 'none') tags.push('u')
-          const color = (inner.match(/<a:srgbClr val="([0-9A-Fa-f]{6})"/) || [])[1]
-          if (color) tags.push(`color=#${color.toUpperCase()}`)
-          const sz = (attrs.match(/\bsz="(\d+)"/) || [])[1]
-          if (sz) tags.push(`size=${Math.round(Number(sz) / 100)}pt`)
-          return tags.length ? `[${tags.join(' ')}]${text}[/]` : text
-        })
-        const lineText = runTexts.join('').trim()
-        if (!lineText) continue
-        lines.push(algnLabel ? `[align=${algnLabel}]${lineText}` : lineText)
+      for (const shape of shapeBlocks) {
+        if (shape.startsWith('<p:pic>')) {
+          const extent = shape.match(/<a:ext\s+cx="(\d+)"\s+cy="(\d+)"/)
+          if (extent) {
+            const cmW = (Number(extent[1]) * 2.54 / 914400).toFixed(1)
+            const cmH = (Number(extent[2]) * 2.54 / 914400).toFixed(1)
+            lines.push(`[HÌNH ẢNH — kích thước khoảng ${cmW}x${cmH}cm]`)
+          } else {
+            lines.push('[HÌNH ẢNH]')
+          }
+          continue
+        }
+        // Loại khung (title/ctrTitle = tiêu đề slide) — dùng để báo cho AI biết dòng này là
+        // TIÊU ĐỀ, vì tiêu đề thường CĂN GIỮA MẶC ĐỊNH theo mẫu slide (không ghi align rõ
+        // trong XML nếu học sinh không đổi gì) — thiếu thông tin này AI hay chấm nhầm "chưa
+        // căn giữa" dù thực ra vẫn đang dùng đúng mặc định căn giữa của mẫu.
+        const phType = (shape.match(/<p:ph[^>]*\btype="([a-zA-Z]+)"/) || [])[1]
+        const isTitle = phType === 'title' || phType === 'ctrTitle'
+        // Tách theo từng đoạn văn <a:p>; trong mỗi đoạn duyệt từng "run" <a:r> để vừa lấy chữ
+        // (<a:t>) vừa lấy định dạng (<a:rPr>: đậm/nghiêng/gạch chân/màu chữ/cỡ chữ) + căn lề đoạn
+        // (<a:pPr algn=...>) + có/không có bullet (<a:buChar>/<a:buAutoNum> = có, <a:buNone> =
+        // tắt) — nếu chỉ lấy text thuần thì AI chấm bài không có cách nào biết học sinh đã định
+        // dạng/căn lề/bullet đúng hay chưa.
+        const paraBlocks = shape.match(/<a:p>[\s\S]*?<\/a:p>/g) || []
+        for (const p of paraBlocks) {
+          const pPrBlock = (p.match(/<a:pPr[^>]*\/>|<a:pPr[^>]*>[\s\S]*?<\/a:pPr>/) || [])[0] || ''
+          const algnVal = (pPrBlock.match(/\balgn="([a-z]+)"/) || [])[1]
+          const algnLabel = alignMap[algnVal]
+          const bulletTag = /<a:buNone/.test(pPrBlock) ? 'no-bullet'
+            : /<a:buChar|<a:buAutoNum/.test(pPrBlock) ? 'bullet' : null
+          const runs = p.match(/<a:r>[\s\S]*?<\/a:r>/g) || []
+          const runTexts = runs.map(run => {
+            const tMatch = run.match(/<a:t(?:\s[^>]*)?>([^<]*)<\/a:t>/)
+            const text = tMatch ? tMatch[1] : ''
+            if (!text) return ''
+            const rPrMatch = run.match(/<a:rPr([^>]*?)(?:\/>|>([\s\S]*?)<\/a:rPr>)/)
+            const attrs = rPrMatch?.[1] || ''
+            const inner = rPrMatch?.[2] || ''
+            const tags = []
+            if (/\bb="1"/.test(attrs)) tags.push('b')
+            if (/\bi="1"/.test(attrs)) tags.push('i')
+            const uVal = (attrs.match(/\bu="([a-zA-Z]+)"/) || [])[1]
+            if (uVal && uVal !== 'none') tags.push('u')
+            const color = (inner.match(/<a:srgbClr val="([0-9A-Fa-f]{6})"/) || [])[1]
+            if (color) tags.push(`color=#${color.toUpperCase()}`)
+            const sz = (attrs.match(/\bsz="(\d+)"/) || [])[1]
+            if (sz) tags.push(`size=${Math.round(Number(sz) / 100)}pt`)
+            return tags.length ? `[${tags.join(' ')}]${text}[/]` : text
+          })
+          const lineText = runTexts.join('').trim()
+          if (!lineText) continue
+          let prefix = ''
+          if (isTitle) prefix += '[TIÊU ĐỀ]'
+          if (algnLabel) prefix += `[align=${algnLabel}]`
+          if (bulletTag) prefix += `[${bulletTag}]`
+          lines.push(prefix ? `${prefix}${lineText}` : lineText)
+        }
       }
       if (lines.length) slides.push(`[Slide ${i + 1}]:\n${lines.join('\n')}`)
     }
