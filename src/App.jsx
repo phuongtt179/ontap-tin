@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { SelectedGradeProvider } from './context/SelectedGradeContext'
 import { HeaderStatsProvider } from './context/HeaderStatsContext'
+import { ExamGuardProvider } from './context/ExamGuardContext'
 import { ProtectedRoute } from './components/ui/ProtectedRoute'
 import Layout from './components/ui/Layout'
 
@@ -50,6 +51,7 @@ export default function App() {
       <AuthProvider>
         <SelectedGradeProvider>
         <HeaderStatsProvider>
+        <ExamGuardProvider>
         <Toaster position="top-right" />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -197,6 +199,7 @@ export default function App() {
             </ProtectedRoute>
           } />
         </Routes>
+        </ExamGuardProvider>
         </HeaderStatsProvider>
         </SelectedGradeProvider>
       </AuthProvider>

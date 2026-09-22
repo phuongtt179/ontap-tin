@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useEnrollments } from '../../hooks/useEnrollments'
 import { useSelectedGradeContext } from '../../context/SelectedGradeContext'
 import { useHeaderStats } from '../../context/HeaderStatsContext'
+import { useExamGuard } from '../../context/ExamGuardContext'
 import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle, Sparkles, Check, ChevronDown, CheckCircle, Trophy } from 'lucide-react'
 
 export default function Layout({ children }) {
@@ -12,10 +13,18 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { guardedAction } = useExamGuard()
 
   async function handleSignOut() {
     await signOut()
     navigate('/login')
+  }
+
+  // Mọi điều hướng rời trang (chuyển trang, đăng xuất, đổi khoá...) phải qua guardedAction —
+  // nếu học sinh đang làm đề thi, guardedAction sẽ chặn lại và bắt xác nhận nộp bài trước khi
+  // cho đi tiếp (xem ExamGuardContext.jsx). Không ảnh hưởng gì khi không có đề đang làm.
+  function goTo(to) {
+    guardedAction(() => navigate(to))
   }
 
   const navItems = isTeacher
@@ -54,7 +63,7 @@ export default function Layout({ children }) {
             <Link
               key={item.to}
               to={item.to}
-              onClick={onLinkClick}
+              onClick={e => { e.preventDefault(); onLinkClick?.(); goTo(item.to) }}
               className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition
                 ${location.pathname === item.to
                   ? 'bg-white text-indigo-700'
@@ -150,7 +159,7 @@ export default function Layout({ children }) {
                   {grades.map(g => (
                     <button
                       key={g}
-                      onClick={() => { setSelectedGrade(g); setOpen(false) }}
+                      onClick={() => { guardedAction(() => setSelectedGrade(g)); setOpen(false) }}
                       className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-50 transition
                         ${g === selectedGrade ? 'text-indigo-600 font-semibold' : 'text-gray-700'}`}
                     >
@@ -162,7 +171,7 @@ export default function Layout({ children }) {
                 </>
               )}
               <button
-                onClick={handleSignOut}
+                onClick={() => guardedAction(handleSignOut)}
                 className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2 transition"
               >
                 <LogOut size={14} /> Đăng xuất
@@ -182,7 +191,7 @@ export default function Layout({ children }) {
     return (
       <div className="px-3 mb-3 flex flex-wrap gap-1.5">
         {grades.map(g => (
-          <button key={g} onClick={() => setSelectedGrade(g)}
+          <button key={g} onClick={() => guardedAction(() => setSelectedGrade(g))}
             className={`px-2.5 py-1 rounded-full text-xs font-semibold transition
               ${g === selectedGrade ? 'bg-white text-blue-700' : 'bg-white/15 text-white hover:bg-white/25'}`}>
             {g}
@@ -210,7 +219,7 @@ export default function Layout({ children }) {
           </div>
         )}
         <button
-          onClick={handleSignOut}
+          onClick={() => guardedAction(handleSignOut)}
           className="flex items-center gap-2 px-3 py-2 text-sm text-indigo-200 hover:text-white hover:bg-indigo-600 rounded-lg w-full transition"
         >
           <LogOut size={16} /> Đăng xuất
@@ -288,6 +297,7 @@ export default function Layout({ children }) {
           <nav className="flex items-center gap-1">
             {navItems.filter(Boolean).map(item => (
               <Link key={item.to} to={item.to}
+                onClick={e => { e.preventDefault(); goTo(item.to) }}
                 className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition
                   ${location.pathname === item.to || location.pathname.startsWith(item.to + '/')
                     ? 'bg-white/25 text-white'

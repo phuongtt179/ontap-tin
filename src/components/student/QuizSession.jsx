@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { useExamGuard } from '../../context/ExamGuardContext'
 import { CheckCircle, XCircle, Clock, ChevronRight, RotateCcw, ArrowUp, ArrowDown, Paperclip } from 'lucide-react'
 import { normalizeAnswer } from '../../utils/normalizeAnswer'
 import toast from 'react-hot-toast'
@@ -105,6 +106,7 @@ export default function QuizSession({
   preview = false,
 }) {
   const { user } = useAuth()
+  const { startExamGuard, endExamGuard } = useExamGuard()
   const [current, setCurrent] = useState(0)
   const [answers, setAnswers] = useState({})
   const [selected, setSelected] = useState(null)
@@ -116,6 +118,20 @@ export default function QuizSession({
 
   // practice mode = phải xác nhận từng câu trước khi qua câu tiếp
   const practiceMode = !examMode && showAnswer
+
+  // Khoá học sinh không cho rời trang khi đang làm đề thi (xem ExamGuardContext.jsx) — nếu cố
+  // rời đi (đổi trang/đăng xuất/đổi khoá qua Layout.jsx), bắt buộc nộp bài với đáp án hiện có
+  // trước. Dùng ref để guard luôn gọi đúng handleFinish MỚI NHẤT (đóng đúng answers/selected
+  // hiện tại) thay vì bản closure cũ lúc mount.
+  const handleFinishRef = useRef(null)
+  handleFinishRef.current = handleFinish
+  const submittedRef = useRef(false)
+  useEffect(() => {
+    if (!examMode || preview) return
+    startExamGuard(() => handleFinishRef.current())
+    return () => endExamGuard()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [examMode, preview])
 
   useEffect(() => {
     if (timeLeft === null) return
@@ -187,6 +203,10 @@ export default function QuizSession({
   }
 
   async function handleFinish() {
+    // Chặn gọi 2 lần chồng nhau — giờ handleFinish có 3 đường gọi độc lập (bấm Nộp bài, hết
+    // giờ, hoặc bị ép nộp lúc cố rời trang) nên có thể trùng thời điểm.
+    if (submittedRef.current) return
+    submittedRef.current = true
     const finalAnswers = { ...answers }
     if (selected && !confirmed) finalAnswers[current] = selected
 
@@ -230,6 +250,7 @@ export default function QuizSession({
 
     setAnswers(finalAnswers)
     setShowResult(true)
+    endExamGuard()
   }
 
   if (showResult) {

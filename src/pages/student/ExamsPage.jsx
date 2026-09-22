@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useSelectedGradeContext } from '../../context/SelectedGradeContext'
+import { useExamGuard } from '../../context/ExamGuardContext'
 import QuizSession from '../../components/student/QuizSession'
 import WordEditor from '../../components/editor/WordEditor'
 import PPTEditor from '../../components/editor/PPTEditor'
@@ -72,6 +73,7 @@ function QuestionItem({ q, index, answer, onAnswer }) {
 /* ── ExamWithPractical ───────────────────────────────────────── */
 function ExamWithPractical({ exam, questions, attemptNumber, onFinish }) {
   const { user } = useAuth()
+  const { startExamGuard, endExamGuard } = useExamGuard()
   const [answers, setAnswers] = useState({})
   const [practicalContent, setPracticalContent] = useState(null)
   const [timeLeft, setTimeLeft] = useState(exam.time_limit ? exam.time_limit * 60 : null)
@@ -84,6 +86,17 @@ function ExamWithPractical({ exam, questions, attemptNumber, onFinish }) {
     const t = setTimeout(() => setTimeLeft(tl => tl - 1), 1000)
     return () => clearTimeout(t)
   }, [timeLeft])
+
+  // Khoá học sinh không cho rời trang khi đang làm đề thi (xem ExamGuardContext.jsx) — nếu cố
+  // rời đi (đổi trang/đăng xuất/đổi khoá qua Layout.jsx), bắt buộc nộp bài với đáp án + nội
+  // dung thực hành hiện có trước. Dùng ref để guard luôn gọi đúng handleSubmit MỚI NHẤT.
+  const handleSubmitRef = useRef(null)
+  handleSubmitRef.current = handleSubmit
+  useEffect(() => {
+    startExamGuard(() => handleSubmitRef.current(false))
+    return () => endExamGuard()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function normalizeAnswer(type, ans, correct) {
     if (!ans) return false
