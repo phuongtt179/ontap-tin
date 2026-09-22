@@ -101,7 +101,7 @@ function EssayQuestion({ q, value, onChange, disabled }) {
 
 export default function QuizSession({
   questions, mode, timeLimit, onFinish,
-  examMode = false, examId = null, attemptNumber = 1,
+  examMode = false, examId = null, sessionId = null, attemptNumber = 1,
   showAnswer = true, showScore = true, tnMaxScore = 10,
   preview = false,
 }) {
@@ -223,17 +223,15 @@ export default function QuizSession({
 
     try {
       if (!preview) {
-        if (examMode && examId) {
-          await supabase.from('exam_sessions').insert({
-            exam_id: examId,
-            user_id: user.id,
-            total: questions.length,
+        if (examMode && examId && sessionId) {
+          // Cập nhật dòng đã ghi sẵn lúc bắt đầu làm (không insert dòng mới) — xem
+          // migration_exam_session_start.sql.
+          await supabase.from('exam_sessions').update({
             correct,
             score,
             answers: finalAnswers,
-            attempt_number: attemptNumber,
             submitted_at: new Date().toISOString(),
-          })
+          }).eq('id', sessionId)
         } else {
           await supabase.from('quiz_sessions').insert({
             user_id: user.id,

@@ -71,7 +71,7 @@ function QuestionItem({ q, index, answer, onAnswer }) {
 }
 
 /* ── ExamWithPractical ───────────────────────────────────────── */
-function ExamWithPractical({ exam, questions, attemptNumber, onFinish }) {
+function ExamWithPractical({ exam, questions, sessionId, attemptNumber, onFinish }) {
   const { user } = useAuth()
   const { startExamGuard, endExamGuard } = useExamGuard()
   const [answers, setAnswers] = useState({})
@@ -119,17 +119,15 @@ function ExamWithPractical({ exam, questions, attemptNumber, onFinish }) {
     const theoryScore = questions.length > 0 ? Math.round((correct / questions.length) * 10 * 10) / 10 : 0
 
     try {
-      await supabase.from('exam_sessions').insert({
-        exam_id: exam.id,
-        user_id: user.id,
-        total: questions.length,
+      // Cập nhật dòng đã ghi sẵn lúc bắt đầu làm (không insert dòng mới) — xem
+      // migration_exam_session_start.sql.
+      await supabase.from('exam_sessions').update({
         correct,
         score: theoryScore,
         answers,
-        attempt_number: attemptNumber,
         submitted_at: new Date().toISOString(),
         practical_content: practicalContent || null,
-      })
+      }).eq('id', sessionId)
       toast.success(autoSubmit ? 'Hết giờ — đã tự động nộp bài!' : 'Đã nộp bài thành công!')
     } catch {
       toast.error('Nộp bài thất bại')
@@ -277,19 +275,26 @@ export default function StudentExamsPage() {
       if (error || !data) { toast.error('Không tải được câu hỏi'); return }
       questions = exam.question_ids.map(id => data.find(q => q.id === id)).filter(Boolean)
     }
-    setActiveExam({ exam, questions })
+    // Ghi nhận NGAY lúc bắt đầu làm (chưa biết điểm/đáp án, cập nhật sau lúc nộp) để tính
+    // đúng "đã làm mấy lần" kể cả khi học sinh đóng hẳn tab/trình duyệt giữa chừng — không
+    // phụ thuộc việc có nộp xong hay không (xem migration_exam_session_start.sql).
+    const attemptNumber = (attemptsMap[exam.id] || 0) + 1
+    const { data: session, error: sessionErr } = await supabase.from('exam_sessions').insert({
+      exam_id: exam.id, user_id: user.id, total: questions.length, attempt_number: attemptNumber,
+    }).select().single()
+    if (sessionErr || !session) { toast.error('Không bắt đầu được đề thi, thử lại nhé'); return }
+    setActiveExam({ exam, questions, sessionId: session.id, attemptNumber })
   }
 
   if (activeExam) {
-    const used = attemptsMap[activeExam.exam.id] || 0
-
     // Đề thi có phần thực hành → dùng ExamWithPractical
     if (activeExam.exam.has_practical) {
       return (
         <ExamWithPractical
           exam={activeExam.exam}
           questions={activeExam.questions}
-          attemptNumber={used + 1}
+          sessionId={activeExam.sessionId}
+          attemptNumber={activeExam.attemptNumber}
           onFinish={() => { setActiveExam(null); loadExams() }}
         />
       )
@@ -302,8 +307,9 @@ export default function StudentExamsPage() {
         mode="exam"
         examMode={true}
         examId={activeExam.exam.id}
+        sessionId={activeExam.sessionId}
         timeLimit={activeExam.exam.time_limit}
-        attemptNumber={used + 1}
+        attemptNumber={activeExam.attemptNumber}
         showAnswer={activeExam.exam.show_answer}
         showScore={activeExam.exam.show_score}
         onFinish={() => { setActiveExam(null); loadExams() }}

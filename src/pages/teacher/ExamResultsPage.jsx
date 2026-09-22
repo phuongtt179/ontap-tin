@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { ArrowLeft, ChevronRight, Loader2, CheckCircle } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Loader2, CheckCircle, Trash2 } from 'lucide-react'
 import WordEditor from '../../components/editor/WordEditor'
 import PPTEditor from '../../components/editor/PPTEditor'
 import toast from 'react-hot-toast'
@@ -27,7 +27,9 @@ export default function ExamResultsPage() {
     setLoading(true)
     const [{ data: examData }, { data: sessionData }] = await Promise.all([
       supabase.from('exams').select('*').eq('id', id).single(),
-      supabase.from('exam_sessions').select('*').eq('exam_id', id).order('submitted_at', { ascending: false }),
+      // nullsFirst: false — lượt "chưa nộp" (đóng tab giữa chừng, xem migration_exam_session_start.sql)
+      // có submitted_at = null, không để chúng chen lên đầu danh sách trước các lượt đã nộp thật.
+      supabase.from('exam_sessions').select('*').eq('exam_id', id).order('submitted_at', { ascending: false, nullsFirst: false }),
     ])
     if (!examData) { navigate('/teacher/exams'); return }
 
@@ -53,6 +55,13 @@ export default function ExamResultsPage() {
     setLoading(false)
   }
 
+// Điểm cao nhất trong các lượt ĐÃ NỘP (bỏ qua lượt bỏ dở, submitted_at null — xem
+  // migration_exam_session_start.sql) — trả về null nếu chưa lượt nào nộp xong.
+  function bestScoreOf(sessions) {
+    const done = sessions.filter(s => s.submitted_at != null)
+    return done.length > 0 ? Math.max(...done.map(s => s.score)) : null
+  }
+
   // Group by student
   const studentMap = {}
   sessions.forEach(s => {
@@ -62,7 +71,21 @@ export default function ExamResultsPage() {
 
   const students = Object.values(studentMap)
     .filter(st => !filterClass || st.profile?.class_name === filterClass)
-    .sort((a, b) => Math.max(...b.sessions.map(s => s.score)) - Math.max(...a.sessions.map(s => s.score)))
+    .sort((a, b) => (bestScoreOf(b.sessions) ?? -1) - (bestScoreOf(a.sessions) ?? -1))
+
+  async function deleteSession(session) {
+    if (!confirm('Xoá lượt làm bài này? Học sinh sẽ được tính lại số lần làm (vd nếu bị đóng tab do sự cố), không thể hoàn tác.')) return
+    const { error } = await supabase.from('exam_sessions').delete().eq('id', session.id)
+    if (error) { toast.error('Xoá thất bại: ' + error.message); return }
+    toast.success('Đã xoá lượt làm bài')
+    setSessions(prev => prev.filter(s => s.id !== session.id))
+    if (selectedSession?.id === session.id) setSelectedSession(null)
+    if (selectedStudent) {
+      const remaining = selectedStudent.sessions.filter(s => s.id !== session.id)
+      if (remaining.length === 0) { setSelectedStudent(null) }
+      else setSelectedStudent({ ...selectedStudent, sessions: remaining })
+    }
+  }
 
   async function savePractical() {
     if (!selectedSession) return
@@ -127,20 +150,40 @@ export default function ExamResultsPage() {
                       className={`text-xs px-3 py-1 rounded-full border transition ${
                         selectedSession?.id === s.id
                           ? 'bg-indigo-600 border-indigo-600 text-white'
-                          : 'bg-white border-gray-300 text-gray-600 hover:border-indigo-400'
+                          : s.submitted_at == null
+                            ? 'bg-white border-amber-300 text-amber-600 hover:border-amber-400'
+                            : 'bg-white border-gray-300 text-gray-600 hover:border-indigo-400'
                       }`}
                     >
-                      Lần {s.attempt_number}: {s.score} điểm
+                      Lần {s.attempt_number}: {s.submitted_at == null ? 'Bỏ dở' : `${s.score} điểm`}
                     </button>
                   ))}
               </div>
             )}
           </div>
 
-          {selectedSession && (
+          {selectedSession && selectedSession.submitted_at == null && (
+            <div className="p-5">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold mb-1">Lượt này chưa hoàn thành</p>
+                  <p>Học sinh đã bắt đầu làm bài (đóng tab/trình duyệt giữa chừng hoặc chưa nộp) — không có đáp án/điểm để xem. Lượt này vẫn tính vào số lần làm.</p>
+                  <p className="text-xs text-amber-500 mt-1">
+                    Bắt đầu lúc: {new Date(selectedSession.started_at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <button onClick={() => deleteSession(selectedSession)}
+                  className="flex items-center gap-1 text-xs font-semibold text-red-500 hover:text-red-600 shrink-0">
+                  <Trash2 size={13} /> Xoá, trả lại lượt
+                </button>
+              </div>
+            </div>
+          )}
+
+          {selectedSession && selectedSession.submitted_at != null && (
             <div className="p-5 space-y-4">
               {/* Session summary */}
-              <div className="flex flex-wrap gap-4 text-sm text-gray-600 pb-3 border-b border-gray-100">
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 pb-3 border-b border-gray-100">
                 <span>Lý thuyết: <strong className="text-indigo-700 text-base">{selectedSession.score}</strong>/10</span>
                 <span>{selectedSession.correct}/{selectedSession.total} câu đúng</span>
                 {selectedSession.practical_score != null && (
@@ -161,6 +204,10 @@ export default function ExamResultsPage() {
                     hour: '2-digit', minute: '2-digit',
                   })}
                 </span>
+                <button onClick={() => deleteSession(selectedSession)}
+                  className="ml-auto flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-red-500 shrink-0">
+                  <Trash2 size={13} /> Xoá lượt này
+                </button>
               </div>
 
               {/* Theory questions */}
@@ -263,12 +310,14 @@ export default function ExamResultsPage() {
           ) : (
             <div className="space-y-2 max-w-2xl">
               {students.map((st, i) => {
-                const scores = st.sessions.map(s => s.score)
-                const best = Math.max(...scores)
-                const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 10) / 10
-                const colorClass = best >= 8 ? 'text-green-600' : best >= 5 ? 'text-orange-500' : 'text-red-500'
+                // Lượt "bỏ dở" (chưa nộp, submitted_at null) không tính vào điểm cao nhất/TB
+                // nhưng vẫn tính vào "X lần làm" (đúng mục đích: tốn 1 lượt dù không hoàn thành).
+                const scores = st.sessions.filter(s => s.submitted_at != null).map(s => s.score)
+                const best = scores.length > 0 ? Math.max(...scores) : null
+                const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 10) / 10 : null
+                const colorClass = best == null ? 'text-gray-400' : best >= 8 ? 'text-green-600' : best >= 5 ? 'text-orange-500' : 'text-red-500'
                 const latest = st.sessions[0]
-                const date = new Date(latest.submitted_at).toLocaleDateString('vi-VN', {
+                const date = new Date(latest.submitted_at ?? latest.started_at).toLocaleDateString('vi-VN', {
                   day: '2-digit', month: '2-digit',
                 })
                 return (
@@ -293,10 +342,10 @@ export default function ExamResultsPage() {
                       </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className={`text-lg font-bold ${colorClass}`}>{best}</div>
-                      <div className="text-xs text-gray-400">Cao nhất</div>
+                      <div className={`text-lg font-bold ${colorClass}`}>{best ?? '—'}</div>
+                      <div className="text-xs text-gray-400">{best == null ? 'Chưa hoàn thành' : 'Cao nhất'}</div>
                     </div>
-                    {st.sessions.length > 1 && (
+                    {st.sessions.length > 1 && avg != null && (
                       <div className="text-right shrink-0">
                         <div className="text-sm font-semibold text-indigo-600">{avg}</div>
                         <div className="text-xs text-gray-400">TB</div>
