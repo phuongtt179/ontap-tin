@@ -132,7 +132,7 @@ export default function ImpactReportPage() {
       </div>
 
       <section className="bg-white rounded-2xl border border-gray-200 p-4">
-        <h2 className="font-bold text-gray-700 text-sm mb-3">Học sinh hoạt động mỗi tuần (12 tuần gần nhất, tính từ ngày đầu tuần)</h2>
+        <h2 className="font-bold text-gray-700 text-sm mb-3">Học sinh hoạt động mỗi tuần (khoảng 12 tuần gần nhất, mốc là ngày đầu tuần)</h2>
         <Bars rows={weekly} valueKey="active_students" labelKey="week" />
       </section>
 
