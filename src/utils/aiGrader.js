@@ -291,7 +291,8 @@ export async function gradeStudent(submissions, taskDefs) {
       type,
       content: type !== 'image' ? await extractContent(fileUrl, textContent, type) : null,
       imageUrl: type === 'image' ? fileUrl : null,
-      fileName: sub.file_name || null,
+      // Tên file hay chứa họ tên học sinh → chỉ gửi khi đề/tiêu chí thật sự yêu cầu đặt tên file
+      fileName: /tên file|đặt tên|lưu (file )?(với )?tên|lưu bằng tên/i.test(`${instructions}\n${taskDefs[i]?.rubric || ''}`) ? (sub.file_name || null) : null,
       // Không nộp file, chỉ gõ ghi chú — báo rõ cho AI biết để không lẫn ghi chú của học sinh
       // với 1 bài nộp file thật (trước đây AI không biết điều này nên có thể chấm nhầm điểm cao
       // cho ghi chú không liên quan tới yêu cầu đề bài).

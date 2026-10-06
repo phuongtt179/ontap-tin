@@ -52,7 +52,7 @@ export default function AssistantBubble({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode: 'theory',
-          context: { courseScope, courseRoadmap, studentName: profile?.full_name || '', lessonsCompleted },
+          context: { courseScope, courseRoadmap, lessonsCompleted },  // không gửi tên học sinh sang AI
           messages: newMsgs,
         }),
       })

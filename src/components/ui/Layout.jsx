@@ -34,6 +34,7 @@ export default function Layout({ children }) {
         { to: '/teacher/topics', icon: <Tags size={18} />, label: 'Chủ đề' },
         { to: '/teacher/exams', icon: <ClipboardList size={18} />, label: 'Đề thi' },
         { to: '/teacher/exam-stats', icon: <TableProperties size={18} />, label: 'Thống kê' },
+        { to: '/teacher/impact', icon: <BarChart2 size={18} />, label: 'Báo cáo tác động' },
         { to: '/teacher/lessons', icon: <BookMarked size={18} />, label: 'Bài học' },
         null,
         { to: '/teacher/grades', icon: <GraduationCap size={18} />, label: 'Khoá học' },

@@ -352,7 +352,7 @@ export default function LessonSubmissionsPage() {
     for (const { taskIndex, score, comment, breakdown, ai_suspect, ai_suspect_reason } of results) {
       const sub = taskSubs[taskIndex]
       if (!sub) continue
-      const updates = { score, teacher_comment: comment, graded_by: 'ai', ai_graded_at: now, ai_breakdown: breakdown || null, ai_suspect: !!ai_suspect, ai_suspect_reason: ai_suspect_reason || null }
+      const updates = { score, ai_score: score, teacher_comment: comment, graded_by: 'ai', ai_graded_at: now, ai_breakdown: breakdown || null, ai_suspect: !!ai_suspect, ai_suspect_reason: ai_suspect_reason || null }
       await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
       setSubmissionMap(prev => ({
         ...prev,

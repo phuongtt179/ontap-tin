@@ -22,6 +22,7 @@ import LessonsPage from './pages/teacher/LessonsPage'
 import LessonSubmissionsPage from './pages/teacher/LessonSubmissionsPage'
 import AssistantsPage from './pages/teacher/AssistantsPage'
 import AiAssistantPage from './pages/teacher/AiAssistantPage'
+import ImpactReportPage from './pages/teacher/ImpactReportPage'
 import StudentNotesPage from './pages/teacher/StudentNotesPage'
 import AttendancePage from './pages/teacher/AttendancePage'
 import RewardsPage from './pages/teacher/RewardsPage'
@@ -117,6 +118,11 @@ export default function App() {
           <Route path="/teacher/assistants" element={
             <ProtectedRoute role="teacher">
               <Layout><AssistantsPage /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/teacher/impact" element={
+            <ProtectedRoute role="teacher">
+              <Layout><ImpactReportPage /></Layout>
             </ProtectedRoute>
           } />
           <Route path="/teacher/ai-assistant" element={
