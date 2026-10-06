@@ -147,7 +147,7 @@ export default function ImpactReportPage() {
               <li>Giáo viên giữ nguyên điểm AI: <b>{pct(ag.identical, ag.compared)}%</b></li>
             </ul>
           ) : (
-            <p className="text-sm text-gray-500">Chưa có dữ liệu. Hệ thống mới bắt đầu lưu điểm AI gốc; khi giáo viên chấm lại các bài do AI chấm, số liệu sẽ xuất hiện tại đây.</p>
+            <p className="text-sm text-gray-500">Chưa có dữ liệu. Vào Trung tâm AI → "Duyệt bài AI chấm": mỗi bài thầy/cô đồng ý hoặc sửa điểm sẽ được tính vào đây.</p>
           )}
         </section>
         <section className="bg-white rounded-2xl border border-gray-200 p-4">

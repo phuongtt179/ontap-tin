@@ -293,6 +293,8 @@ export default function LessonSubmissionsPage() {
       reviewed_at: new Date().toISOString(),
       score: (scoreVal != null && !isNaN(scoreVal)) ? scoreVal : null,
       graded_by: 'teacher',
+      // Bài AI chấm trước khi có cột ai_score: giữ lại điểm AI gốc trước khi bị ghi đè (để đo độ khớp)
+      ...(sub.graded_by === 'ai' && sub.ai_score == null && sub.score != null && { ai_score: sub.score }),
       ...(awardSticker && { sticker_awarded: true }),
     }
     const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)

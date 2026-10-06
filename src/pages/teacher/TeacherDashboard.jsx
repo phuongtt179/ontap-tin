@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { Trophy, BookOpen, Users, ClipboardCheck, CheckSquare, Activity } from 'lucide-react'
+import { Trophy, BookOpen, Users, ClipboardCheck, CheckSquare, Activity, Sparkles } from 'lucide-react'
 
 export default function TeacherDashboard() {
   const { profile } = useAuth()
@@ -11,6 +11,17 @@ export default function TeacherDashboard() {
   const [todayData, setTodayData] = useState(null) // { attended, active }
   const [examRanking, setExamRanking] = useState(null)
   const [practiceRanking, setPracticeRanking] = useState(null)
+  const [aiAlert, setAiAlert] = useState(null) // { ungraded, unreviewed }
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from('lesson_submissions').select('id', { count: 'exact', head: true })
+        .is('score', null).is('graded_by', null).is('reviewed_at', null)
+        .gte('submitted_at', new Date(Date.now() - 30 * 864e5).toISOString()),
+      supabase.from('lesson_submissions').select('id', { count: 'exact', head: true })
+        .eq('graded_by', 'ai').is('reviewed_at', null),
+    ]).then(([a, b]) => setAiAlert({ ungraded: a.count || 0, unreviewed: b.count || 0 }))
+  }, [])
 
   useEffect(() => {
     fetchStats()
@@ -237,6 +248,19 @@ export default function TeacherDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── Trung tâm AI: bài AI chưa duyệt / bài bị sót chưa có điểm ── */}
+      {aiAlert && (aiAlert.ungraded > 0 || aiAlert.unreviewed > 0) && (
+        <Link to={aiAlert.ungraded > 0 ? '/teacher/ai-tools?tab=backfill' : '/teacher/ai-tools'}
+          className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 hover:bg-violet-100 transition">
+          <Sparkles size={20} className="text-violet-500 shrink-0" />
+          <p className="text-sm text-violet-900 flex-1">
+            {aiAlert.ungraded > 0 && <><b>{aiAlert.ungraded.toLocaleString('vi-VN')}</b> bài nộp chưa có điểm (AI chấm bị lỗi). </>}
+            {aiAlert.unreviewed > 0 && <><b>{aiAlert.unreviewed.toLocaleString('vi-VN')}</b> bài AI đã chấm chưa được duyệt.</>}
+          </p>
+          <span className="text-xs font-semibold text-violet-700">Trung tâm AI →</span>
+        </Link>
+      )}
 
       {/* ── Tổng (nhỏ hơn) ───────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3">
