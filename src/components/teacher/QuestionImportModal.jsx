@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { parseQuestions } from '../../utils/questionParser'
+import { checkParsedQuestions } from '../../utils/questionCheck'
+import AiQuestionPanel from './AiQuestionPanel'
 import { supabase } from '../../lib/supabase'
 import { uploadImage } from '../../lib/cloudinary'
 import { useAuth } from '../../context/AuthContext'
@@ -37,6 +39,7 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics, 
   const { lessonTitles } = useLessonTitles(meta.unit_id)
 
   const currentTopics = topicsForGrade(meta.grade)
+  const issues = step === 2 ? checkParsedQuestions(parsed) : []
 
   function handleGradeChange(grade) {
     const available = topicsForGrade(grade)
@@ -194,6 +197,8 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics, 
                 )}
               </div>
 
+              <AiQuestionPanel grade={meta.grade} difficulty={meta.difficulty} onText={setRawText} />
+
               {/* Paste area */}
               <div>
                 <label className="text-xs font-medium text-gray-600 mb-1 block">
@@ -345,6 +350,10 @@ Từ: 10, 20, 30, "hello"
                       <Trash2 size={16} />
                     </button>
                   </div>
+                  {/* Cảnh báo lỗi cấu trúc (thiếu chỗ trống, đáp án không khớp...) — cập nhật ngay khi sửa */}
+                  {issues.filter(x => x.index === i).map((x, k) => (
+                    <p key={k} className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">⚠ {x.msg}</p>
+                  ))}
 
                   {/* Question text */}
                   <textarea

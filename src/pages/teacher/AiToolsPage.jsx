@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { ShieldCheck, RefreshCw, BookOpenText, MessagesSquare } from 'lucide-react'
+import { ShieldCheck, RefreshCw, BookOpenText, MessagesSquare, Lightbulb } from 'lucide-react'
+import HintsTab from '../../components/teacher/aiTools/HintsTab'
 import ReviewTab from '../../components/teacher/aiTools/ReviewTab'
 import BackfillTab from '../../components/teacher/aiTools/BackfillTab'
 import TutorNotesTab from '../../components/teacher/aiTools/TutorNotesTab'
@@ -12,6 +13,7 @@ const TABS = [
   { key: 'backfill', label: 'Chấm bù', icon: RefreshCw },
   { key: 'notes', label: 'Nội dung gia sư', icon: BookOpenText },
   { key: 'insights', label: 'HS đang thắc mắc', icon: MessagesSquare },
+  { key: 'hints', label: 'Gợi ý câu hỏi', icon: Lightbulb },
 ]
 
 export default function AiToolsPage() {
@@ -48,6 +50,7 @@ export default function AiToolsPage() {
       {tab === 'backfill' && <BackfillTab onChanged={loadSummary} />}
       {tab === 'notes' && <TutorNotesTab />}
       {tab === 'insights' && <InsightsTab />}
+      {tab === 'hints' && <HintsTab />}
     </div>
   )
 }
