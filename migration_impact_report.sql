@@ -92,7 +92,8 @@ BEGIN
     'weekly_active', COALESCE((
       SELECT jsonb_agg(row_to_json(w) ORDER BY w.week) FROM weekly w
     ), '[]'::jsonb),
-    -- Độ khớp AI vs giáo viên: chỉ tính các bài đã có điểm AI gốc (ai_score) và giáo viên đã chấm lại
+    -- Độ khớp AI vs giáo viên: các bài đã có điểm AI gốc (ai_score) VÀ giáo viên đã xem lại
+    -- (đồng ý giữ nguyên = khớp hoàn toàn, hoặc sửa điểm = có chênh lệch)
     'ai_agreement', (
       SELECT jsonb_build_object(
         'compared', count(*),
@@ -101,7 +102,7 @@ BEGIN
         'identical', count(*) FILTER (WHERE score = ai_score)
       )
       FROM public.lesson_submissions
-      WHERE graded_by = 'teacher' AND ai_score IS NOT NULL AND score IS NOT NULL
+      WHERE ai_score IS NOT NULL AND score IS NOT NULL AND reviewed_at IS NOT NULL
     )
   ) INTO result;
 

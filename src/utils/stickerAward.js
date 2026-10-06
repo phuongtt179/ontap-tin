@@ -36,3 +36,11 @@ export async function adjustStickerCount(userId, delta, { affectsTotal = false, 
   }
   return { data: null, error: new Error('Không cập nhật được sticker sau nhiều lần thử, thử lại nhé'), insufficient: false }
 }
+
+// Số sticker thưởng theo điểm bài thực hành (giống LessonSubmissionsPage)
+export function scoreToBonus(score) {
+  if (score >= 10) return 3
+  if (score >= 8) return 2
+  if (score >= 5) return 1
+  return 0
+}

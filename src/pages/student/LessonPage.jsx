@@ -1252,7 +1252,8 @@ export default function LessonPage() {
         lessonId: lesson.id,
         lessonTitle: lesson.title,
         lessonDescription: lesson.description || '',
-        aiContext: lesson.ai_context || '',
+        // Lý thuyết (học sinh thấy) + ghi chú riêng cho gia sư soạn từ slide (học sinh không thấy)
+        aiContext: [lesson.ai_context, lesson.ai_tutor_notes].filter(s => s?.trim()).join('\n\n'),
         courseScope,
         courseRoadmap,
         // Không gửi tên học sinh sang AI (bảo vệ dữ liệu cá nhân trẻ em)
