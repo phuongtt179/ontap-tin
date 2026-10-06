@@ -1117,7 +1117,7 @@ export default function LessonPage() {
       const { results } = await gradeStudent([sub], [taskDef])
       const result = results[0]
       if (!result) return
-      const updates = { score: result.score, teacher_comment: result.comment, graded_by: 'ai', ai_graded_at: new Date().toISOString(), ai_breakdown: result.breakdown || null, ai_suspect: !!result.ai_suspect, ai_suspect_reason: result.ai_suspect_reason || null }
+      const updates = { score: result.score, ai_score: result.score, teacher_comment: result.comment, graded_by: 'ai', ai_graded_at: new Date().toISOString(), ai_breakdown: result.breakdown || null, ai_suspect: !!result.ai_suspect, ai_suspect_reason: result.ai_suspect_reason || null }
       await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
       setTaskSubmissions(prev => { const next = [...prev]; next[taskIdx] = { ...sub, ...updates }; return next })
     } catch { /* quota or network — fail silently, giáo viên sẽ chấm tay */ }
@@ -1245,7 +1245,7 @@ export default function LessonPage() {
         aiContext: lesson.ai_context || '',
         courseScope,
         courseRoadmap,
-        studentName: profile?.full_name || '',
+        // Không gửi tên học sinh sang AI (bảo vệ dữ liệu cá nhân trẻ em)
         lessonsCompleted,
         ...extra,
       },

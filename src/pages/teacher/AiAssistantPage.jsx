@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useGrades } from '../../hooks/useGrades'
 import { Sparkles, Send, Loader2 } from 'lucide-react'
+import { anonymizeSnapshot, maskNames, unmaskNames } from '../../utils/anonymize'
 
 const SUGGESTIONS = [
   'Lớp KN46 tiến độ làm bài mới nhất thế nào?',
@@ -181,14 +182,16 @@ export default function AiAssistantPage() {
 
     setAsking(true)
     try {
-      const snapshot = target.kind === 'class'
+      const rawSnapshot = target.kind === 'class'
         ? await buildSnapshot(target.grade, target.name)
         : await buildCourseSnapshot(target.grade, classes.filter(c => c.grade === target.grade))
+      // Ẩn họ tên học sinh (HS01, HS02...) trước khi gửi sang AI; khôi phục khi hiển thị câu trả lời
+      const { snapshot, codeToName } = anonymizeSnapshot(rawSnapshot)
       const classLabel = target.kind === 'class' ? `${target.name} (${target.grade})` : `khoá "${target.grade}"`
       const res = await fetch('/api/teacher-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: text, classLabel, snapshot }),
+        body: JSON.stringify({ question: maskNames(text, codeToName), classLabel, snapshot }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -198,7 +201,7 @@ export default function AiAssistantPage() {
         setMessages(m => [...m, { role: 'ai', content: msg, error: true }])
         return
       }
-      setMessages(m => [...m, { role: 'ai', content: data.answer }])
+      setMessages(m => [...m, { role: 'ai', content: unmaskNames(data.answer, codeToName) }])
     } catch {
       setMessages(m => [...m, { role: 'ai', content: 'Không lấy được dữ liệu, thử lại sau.', error: true }])
     } finally {

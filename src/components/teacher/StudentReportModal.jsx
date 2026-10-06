@@ -92,10 +92,11 @@ export default function StudentReportModal({ student, onClose }) {
     try {
       const res = await fetch('/api/report-note', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentName: student.full_name, summary }),
+        // Gửi tên giả {TÊN} thay vì họ tên thật; điền lại tên thật ngay trên máy giáo viên
+        body: JSON.stringify({ studentName: '{TÊN}', summary }),
       })
       const data = await res.json().catch(() => ({}))
-      if (data.note) setNote(data.note)
+      if (data.note) setNote(data.note.replaceAll('{TÊN}', student.full_name || 'em'))
       else toast.error(res.status === 429 ? 'AI đang bận, thử lại sau nhé' : 'Chưa gợi ý được, thử lại')
     } catch { toast.error('Lỗi gợi ý nhận xét') }
     setAiLoading(false)
