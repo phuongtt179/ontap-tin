@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { buildWeaknessProfile } from '../../utils/weakness'
 import toast from 'react-hot-toast'
 import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code, Lock, Lightbulb, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { uploadFile, deleteFile } from '../../lib/cloudinary'
@@ -912,6 +913,7 @@ export default function LessonPage() {
   const [tutor, setTutor] = useState(null)   // { mode, context } | null
   const [courseScope, setCourseScope] = useState('')       // mô tả khóa cho AI
   const [lessonsCompleted, setLessonsCompleted] = useState(0)  // số bài đã hoàn thành (ước lượng trình độ)
+  const [weaknessProfile, setWeaknessProfile] = useState('')    // lỗi em hay gặp (cho gia sư AI cá nhân hóa)
   const [courseRoadmap, setCourseRoadmap] = useState('')   // lộ trình khóa (cho AI trả lời câu hỏi chương trình)
   const wasCompleted = useRef(false)
   const [pptxMarking, setPptxMarking] = useState(false)
@@ -998,6 +1000,14 @@ export default function LessonPage() {
     supabase.from('lesson_progress').select('id', { count: 'exact', head: true })
       .eq('user_id', user.id).eq('completed', true)
       .then(({ count }) => setLessonsCompleted(count || 0))
+
+    // Hồ sơ lỗi hay gặp của chính em (từ bảng điểm AI các bài gần đây) → gia sư gợi ý đúng chỗ em hay vướng.
+    // Lỗi truy vấn không ảnh hưởng gì tới trang học: chỉ đơn giản là không có hồ sơ.
+    supabase.from('lesson_submissions').select('ai_breakdown, lessons(title)')
+      .eq('user_id', user.id).not('ai_breakdown', 'is', null)
+      .order('submitted_at', { ascending: false }).limit(15)
+      .then(({ data }) => setWeaknessProfile(buildWeaknessProfile(data)))
+      .catch(() => {})
 
     // 2. Fetch questions if any
     if (lessonData.question_ids?.length > 0) {
@@ -1247,6 +1257,7 @@ export default function LessonPage() {
         courseRoadmap,
         // Không gửi tên học sinh sang AI (bảo vệ dữ liệu cá nhân trẻ em)
         lessonsCompleted,
+        weaknessProfile,
         ...extra,
       },
     })
