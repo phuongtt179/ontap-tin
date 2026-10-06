@@ -62,7 +62,7 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
       }
       setChat([...newChat, { role: 'ai', content: data.answer }])
       // Lưu mọi lần hỏi AI (kênh 'ai') để giáo viên xem lại — KHÔNG lưu đáp án/hint
-      const { correctAnswer, hint, courseRoadmap, aiContext, courseScope, lessonsCompleted, studentName, ...safeContext } = context
+      const { correctAnswer, hint, courseRoadmap, aiContext, courseScope, lessonsCompleted, studentName, weaknessProfile, ...safeContext } = context
       const ctxPayload = { ...safeContext, mode }
       supabase.from('messages').insert([
         { student_id: studentId, sender_role: 'student', channel: 'ai', content: q, context: ctxPayload, is_read: true },

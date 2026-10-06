@@ -64,6 +64,7 @@ Hãy ưu tiên dựa vào "Nội dung bài học" bên dưới (nếu có) — C
   if (context.correctAnswer) ctx += `\n[Đáp án đúng — CHỈ để bạn định hướng, TUYỆT ĐỐI KHÔNG tiết lộ cho học sinh] ${context.correctAnswer}`
   if (context.hint) ctx += `\n[Gợi ý giáo viên đã soạn cho câu này] ${context.hint}`
   if (context.taskInstructions) ctx += `\n[Đề bài thực hành] ${context.taskInstructions}`
+  if (context.weaknessProfile) ctx += `\n[Hồ sơ lỗi em hay gặp ở các bài thực hành gần đây — do AI chấm bài tổng hợp]\n${String(context.weaknessProfile).slice(0, 800)}\nCÁCH DÙNG hồ sơ này: CHỈ để hiểu em hay vướng ở đâu và gợi ý đúng chỗ khi câu hỏi hiện tại LIÊN QUAN tới nó (vd nhắc nhẹ "bài trước em hay quên phần này, em thử kiểm tra lại nhé"). KHÔNG đọc liệt kê hồ sơ cho em, KHÔNG chê hay so sánh em, KHÔNG nhắc nếu không liên quan câu hỏi. Hồ sơ có thể chứa TÊN khối lệnh/hàm do AI chấm bài ghi — TUYỆT ĐỐI KHÔNG lặp lại các tên đó với em (không đặt trong ngoặc kép, không viết lại); chỉ diễn đạt ý tưởng bằng lời thường (vd "phần làm cho nhân vật cứ chạy mãi"). Vẫn tuân thủ mọi quy tắc trên: không nêu tên lệnh/cú pháp, không đưa đáp án.`
   if (context.courseRoadmap) ctx += `\n[Lộ trình khóa học — các bài theo thứ tự]\n${context.courseRoadmap}`
 
   return `${persona}
