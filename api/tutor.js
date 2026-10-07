@@ -1,4 +1,5 @@
 import { getGeminiKeys, callGeminiRotate, isDailyLimit } from './_gemini.js'
+import { requireUser, studentAiDirect } from './_auth.js'
 
 export const config = { maxDuration: 30 }
 
@@ -13,7 +14,7 @@ const APP_GUIDE = `- HỌC BÀI: vào mục "Bài học", chọn 1 bài. Trong b
 - THÀNH TÍCH: bấm nút "Thành tích" để xem bảng vinh danh của lớp, các huy hiệu đã đạt, và quà của mình.
 - HỎI BÀI: bấm nút trợ giảng (chính là mình đây) để hỏi AI ngay trong bài; nếu vẫn chưa hiểu, bấm "Hỏi thầy" để gửi câu hỏi cho giáo viên ở mục "Hỏi giáo viên".`
 
-function buildSystemPrompt({ mode, context = {} }) {
+export function buildSystemPrompt({ mode, context = {} }) {
   const scope = (context.courseScope || '').trim()
   const name = (context.studentName || '').trim()
   const done = Number(context.lessonsCompleted) || 0
@@ -79,6 +80,9 @@ Trả lời chỉ nội dung, không thêm tiêu đề. Nhớ toàn bộ cuộc 
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
+  // Học sinh chỉ chat trực tiếp với AI khi bật chế độ trực tiếp; mặc định câu hỏi gửi cho giáo viên
+  if (!studentAiDirect()) return res.status(403).json({ error: 'disabled' })
+  if (!(await requireUser(req, res))) return
 
   // messages: [{ role: 'student'|'ai', content }] — cả đoạn hội thoại, câu mới nhất ở cuối
   const { mode, context, messages, studentQuestion } = req.body || {}

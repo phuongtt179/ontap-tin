@@ -6,6 +6,7 @@ import { useHeaderStats } from '../../context/HeaderStatsContext'
 import { useLearnData } from '../../hooks/useLearnData'
 import SubjectStrip from '../../components/student/learningPath/SubjectStrip'
 import AssistantBubble from '../../components/student/learningPath/AssistantBubble'
+import { STUDENT_AI_DIRECT } from '../../lib/aiMode'
 import LessonPath from '../../components/student/learningPath/LessonPath'
 import { useContainerHeight } from '../../components/student/learningPath/useContainerWidth'
 import { computePoints } from '../../components/student/learningPath/pathGeometry'
@@ -250,7 +251,8 @@ export default function LearnPage() {
         />
       </div>
 
-      <AssistantBubble
+      {/* Trợ lý AI chat trực tiếp — chỉ hiện khi bật chế độ học sinh tương tác trực tiếp với AI */}
+      {STUDENT_AI_DIRECT && <AssistantBubble
         user={user}
         profile={profile}
         lessons={lessons}
@@ -263,7 +265,7 @@ export default function LearnPage() {
         navigate={navigate}
         unlockedTopics={unlockedTopics}
         unlockedLessonMap={unlockedLessonMap}
-      />
+      />}
     </div>
   )
 }

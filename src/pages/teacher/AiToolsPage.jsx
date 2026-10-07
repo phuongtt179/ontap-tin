@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { ShieldCheck, RefreshCw, BookOpenText, MessagesSquare, Lightbulb } from 'lucide-react'
+import { ShieldCheck, RefreshCw, BookOpenText, MessagesSquare, Lightbulb, MessageCircleQuestion } from 'lucide-react'
+import QuestionsTab from '../../components/teacher/aiTools/QuestionsTab'
 import HintsTab from '../../components/teacher/aiTools/HintsTab'
 import ReviewTab from '../../components/teacher/aiTools/ReviewTab'
 import BackfillTab from '../../components/teacher/aiTools/BackfillTab'
@@ -9,8 +10,9 @@ import TutorNotesTab from '../../components/teacher/aiTools/TutorNotesTab'
 import InsightsTab from '../../components/teacher/aiTools/InsightsTab'
 
 const TABS = [
+  { key: 'backfill', label: 'Chấm bài mới', icon: RefreshCw },
   { key: 'review', label: 'Duyệt bài AI chấm', icon: ShieldCheck },
-  { key: 'backfill', label: 'Chấm bù', icon: RefreshCw },
+  { key: 'questions', label: 'Câu hỏi học sinh', icon: MessageCircleQuestion },
   { key: 'notes', label: 'Nội dung gia sư', icon: BookOpenText },
   { key: 'insights', label: 'HS đang thắc mắc', icon: MessagesSquare },
   { key: 'hints', label: 'Gợi ý câu hỏi', icon: Lightbulb },
@@ -28,7 +30,7 @@ export default function AiToolsPage() {
 
   const badge = key => {
     if (!summary) return null
-    const n = key === 'review' ? summary.ai_unreviewed : key === 'backfill' ? summary.ungraded : null
+    const n = key === 'review' ? summary.ai_unreviewed : key === 'backfill' ? summary.ungraded : key === 'questions' ? summary.questions_pending : null
     return n ? <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1.5">{n > 999 ? '999+' : n}</span> : null
   }
 
@@ -36,7 +38,7 @@ export default function AiToolsPage() {
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4">
       <div>
         <h1 className="text-xl font-black text-gray-800">Trung tâm AI</h1>
-        <p className="text-sm text-gray-500">Kiểm soát chất lượng AI chấm bài, chấm bù bài bị sót, chuẩn bị nội dung cho gia sư và nắm bắt thắc mắc của học sinh.</p>
+        <p className="text-sm text-gray-500">Học sinh không tương tác trực tiếp với AI: AI chấm nháp và soạn nháp trả lời, thầy/cô duyệt rồi học sinh mới nhận được.</p>
       </div>
       <div className="flex gap-1 overflow-x-auto border-b border-gray-200">
         {TABS.map(t => (
@@ -48,6 +50,7 @@ export default function AiToolsPage() {
       </div>
       {tab === 'review' && <ReviewTab summary={summary} onChanged={loadSummary} />}
       {tab === 'backfill' && <BackfillTab onChanged={loadSummary} />}
+      {tab === 'questions' && <QuestionsTab onChanged={loadSummary} />}
       {tab === 'notes' && <TutorNotesTab />}
       {tab === 'insights' && <InsightsTab />}
       {tab === 'hints' && <HintsTab />}

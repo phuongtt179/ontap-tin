@@ -1,5 +1,6 @@
 import JSZip from 'jszip'
 import { generateSb3Text } from './sb3Text'
+import { apiFetch } from '../lib/apiFetch'
 
 function getFileType(fileUrl, textContent) {
   if (!fileUrl && textContent) return 'text'
@@ -305,11 +306,7 @@ export async function gradeStudent(submissions, taskDefs) {
 
   if (preparedTasks.length === 0) return { results: [] }
 
-  const res = await fetch('/api/grade', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tasks: preparedTasks }),
-  })
+  const res = await apiFetch('/api/grade', { tasks: preparedTasks })
 
   if (res.status === 429) {
     const err = await res.json().catch(() => ({}))

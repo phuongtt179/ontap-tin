@@ -10,6 +10,32 @@ const REASONS = {
   low: { label: 'Điểm dưới 5', cls: 'bg-amber-100 text-amber-700' },
   first: { label: '3 bài đầu AI chấm của bài học', cls: 'bg-blue-100 text-blue-700' },
   sample: { label: 'Mẫu ngẫu nhiên (đo độ chính xác)', cls: 'bg-gray-100 text-gray-700' },
+  normal: { label: 'Bài bình thường', cls: 'bg-green-100 text-green-700' },
+}
+// Nhóm được phép "đồng ý cả trang" — nhóm cảnh báo (trống, nghi gian lận, điểm thấp) phải xem từng bài
+const BULK_OK = ['normal', 'first', 'sample']
+
+// Duyệt 1 bài: đồng ý điểm AI (edit=false) hoặc lưu điểm giáo viên sửa. Cộng sticker như luồng duyệt cũ.
+async function saveReview(item, { edit = false, score, comment } = {}) {
+  const newScore = edit ? score : Number(item.score)
+  const awardSticker = !item.sticker_awarded && newScore != null
+  const updates = {
+    reviewed_at: new Date().toISOString(),
+    // Bài AI chấm trước khi có cột ai_score: điểm hiện tại CHÍNH LÀ điểm AI gốc → lưu lại để đo độ khớp
+    ai_score: Number(item.score),
+    ...(edit && { score: newScore, teacher_comment: comment, graded_by: 'teacher' }),
+    ...(awardSticker && { sticker_awarded: true }),
+  }
+  const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', item.id)
+  if (error) { toast.error('Lưu thất bại: ' + error.message); return false }
+  if (awardSticker) {
+    const bonus = scoreToBonus(newScore)
+    if (bonus > 0) {
+      const { error: e } = await adjustStickerCount(item.user_id, bonus, { affectsTotal: true })
+      if (e) toast.error('Không cộng được sticker: ' + e.message)
+    }
+  }
+  return true
 }
 
 function ReviewCard({ item, onDone }) {
@@ -23,23 +49,8 @@ function ReviewCard({ item, onDone }) {
     const newScore = edit ? parseFloat(score) : Number(item.score)
     if (edit && (isNaN(newScore) || newScore < 0 || newScore > 10)) { toast.error('Điểm từ 0 đến 10'); return }
     setSaving(true)
-    const awardSticker = !item.sticker_awarded && newScore != null
-    const updates = {
-      reviewed_at: new Date().toISOString(),
-      // Bài AI chấm trước khi có cột ai_score: điểm hiện tại CHÍNH LÀ điểm AI gốc → lưu lại để đo độ khớp
-      ai_score: Number(item.score),
-      ...(edit && { score: newScore, teacher_comment: comment, graded_by: 'teacher' }),
-      ...(awardSticker && { sticker_awarded: true }),
-    }
-    const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', item.id)
-    if (error) { setSaving(false); toast.error('Lưu thất bại: ' + error.message); return }
-    if (awardSticker) {
-      const bonus = scoreToBonus(newScore)
-      if (bonus > 0) {
-        const { error: e } = await adjustStickerCount(item.user_id, bonus, { affectsTotal: true })
-        if (e) toast.error('Không cộng được sticker: ' + e.message)
-      }
-    }
+    const ok = await saveReview(item, { edit, score: newScore, comment })
+    if (!ok) { setSaving(false); return }
     toast.success(edit ? 'Đã lưu điểm sửa' : 'Đã đồng ý điểm AI')
     onDone(item)
   }
@@ -120,14 +131,28 @@ function ReviewCard({ item, onDone }) {
 export default function ReviewTab({ summary, onChanged }) {
   const [reason, setReason] = useState(null)
   const [items, setItems] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [bulk, setBulk] = useState(false)
 
   function pickReason(r) { setReason(r); setItems(null) }
+
+  // Duyệt cả trang — chỉ cho nhóm an toàn (bài bình thường, bài đầu, mẫu ngẫu nhiên)
+  async function approvePage() {
+    if (!confirm(`Đồng ý điểm AI cho ${items.length} bài đang hiện? Thầy/cô nên lướt qua trước khi đồng ý.`)) return
+    setBulk(true)
+    let ok = 0
+    for (const it of items) if (await saveReview(it)) ok++
+    setBulk(false)
+    toast.success(`Đã duyệt ${ok} bài`)
+    setItems(null); setReloadKey(k => k + 1)
+    onChanged?.()
+  }
 
   useEffect(() => {
     supabase.rpc('ai_review_queue', { p_reason: reason, p_limit: 20 }).then(({ data, error }) => {
       if (error) { toast.error('Không tải được hàng đợi duyệt'); setItems([]) } else setItems(data || [])
     })
-  }, [reason])
+  }, [reason, reloadKey])
 
   function handleDone(item) {
     setItems(prev => prev.filter(i => i.id !== item.id))
@@ -139,7 +164,7 @@ export default function ReviewTab({ summary, onChanged }) {
     <div className="space-y-4">
       <p className="text-sm text-gray-600">
         Có <b>{(summary?.ai_unreviewed ?? 0).toLocaleString('vi-VN')}</b> bài AI đã chấm nhưng chưa được thầy/cô xem lại.
-        Không cần xem hết — hàng đợi dưới đây xếp những bài <b>đáng kiểm tra nhất</b> lên trước.
+        Nhóm <b>cảnh báo</b> nên xem từng bài; nhóm <b>bài bình thường</b> có thể lướt rồi đồng ý cả trang. Học sinh chỉ thấy điểm AI chấm sau khi thầy/cô duyệt.
         Mỗi bài thầy/cô đồng ý hoặc sửa điểm sẽ được dùng để đo độ chính xác của AI (trang Báo cáo tác động).
       </p>
       <div className="flex flex-wrap gap-2">
@@ -154,6 +179,15 @@ export default function ReviewTab({ summary, onChanged }) {
           </button>
         ))}
       </div>
+      {BULK_OK.includes(reason) && items?.length > 0 && (
+        <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+          <p className="text-sm text-green-800 flex-1">Lướt qua các bài bên dưới; nếu điểm AI đều hợp lý, đồng ý cả trang một lần.</p>
+          <button onClick={approvePage} disabled={bulk}
+            className="flex items-center gap-1 text-sm font-semibold bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg disabled:opacity-50">
+            {bulk ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Đồng ý cả trang ({items.length} bài)
+          </button>
+        </div>
+      )}
       {items === null ? (
         <div className="flex justify-center py-10"><Loader2 className="animate-spin text-indigo-400" /></div>
       ) : items.length === 0 ? (

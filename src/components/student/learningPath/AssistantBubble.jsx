@@ -3,6 +3,7 @@ import { ChevronRight, X, Send, Loader2, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../lib/supabase'
 import { topicKeyOf } from '../../../utils/lessonSteps'
+import { apiFetch } from '../../../lib/apiFetch'
 
 // Bong bóng trợ lý AI nổi góc dưới phải — bóc nguyên khối chat mascot từ LearnPage.jsx.
 // Hành vi giữ nguyên 100%: tự mở 1 lần/ngày, gợi ý bài mới/chưa xong, chat trực tiếp /api/tutor.
@@ -47,15 +48,11 @@ export default function AssistantBubble({
     setChatLoading(true)
     try {
       await new Promise(r => setTimeout(r, 500 + Math.random() * 1500))
-      const res = await fetch('/api/tutor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const res = await apiFetch('/api/tutor', {
           mode: 'theory',
           context: { courseScope, courseRoadmap, lessonsCompleted },  // không gửi tên học sinh sang AI
           messages: newMsgs,
-        }),
-      })
+        })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.answer) {
         toast.error(res.status === 429

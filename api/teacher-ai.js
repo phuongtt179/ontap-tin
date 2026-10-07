@@ -1,4 +1,6 @@
 import { getGeminiKeys, callGeminiRotate, isDailyLimit } from './_gemini.js'
+import { requireUser, STAFF } from './_auth.js'
+import { buildSystemPrompt } from './tutor.js'
 
 // Các công cụ AI cho giáo viên (Trung tâm AI). Gộp chung 1 file để không tăng số serverless
 // function trên Vercel. action:
@@ -162,6 +164,47 @@ export function sanitizeQuestionText(text, allowedCodes = null) {
   }).join('\n')
 }
 
+// Soạn NHÁP câu trả lời cho câu hỏi học sinh gửi thầy cô — dùng đúng bộ quy tắc của gia sư AI
+// (gợi mở, không đưa đáp án, không nêu tên lệnh). Giáo viên duyệt/sửa rồi mới gửi cho học sinh.
+const DRAFT_NOTE = `
+
+LƯU Ý: Bạn đang soạn BẢN NHÁP để thầy cô đọc, sửa rồi mới gửi cho học sinh (đây là câu em đã gửi, chưa có trao đổi trước đó).
+Nếu câu của em KHÔNG CẦN trả lời (chỉ chào hỏi, gõ linh tinh vô nghĩa, spam, trêu đùa, nói tục) thì CHỈ trả về đúng một dòng: "BỎ QUA: <lý do rất ngắn>".`
+
+export async function answerDrafts(req, res, keys) {
+  const items = Array.isArray(req.body.items) ? req.body.items.slice(0, 15) : []
+  if (!items.length) return res.status(400).json({ error: 'no_items' })
+  const out = []
+  let quota = null
+  const one = async it => {
+    if (quota) return
+    const systemPrompt = buildSystemPrompt({ mode: it.mode || 'theory', context: it.context || {} }) + DRAFT_NOTE
+    const payload = JSON.stringify({
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: 'user', parts: [{ text: String(it.question || '').slice(0, 1000) }] }],
+      generationConfig: { temperature: 0.4, maxOutputTokens: 800 },
+    })
+    try {
+      const r = await callGeminiRotate({ model: MODEL, keys, payload })
+      if (r.status === 429) {
+        const body = await r.json().catch(() => ({}))
+        quota = isDailyLimit(body) ? 'quota_rpd' : 'quota_rpm'
+        return
+      }
+      if (!r.ok) { out.push({ id: it.id, error: 'gemini_error' }); return }
+      const data = await r.json()
+      const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim()
+      const skip = text.match(/^BỎ QUA\s*:\s*(.+)$/i)
+      out.push(skip ? { id: it.id, draft: null, skip_reason: skip[1].trim() } : { id: it.id, draft: text || null, skip_reason: null })
+    } catch {
+      out.push({ id: it.id, error: 'network' })
+    }
+  }
+  // chạy 3 câu song song để kịp thời gian, không dồn quá nhiều lượt gọi cùng lúc
+  for (let i = 0; i < items.length; i += 3) await Promise.all(items.slice(i, i + 3).map(one))
+  return res.status(200).json({ drafts: out, quota })
+}
+
 // Tải PDF slide (chỉ trên Cloudinary) thành inlineData cho Gemini — dùng khi PDF xuất dạng ảnh, không có chữ
 async function loadPdfPart(pdfUrl) {
   let url
@@ -176,10 +219,13 @@ async function loadPdfPart(pdfUrl) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
+  if (!(await requireUser(req, res, STAFF))) return   // chỉ giáo viên / trợ giảng
   const { action } = req.body || {}
 
   const keys = getGeminiKeys()
   if (!keys.length) return res.status(500).json({ error: 'no_api_key' })
+
+  if (action === 'answer_drafts') return answerDrafts(req, res, keys)
 
   let prompt, generationConfig, model = MODEL
   const extraParts = []

@@ -1,9 +1,11 @@
 import { getGeminiKeys, callGeminiRotate } from './_gemini.js'
+import { requireUser, STAFF } from './_auth.js'
 
 export const config = { maxDuration: 20 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
+  if (!(await requireUser(req, res, STAFF))) return   // chỉ giáo viên / trợ giảng
   const { studentName, summary } = req.body || {}
   if (!summary) return res.status(400).json({ error: 'no_summary' })
 

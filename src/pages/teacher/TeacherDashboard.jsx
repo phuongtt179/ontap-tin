@@ -20,7 +20,8 @@ export default function TeacherDashboard() {
         .gte('submitted_at', new Date(Date.now() - 30 * 864e5).toISOString()),
       supabase.from('lesson_submissions').select('id', { count: 'exact', head: true })
         .eq('graded_by', 'ai').is('reviewed_at', null),
-    ]).then(([a, b]) => setAiAlert({ ungraded: a.count || 0, unreviewed: b.count || 0 }))
+      supabase.from('student_questions').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    ]).then(([a, b, c]) => setAiAlert({ ungraded: a.count || 0, unreviewed: b.count || 0, questions: c.count || 0 }))
   }, [])
 
   useEffect(() => {
@@ -250,12 +251,13 @@ export default function TeacherDashboard() {
       </div>
 
       {/* ── Trung tâm AI: bài AI chưa duyệt / bài bị sót chưa có điểm ── */}
-      {aiAlert && (aiAlert.ungraded > 0 || aiAlert.unreviewed > 0) && (
-        <Link to={aiAlert.ungraded > 0 ? '/teacher/ai-tools?tab=backfill' : '/teacher/ai-tools'}
+      {aiAlert && (aiAlert.ungraded > 0 || aiAlert.unreviewed > 0 || aiAlert.questions > 0) && (
+        <Link to={aiAlert.questions > 0 ? '/teacher/ai-tools?tab=questions' : aiAlert.ungraded > 0 ? '/teacher/ai-tools?tab=backfill' : '/teacher/ai-tools?tab=review'}
           className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 hover:bg-violet-100 transition">
           <Sparkles size={20} className="text-violet-500 shrink-0" />
           <p className="text-sm text-violet-900 flex-1">
-            {aiAlert.ungraded > 0 && <><b>{aiAlert.ungraded.toLocaleString('vi-VN')}</b> bài nộp chưa có điểm (AI chấm bị lỗi). </>}
+            {aiAlert.questions > 0 && <><b>{aiAlert.questions.toLocaleString('vi-VN')}</b> câu hỏi học sinh chờ trả lời. </>}
+            {aiAlert.ungraded > 0 && <><b>{aiAlert.ungraded.toLocaleString('vi-VN')}</b> bài nộp mới chưa chấm. </>}
             {aiAlert.unreviewed > 0 && <><b>{aiAlert.unreviewed.toLocaleString('vi-VN')}</b> bài AI đã chấm chưa được duyệt.</>}
           </p>
           <span className="text-xs font-semibold text-violet-700">Trung tâm AI →</span>
