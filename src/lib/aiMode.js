@@ -5,7 +5,7 @@ export const STUDENT_AI_DIRECT = ['1', 'true', 'on'].includes(String(import.meta
 
 // Mốc chuyển sang mô hình giáo viên làm trung gian. Bài AI chấm TRƯỚC mốc này học sinh đã xem rồi,
 // vẫn để hiện như cũ; bài AI chấm SAU mốc này chỉ hiện khi giáo viên đã duyệt.
-export const MEDIATED_SINCE = new Date('2026-10-08T00:00:00+07:00')
+export const MEDIATED_SINCE = new Date('2026-10-07T05:27:00+07:00')
 
 // Học sinh có được thấy điểm/nhận xét của bài nộp này không
 export function feedbackVisible(sub) {

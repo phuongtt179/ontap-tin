@@ -17,7 +17,12 @@ export const STAFF = ['teacher', 'assistant']
 // roles: danh sách vai trò được phép (bỏ trống = mọi tài khoản đã đăng nhập, đang hoạt động).
 export async function requireUser(req, res, roles = null) {
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim()
-  if (!token || !SUPABASE_URL || !ANON_KEY) {
+  // Thiếu cấu hình trên máy chủ → báo lỗi riêng để dễ phát hiện (khác với token sai)
+  if (!SUPABASE_URL || !ANON_KEY) {
+    res.status(500).json({ error: 'auth_not_configured' })
+    return null
+  }
+  if (!token) {
     res.status(401).json({ error: 'unauthorized' })
     return null
   }
