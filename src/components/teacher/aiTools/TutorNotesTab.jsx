@@ -4,18 +4,16 @@ import { useGrades } from '../../../hooks/useGrades'
 import { extractSlideText } from '../../../utils/slideText'
 import toast from 'react-hot-toast'
 import { Loader2, Sparkles, Save, Square } from 'lucide-react'
+import { apiFetch } from '../../../lib/apiFetch'
 
 async function draftNotes(lesson) {
   const isPdf = lesson.pptx_url.split('?')[0].toLowerCase().endsWith('.pdf')
   const slidesText = await extractSlideText(lesson.pptx_url).catch(() => '')
   // PDF xuất dạng ảnh không có chữ → máy chủ gửi nguyên file PDF cho AI đọc bằng thị giác
   if (slidesText.trim().length < 40 && !isPdf) throw new Error('Không đọc được chữ trong slide (slide toàn ảnh)')
-  const res = await fetch('/api/teacher-ai', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  const res = await apiFetch('/api/teacher-ai', {
       action: 'lesson_notes', title: lesson.title, grade: lesson.grade, topic: lesson.topic, slidesText,
       ...(isPdf && { pdfUrl: lesson.pptx_url }),
-    }),
   })
   const data = await res.json().catch(() => ({}))
   if (res.status === 429) { const e = new Error('AI hết lượt, thử lại sau'); e.quota = data.error; throw e }

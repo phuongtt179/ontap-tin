@@ -18,6 +18,7 @@ import QuizSession from '../../components/student/QuizSession'
 import JSZip from 'jszip'
 import { generateSb3Text } from '../../utils/sb3Text'
 import { parsePracticeTasks } from '../../utils/practiceTaskParser'
+import { apiFetch } from '../../lib/apiFetch'
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 const TYPE_LABELS = {
@@ -359,11 +360,7 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
     if (!form.title.trim()) { toast.error('Nhập tiêu đề bài học trước đã'); return }
     setAiGenerating(true)
     try {
-      const res = await fetch('/api/generate-lesson', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: form.title, grade: form.grade, topic: form.topic, brief: aiBrief }),
-      })
+      const res = await apiFetch('/api/generate-lesson', { title: form.title, grade: form.grade, topic: form.topic, brief: aiBrief })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         toast.error(data.error === 'quota_rpd' || data.error === 'quota_rpm'

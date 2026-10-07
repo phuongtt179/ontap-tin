@@ -1,4 +1,5 @@
 import { getGeminiKeys, callGeminiRotate, isDailyLimit } from './_gemini.js'
+import { requireUser, STAFF } from './_auth.js'
 
 export const config = { maxDuration: 30 }
 
@@ -47,6 +48,7 @@ Nguyên tắc:
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
+  if (!(await requireUser(req, res, STAFF))) return   // chỉ giáo viên / trợ giảng
 
   const { title, grade, topic, brief } = req.body || {}
   if (!String(title || '').trim()) return res.status(400).json({ error: 'no_title' })

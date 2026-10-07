@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase'
 import { useGrades } from '../../../hooks/useGrades'
 import toast from 'react-hot-toast'
 import { Loader2, Sparkles, Save } from 'lucide-react'
+import { apiFetch } from '../../../lib/apiFetch'
 
 const TYPE_LABEL = {
   multiple_choice: 'Trắc nghiệm', true_false: 'Đúng/Sai', fill_blank: 'Điền từ', drag_word: 'Kéo thả',
@@ -49,10 +50,7 @@ export default function HintsTab() {
         id: q.id, type: q.type, question: q.question,
         options: describeOptions(q) || undefined, correct_answer: q.correct_answer || undefined,
       }))
-      const res = await fetch('/api/teacher-ai', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'hints', items }),
-      })
+      const res = await apiFetch('/api/teacher-ai', { action: 'hints', items })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { toast.error(res.status === 429 ? 'AI đang hết lượt, thử lại sau' : 'AI chưa soạn được, thử lại'); return }
       const ids = new Set(questions.map(q => q.id))

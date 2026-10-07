@@ -5,6 +5,7 @@ import { parseQuestions } from '../../utils/questionParser'
 import { checkParsedQuestions } from '../../utils/questionCheck'
 import toast from 'react-hot-toast'
 import { Sparkles, Loader2 } from 'lucide-react'
+import { apiFetch } from '../../lib/apiFetch'
 
 const TYPES = [
   ['multiple_choice', 'Trắc nghiệm'], ['true_false', 'Đúng/Sai'], ['fill_blank', 'Điền từ'], ['drag_word', 'Kéo thả'],
@@ -40,13 +41,10 @@ export default function AiQuestionPanel({ grade, difficulty, onText }) {
     try {
       const { text, pdfUrl } = await getLessonSource(lesson)
       if (text.trim().length < 40 && !pdfUrl) { toast.error('Bài này chưa có lý thuyết, ghi chú gia sư hay slide để AI dựa vào'); return }
-      const res = await fetch('/api/teacher-ai', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const res = await apiFetch('/api/teacher-ai', {
           action: 'questions', lessonTitle: lesson.title, grade: lesson.grade, topic: lesson.topic,
           sourceText: text, ...(pdfUrl && { pdfUrl }), count, types, difficulty, extra,
-        }),
-      })
+        })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.text) { toast.error(res.status === 429 ? 'AI đang hết lượt, thử lại sau' : 'AI chưa soạn được, thử lại'); return }
       const parsed = parseQuestions(data.text)

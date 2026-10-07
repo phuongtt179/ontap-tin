@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useGrades } from '../../hooks/useGrades'
 import { Sparkles, Send, Loader2 } from 'lucide-react'
 import { anonymizeSnapshot, maskNames, unmaskNames } from '../../utils/anonymize'
+import { apiFetch } from '../../lib/apiFetch'
 
 const SUGGESTIONS = [
   'Lớp KN46 tiến độ làm bài mới nhất thế nào?',
@@ -188,11 +189,7 @@ export default function AiAssistantPage() {
       // Ẩn họ tên học sinh (HS01, HS02...) trước khi gửi sang AI; khôi phục khi hiển thị câu trả lời
       const { snapshot, codeToName } = anonymizeSnapshot(rawSnapshot)
       const classLabel = target.kind === 'class' ? `${target.name} (${target.grade})` : `khoá "${target.grade}"`
-      const res = await fetch('/api/teacher-assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: maskNames(text, codeToName), classLabel, snapshot }),
-      })
+      const res = await apiFetch('/api/teacher-assistant', { question: maskNames(text, codeToName), classLabel, snapshot })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         const msg = data.error === 'quota_rpd' || data.error === 'quota_rpm'

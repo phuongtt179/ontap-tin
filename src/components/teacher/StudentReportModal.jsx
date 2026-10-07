@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { toPng } from 'html-to-image'
 import toast from 'react-hot-toast'
 import { X, Loader2, Flame, Star, GraduationCap, CheckCircle2, ClipboardList, FileText, Medal, Bot, User, CalendarCheck, Download, Sparkles } from 'lucide-react'
+import { apiFetch } from '../../lib/apiFetch'
 
 function computeBadges({ streakMax, stickerTotal, lessonsDone, hasReward }) {
   const b = []
@@ -90,11 +91,8 @@ export default function StudentReportModal({ student, onClose }) {
   async function suggestNote() {
     setAiLoading(true)
     try {
-      const res = await fetch('/api/report-note', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        // Gửi tên giả {TÊN} thay vì họ tên thật; điền lại tên thật ngay trên máy giáo viên
-        body: JSON.stringify({ studentName: '{TÊN}', summary }),
-      })
+      // Gửi tên giả {TÊN} thay vì họ tên thật; điền lại tên thật ngay trên máy giáo viên
+      const res = await apiFetch('/api/report-note', { studentName: '{TÊN}', summary })
       const data = await res.json().catch(() => ({}))
       if (data.note) setNote(data.note.replaceAll('{TÊN}', student.full_name || 'em'))
       else toast.error(res.status === 429 ? 'AI đang bận, thử lại sau nhé' : 'Chưa gợi ý được, thử lại')

@@ -24,7 +24,7 @@ const SINCE = {
 const DELAY_MS = 6000  // giãn nhịp giữa các bài để không giành lượt Gemini với học sinh đang học
 
 export default function BackfillTab({ onChanged }) {
-  const [since, setSince] = useState('jul')
+  const [since, setSince] = useState('30d')
   const [batch, setBatch] = useState(20)
   const [count, setCount] = useState(null)
   const [running, setRunning] = useState(false)
@@ -93,7 +93,7 @@ export default function BackfillTab({ onChanged }) {
       if (i < subs.length - 1) await sleep(DELAY_MS)
     }
     setStatus(''); setRunning(false)
-    toast.success(`Đã chấm bù ${ok} bài`)
+    toast.success(`AI đã chấm nháp ${ok} bài — vào thẻ Duyệt bài để duyệt`)
     setCount(c => (c == null ? c : Math.max(0, c - ok)))
     onChanged?.()
   }
@@ -101,9 +101,9 @@ export default function BackfillTab({ onChanged }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">
-        Khi học sinh nộp bài mà AI chấm bị lỗi (hết lượt, mạng chập chờn...), bài đó nằm im <b>không có điểm và không có nhận xét</b>.
-        Công cụ này chấm bù lần lượt từng bài, mỗi bài cách nhau {DELAY_MS / 1000} giây để không giành lượt AI với học sinh đang học
-        — nên chạy vào buổi tối hoặc ngoài giờ học. Bài chấm bù vẫn cần thầy/cô duyệt như bình thường mới cộng sticker.
+        Học sinh nộp bài xong sẽ <b>chờ thầy/cô chấm</b> (học sinh không tự gọi AI). Bấm nút dưới để AI chấm nháp các bài mới;
+        sau đó vào thẻ <b>Duyệt bài AI chấm</b> để duyệt — học sinh chỉ thấy điểm khi đã duyệt. AI chấm lần lượt từng bài, mỗi bài cách nhau {DELAY_MS / 1000} giây để không giành lượt AI với học sinh đang học
+        — nên chạy vào buổi tối hoặc ngoài giờ học. Không chọn "Toàn bộ" để giữ nguyên số liệu tháng 6 (giai đoạn chấm tay) làm minh chứng trước/sau.
       </p>
       <div className="flex flex-wrap items-center gap-3 bg-white border border-gray-200 rounded-xl p-3">
         <select value={since} onChange={e => setSince(e.target.value)} disabled={running}
@@ -125,7 +125,7 @@ export default function BackfillTab({ onChanged }) {
             className="flex items-center gap-1 text-sm font-semibold bg-red-600 text-white px-3 py-1.5 rounded-lg"><Square size={13} /> Dừng</button>
         ) : (
           <button onClick={run} disabled={!count}
-            className="flex items-center gap-1 text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg disabled:opacity-50"><Play size={13} /> Chấm bù</button>
+            className="flex items-center gap-1 text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg disabled:opacity-50"><Play size={13} /> AI chấm nháp</button>
         )}
       </div>
       {status && <p className="text-sm text-indigo-700 flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> {status}</p>}

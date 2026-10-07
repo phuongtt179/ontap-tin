@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { X, Sparkles, Loader2, Send, BookOpen } from 'lucide-react'
+import { STUDENT_AI_DIRECT } from '../../lib/aiMode'
+import MediatedAskModal from './MediatedAskModal'
 import toast from 'react-hot-toast'
+import { apiFetch } from '../../lib/apiFetch'
 
 const HEADER = {
   quiz: { title: 'Hỏi trợ giảng về câu này', hint: 'Trợ giảng sẽ gợi ý, không nói thẳng đáp án nhé!' },
@@ -9,7 +12,7 @@ const HEADER = {
   theory: { title: 'Hỏi trợ giảng', hint: 'Em thắc mắc gì trong bài cứ hỏi nhé!' },
 }
 
-export default function AskTutorModal({ open, onClose, mode = 'theory', context = {}, studentId }) {
+function DirectTutorModal({ open, onClose, mode = 'theory', context = {}, studentId }) {
   const [input, setInput] = useState('')
   const [chat, setChat] = useState([])        // [{ role:'student'|'ai', content }]
   const [loading, setLoading] = useState(false)
@@ -44,11 +47,7 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
     try {
       // Chờ ngẫu nhiên chút (dàn tải, tránh dồn request cùng lúc gây hết lượt theo phút)
       await new Promise(r => setTimeout(r, 700 + Math.random() * 2300))
-      const res = await fetch('/api/tutor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode, context, messages: newChat }),
-      })
+      const res = await apiFetch('/api/tutor', { mode, context, messages: newChat })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.answer) {
         if (res.status === 429) {
@@ -178,4 +177,10 @@ export default function AskTutorModal({ open, onClose, mode = 'theory', context 
       </div>
     </div>
   )
+}
+
+// Mặc định: học sinh gửi câu hỏi cho thầy cô (AI chỉ soạn nháp cho giáo viên duyệt).
+// Chỉ khi bật VITE_STUDENT_AI_DIRECT mới dùng gia sư AI trả lời trực tiếp.
+export default function AskTutorModal(props) {
+  return STUDENT_AI_DIRECT ? <DirectTutorModal {...props} /> : <MediatedAskModal {...props} />
 }

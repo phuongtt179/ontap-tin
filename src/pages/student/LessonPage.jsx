@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { buildWeaknessProfile } from '../../utils/weakness'
+import { STUDENT_AI_DIRECT, feedbackVisible } from '../../lib/aiMode'
 import toast from 'react-hot-toast'
 import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code, Lock, Lightbulb, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { uploadFile, deleteFile } from '../../lib/cloudinary'
@@ -809,6 +810,7 @@ function LessonQuiz({ questions, onSubmit, initialCurrent = 0, initialCorrectCou
       {/* Hỏi trợ giảng về câu này */}
       {onAskTutor && (
         <button onClick={() => onAskTutor({
+          questionId: q.id,
           questionText: q.question,
           options: q.type === 'multiple_choice'
             ? opts.map((o, oi) => `${String.fromCharCode(65 + oi)}. ${optText(o)}`)
@@ -818,7 +820,7 @@ function LessonQuiz({ questions, onSubmit, initialCurrent = 0, initialCorrectCou
           hint: q.hint || undefined,
         })}
           className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 py-2 rounded-xl transition">
-          🙋 Chưa hiểu? Hỏi trợ giảng
+          🙋 Chưa hiểu? {STUDENT_AI_DIRECT ? 'Hỏi trợ giảng' : 'Hỏi thầy cô'}
         </button>
       )}
     </div>
@@ -911,6 +913,7 @@ export default function LessonPage() {
   const [stickerThreshold, setStickerThreshold] = useState(50)
   const [studentGrade, setStudentGrade] = useState(null)
   const [tutor, setTutor] = useState(null)   // { mode, context } | null
+  const [newAnswers, setNewAnswers] = useState(0)  // số câu thầy cô vừa trả lời mà em chưa xem (chế độ giáo viên trung gian)
   const [courseScope, setCourseScope] = useState('')       // mô tả khóa cho AI
   const [lessonsCompleted, setLessonsCompleted] = useState(0)  // số bài đã hoàn thành (ước lượng trình độ)
   const [weaknessProfile, setWeaknessProfile] = useState('')    // lỗi em hay gặp (cho gia sư AI cá nhân hóa)
@@ -1000,6 +1003,12 @@ export default function LessonPage() {
     supabase.from('lesson_progress').select('id', { count: 'exact', head: true })
       .eq('user_id', user.id).eq('completed', true)
       .then(({ count }) => setLessonsCompleted(count || 0))
+
+    if (!STUDENT_AI_DIRECT) {
+      supabase.from('student_questions').select('id', { count: 'exact', head: true })
+        .eq('student_id', user.id).eq('lesson_id', id).eq('status', 'answered').is('seen_at', null)
+        .then(({ count }) => setNewAnswers(count || 0))
+    }
 
     // Hồ sơ lỗi hay gặp của chính em (từ bảng điểm AI các bài gần đây) → gia sư gợi ý đúng chỗ em hay vướng.
     // Lỗi truy vấn không ảnh hưởng gì tới trang học: chỉ đơn giản là không có hồ sơ.
@@ -1111,7 +1120,8 @@ export default function LessonPage() {
   }
 
   async function triggerAiGrade(sub, taskIdx) {
-    if (!sub) return
+    // Mặc định học sinh không kích hoạt AI: bài chờ giáo viên chấm (có AI hỗ trợ) và duyệt
+    if (!sub || !STUDENT_AI_DIRECT) return
     // Cooldown: không chấm lại nếu AI vừa chấm trong 5 phút
     if (sub.ai_graded_at) {
       const elapsed = Date.now() - new Date(sub.ai_graded_at).getTime()
@@ -1326,14 +1336,15 @@ export default function LessonPage() {
         mode={tutor?.mode}
         context={tutor?.context || {}}
         studentId={user.id}
-        onClose={() => setTutor(null)}
+        onClose={() => { setTutor(null); setNewAnswers(0) }}
       />
 
       {/* Nút nổi "Hỏi trợ giảng" — hỏi lý thuyết cả bài */}
       <button onClick={() => openTutor('theory')}
         className="fixed z-40 bottom-5 right-5 flex items-center gap-2 bg-gradient-to-r from-violet-500 to-indigo-500 text-white font-bold text-sm px-4 py-3 rounded-full shadow-xl shadow-indigo-300/50 hover:scale-105 active:scale-95 transition-all">
         <span className="text-lg leading-none">🤖</span>
-        <span className="hidden sm:inline">Hỏi trợ giảng</span>
+        <span className="hidden sm:inline">{STUDENT_AI_DIRECT ? 'Hỏi trợ giảng' : 'Hỏi thầy cô'}</span>
+        {newAnswers > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-black flex items-center justify-center">{newAnswers}</span>}
       </button>
 
       {/* ── Hero gradient ── */}
@@ -1559,8 +1570,9 @@ export default function LessonPage() {
                                 const i = rowIdx * TASKS_PER_ROW + colIdx
                                 const sub = taskSubmissions[i]
                                 const p = palette[i % palette.length]
-                                const hasScore = sub?.score != null
-                                const hasComment = !!sub?.teacher_comment
+                                const canSee = feedbackVisible(sub)
+                                const hasScore = canSee && sub?.score != null
+                                const hasComment = canSee && !!sub?.teacher_comment
                                 return (
                                   <div key={i} className="flex items-center">
                                     <div className="flex flex-col items-center gap-2" style={{ minWidth: window.innerWidth < 768 ? 70 : 88 }}>
@@ -1646,7 +1658,7 @@ export default function LessonPage() {
                               {sub ? `✅ Đã nộp · ${new Date(sub.submitted_at).toLocaleDateString('vi-VN')}` : '📤 Chưa nộp'}
                             </p>
                           </div>
-                          {sub?.score != null && (
+                          {feedbackVisible(sub) && sub?.score != null && (
                             <div className="text-center bg-white/70 rounded-xl px-3 py-1.5 shrink-0">
                               <div className="text-2xl font-black" style={{ color: p.from }}>{sub.score}</div>
                               <div className="text-[10px] text-gray-500 font-semibold">ĐIỂM</div>
@@ -1697,7 +1709,7 @@ export default function LessonPage() {
                                 questionText: `Bài thực hành ${i + 1}`,
                               })}
                                 className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 py-2 rounded-xl transition">
-                                🙋 Chưa hiểu bài? Hỏi trợ giảng
+                                🙋 Chưa hiểu bài? {STUDENT_AI_DIRECT ? 'Hỏi trợ giảng' : 'Hỏi thầy cô'}
                               </button>
 
                               {/* Submitted view */}
@@ -1719,11 +1731,11 @@ export default function LessonPage() {
                                     <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2.5 border border-amber-200">
                                       <Loader2 size={13} className="animate-spin" /> AI đang chấm bài...
                                     </div>
-                                  ) : sub.score != null ? (
+                                  ) : feedbackVisible(sub) ? (
                                     <div className={`rounded-xl p-4 border ${sub.graded_by === 'ai' ? 'border-amber-200 bg-amber-50' : 'border-indigo-200 bg-indigo-50'}`}>
                                       <div className="flex items-center justify-between mb-1.5">
                                         <div className={`text-xs font-bold ${sub.graded_by === 'ai' ? 'text-amber-700' : 'text-indigo-700'}`}>
-                                          {sub.graded_by === 'ai' ? '🤖 AI nhận xét' : '💬 Nhận xét của giáo viên'}
+                                          {sub.graded_by !== 'ai' ? '💬 Nhận xét của giáo viên' : sub.reviewed_at ? '💬 Nhận xét (thầy cô đã duyệt)' : '🤖 AI nhận xét'}
                                         </div>
                                         <span className={`text-lg font-black ${sub.graded_by === 'ai' ? 'text-amber-600' : 'text-indigo-600'}`}>
                                           {sub.score}/10

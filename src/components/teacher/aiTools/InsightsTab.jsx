@@ -4,6 +4,7 @@ import { useGrades } from '../../../hooks/useGrades'
 import { maskNames, unmaskNames } from '../../../utils/anonymize'
 import toast from 'react-hot-toast'
 import { Loader2, Sparkles, ShieldAlert, Lightbulb } from 'lucide-react'
+import { apiFetch } from '../../../lib/apiFetch'
 
 const PERIODS = { 30: '30 ngày', 90: '90 ngày', 0: 'Toàn bộ' }
 const MODE_LABEL = { quiz: 'Trắc nghiệm', practice: 'Thực hành', theory: 'Lý thuyết' }
@@ -59,10 +60,7 @@ export default function InsightsTab() {
     const lessonLabel = lessonId === 'all' ? `khoá "${grade}"` : `bài "${lessons.find(l => l.id === lessonId)?.title}"`
     setAnalyzing(true)
     try {
-      const res = await fetch('/api/teacher-ai', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'insights', lessonLabel, questions }),
-      })
+      const res = await apiFetch('/api/teacher-ai', { action: 'insights', lessonLabel, questions })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) toast.error(res.status === 429 ? 'AI đang hết lượt, thử lại sau' : 'AI chưa phân tích được, thử lại')
       else setResult({ ...data, codeToName })
