@@ -7,6 +7,7 @@ import { normalizeAnswer } from '../../utils/normalizeAnswer'
 import toast from 'react-hot-toast'
 import QuestionText from '../ui/QuestionText'
 import { CodeBlock, CodeBlockWithBlanks } from '../ui/CodeBlock'
+import { phraseBank } from '../../utils/wordOrder'
 
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
@@ -1095,16 +1096,10 @@ function DragWordQuestion({ q, value, onChange, disabled }) {
 
 // Sắp xếp từ thành câu hoàn chỉnh
 function WordOrderQuestion({ q, value, onChange, disabled }) {
-  // Fallback: nếu options rỗng nhưng correct_answer có, tự tách thành từ
-  const resolvedOptions = useMemo(() => {
-    const opts = normalizeOptions(q.options)
-    if (opts.length > 0) return opts
-    if (q.correct_answer) {
-      const words = q.correct_answer.trim().split(/\s+/).filter(Boolean)
-      return words.map((text, i) => ({ key: String.fromCharCode(65 + i), text }))
-    }
-    return []
-  }, [q.id])
+  // Thẻ theo CỤM TỪ (không tách lẻ từng tiếng) — xem utils/wordOrder.js
+  const resolvedOptions = useMemo(
+    () => phraseBank({ ...q, options: normalizeOptions(q.options) }).map((text, i) => ({ key: String.fromCharCode(65 + i), text })),
+    [q.id])
   const wordBank = useMemo(() => shuffle(resolvedOptions), [q.id])
   const [ordered, setOrdered] = useState(() => {
     if (value) return value.split(',').map(w => w.trim()).filter(Boolean)

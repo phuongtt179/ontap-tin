@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { parseQuestions } from '../../utils/questionParser'
 import { checkParsedQuestions } from '../../utils/questionCheck'
 import AiQuestionPanel from './AiQuestionPanel'
+import { splitPhrases } from '../../utils/wordOrder'
 import { supabase } from '../../lib/supabase'
 import { uploadImage } from '../../lib/cloudinary'
 import { useAuth } from '../../context/AuthContext'
@@ -111,7 +112,9 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics, 
         type: q.type,
         options: q.type === 'essay' ? [{ allow_file: false, max_score: 1 }] : q.options,
         match_options: q.match_options?.length ? q.match_options : null,
-        correct_answer: q.type === 'essay' ? (q.correct_answer || null) : q.correct_answer,
+        correct_answer: q.type === 'essay' ? (q.correct_answer || null)
+          : q.type === 'word_order' ? splitPhrases(q.correct_answer).sentence   // bỏ dấu "/" ngăn cụm
+          : q.correct_answer,
         hint: q.hint || null,
         image_url: q.image_url || null,
         audio_url: null,
@@ -508,12 +511,13 @@ Từ: 10, 20, 30, "hello"
                         <input
                           value={q.correct_answer || ''}
                           onChange={e => {
+                            // Giữ nguyên chữ giáo viên gõ (kể cả "/"); tách cụm để xem trước — lưu sẽ bỏ "/"
                             const sentence = e.target.value
-                            const words = sentence.split(' ').filter(Boolean)
+                            const { chunks } = splitPhrases(sentence)
                             setParsed(prev => prev.map((item, idx) => idx !== i ? item : {
                               ...item,
                               correct_answer: sentence,
-                              options: words.map((text, wi) => ({ key: String.fromCharCode(65 + wi), text }))
+                              options: chunks.map((text, wi) => ({ key: String.fromCharCode(65 + wi), text }))
                             }))
                           }}
                           className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400 w-full"

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { buildWeaknessProfile } from '../../utils/weakness'
 import { STUDENT_AI_DIRECT, feedbackVisible } from '../../lib/aiMode'
+import { phraseBank, sameSentence } from '../../utils/wordOrder'
 import toast from 'react-hot-toast'
 import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code, Lock, Lightbulb, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { uploadFile, deleteFile } from '../../lib/cloudinary'
@@ -376,16 +377,8 @@ function OrderingInput({ q, value, onChange, disabled }) {
 
 /* ── WordOrderInput ─────────────────────────────────────────── */
 function WordOrderInput({ q, value, onChange, disabled }) {
-  // Nếu options rỗng, tách từ correct_answer làm ngân hàng từ
-  const bankWords = useMemo(() => {
-    const opts = (q.options || []).filter(o => o && o.text)
-    if (opts.length > 0) return shuffle(opts.map(o => o.text))
-    if (q.correct_answer) {
-      const words = q.correct_answer.trim().split(/\s+/).filter(Boolean)
-      return shuffle(words)
-    }
-    return []
-  }, [q.id])
+  // Thẻ theo CỤM TỪ (không tách lẻ từng tiếng) — xem utils/wordOrder.js
+  const bankWords = useMemo(() => shuffle(phraseBank(q)), [q.id])
 
   const [ordered, setOrdered] = useState(() =>
     value ? value.split(',').map(w => w.trim()).filter(Boolean) : []
@@ -467,10 +460,7 @@ function checkAnswer(type, ans, correct) {
     const norm = s => s.split(',').map(p => p.trim()).sort().join(',')
     return norm(ans) === norm(correct)
   }
-  if (type === 'word_order') {
-    const sentence = ans.split(',').map(w => w.trim()).join(' ')
-    return sentence.toLowerCase() === correct.trim().toLowerCase()
-  }
+  if (type === 'word_order') return sameSentence(ans, correct)
   if (type === 'drag_word' || (type === 'fill_blank' && correct.includes(','))) {
     const a = ans.split(',').map(w => w.trim().toLowerCase())
     const c = correct.split(',').map(w => w.trim().toLowerCase())

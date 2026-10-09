@@ -81,7 +81,7 @@ Loa | Phát âm thanh
 Gợi ý: ...
 
 Câu 7: [ST] Sắp xếp các từ sau thành câu hoàn chỉnh
-Câu đúng: Bàn phím là thiết bị nhập dữ liệu
+Câu đúng: Bàn phím / là thiết bị / nhập dữ liệu
 Gợi ý: ...
 
 Câu 8: [TL] Em hãy nêu sự khác nhau giữa thiết bị nhập và thiết bị xuất.
@@ -91,7 +91,7 @@ QUY TẮC TỪNG LOẠI (bắt buộc):
 - [KT]: dòng "Từ:" gồm cả từ đúng lẫn 1–3 từ gây nhiễu.
 - [SX]: liệt kê các bước theo ĐÚNG THỨ TỰ đúng (hệ thống tự xáo trộn khi hiện cho học sinh). KHÔNG có dòng "Đáp án:".
 - [ND]: mỗi dòng "vế trái | vế phải" là một cặp ĐÚNG (hệ thống tự xáo). KHÔNG có dòng "Đáp án:".
-- [ST]: chỉ có dòng "Câu đúng:", câu ngắn 5–12 từ, KHÔNG có dòng "Đáp án:".
+- [ST]: chỉ có dòng "Câu đúng:", câu ngắn 5–12 tiếng, chia sẵn thành 3–5 CỤM TỪ có nghĩa bằng dấu " / " (không cắt ngang một từ, ví dụ "học sinh" phải nằm cùng cụm), KHÔNG có dòng "Đáp án:".
 - [TL]: KHÔNG có dòng "Đáp án:".
 - "Gợi ý:" tuyệt đối không chứa đáp án hay diễn đạt lại đáp án. Ví dụ SAI (lộ đáp án): "continue chỉ bỏ qua vòng hiện tại nên vòng lặp vẫn chạy tiếp". Ví dụ ĐÚNG: "Nhớ lại ví dụ điểm danh: bỏ qua một bạn thì cả lớp có dừng điểm danh không?".`
 
