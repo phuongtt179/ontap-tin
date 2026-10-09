@@ -1132,7 +1132,9 @@ export default function LessonPage() {
       const newSubs = [...taskSubmissions]
       newSubs[taskIdx] = subInserted
       setTaskSubmissions(newSubs)
-      if (newSubs.every(s => s !== null)) {
+      // Bài đọc thêm (optional) không cần nộp — đủ các bài bắt buộc là tính đã nộp thực hành
+      const tasksNow = parseTasks(lesson?.practice_instructions)
+      if (newSubs.every((s, k) => s !== null || tasksNow[k]?.optional)) {
         await upsertProgress({ practice_submitted: true })
       }
       await awardSticker(1, `Nộp xong bài thực hành ${taskIdx + 1}! 📝`)
@@ -1181,7 +1183,9 @@ export default function LessonPage() {
   const hasPractice = lesson.has_practice
   const embedUrl = getEmbedUrl(lesson.video_url)
   const practiceTasks = parseTasks(lesson.practice_instructions)
-  const submittedCount = taskSubmissions.filter(Boolean).length
+  // Chỉ đếm bài bắt buộc (bài đọc thêm — optional — không cần nộp)
+  const requiredCount = practiceTasks.filter(t => !t?.optional).length
+  const submittedCount = taskSubmissions.filter((s, k) => s && !practiceTasks[k]?.optional).length
 
   const theoryOk = !hasTheory || progress?.theory_read
   const videoOk = !hasVideo || progress?.video_watched
@@ -1433,7 +1437,7 @@ export default function LessonPage() {
             {leftPanelHidden ? 'Hiện lý thuyết' : 'Ẩn lý thuyết — đọc đề rộng hơn'}
           </button>
           <SectionCard icon={<Upload size={18} />} iconBg="bg-emerald-100" iconColor="text-emerald-600"
-            title="Bài thực hành" badge={`${submittedCount}/${practiceTasks.length} đã nộp`}
+            title="Bài thực hành" badge={`${submittedCount}/${requiredCount} đã nộp`}
             done={practiceOk} locked={practiceLocked}
             lockMessage={hasQuiz ? 'Hoàn thành bài tập trước để mở khóa'
               : hasPptx ? 'Xem bài giảng trước để mở khóa'
@@ -1482,7 +1486,7 @@ export default function LessonPage() {
                                           ? hasScore ? 'bg-indigo-600 text-white' : 'bg-green-500 text-white'
                                           : 'bg-orange-500 text-white'}`}
                                         style={!sub ? { animation: 'indicator-bounce 1.4s ease-in-out infinite' } : {}}>
-                                        {sub ? (hasScore ? `⭐ ${sub.score} điểm` : '✅ Đã nộp') : '▶ Làm bài!'}
+                                        {sub ? (hasScore ? `⭐ ${sub.score} điểm` : '✅ Đã nộp') : task?.optional ? '📖 Đọc thêm' : '▶ Làm bài!'}
                                       </div>
                                       {/* Circle */}
                                       <button onClick={() => setActiveTaskIdx(i)}
@@ -1555,7 +1559,7 @@ export default function LessonPage() {
                           <div className="flex-1 min-w-0">
                             <p className="font-black text-gray-800 text-base">Bài thực hành {i + 1}</p>
                             <p className="text-xs font-medium mt-0.5 text-gray-500">
-                              {sub ? `✅ Đã nộp · ${new Date(sub.submitted_at).toLocaleDateString('vi-VN')}` : '📤 Chưa nộp'}
+                              {sub ? `✅ Đã nộp · ${new Date(sub.submitted_at).toLocaleDateString('vi-VN')}` : task?.optional ? '📖 Bài đọc thêm — không cần nộp' : '📤 Chưa nộp'}
                             </p>
                           </div>
                           {feedbackVisible(sub) && sub?.score != null && (
@@ -1612,8 +1616,10 @@ export default function LessonPage() {
                                 🙋 Chưa hiểu bài? {STUDENT_AI_DIRECT ? 'Hỏi trợ giảng' : 'Hỏi thầy cô'}
                               </button>
 
-                              {/* Submitted view */}
-                              {sub && !isResubmitting ? (
+                              {/* Bài đọc thêm: không có ô nộp bài */}
+                              {task?.optional && !sub ? (
+                                <p className="text-sm text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5 text-center">📖 Đây là bài đọc thêm — em đọc để hiểu thêm, không cần nộp bài.</p>
+                              ) : sub && !isResubmitting ? (
                                 <div className="space-y-3">
                                   {sub.file_url && <SubmittedFile url={sub.file_url} name={sub.file_name} />}
                                   {sub.text_content && (

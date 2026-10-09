@@ -273,7 +273,7 @@ export async function gradeStudent(submissions, taskDefs) {
 
   for (let i = 0; i < taskDefs.length; i++) {
     const sub = submissions[i]
-    if (!sub) continue
+    if (!sub || taskDefs[i]?.optional) continue   // bài đọc thêm: không chấm
 
     const instructions = taskDefs[i]?.instructions || ''
     const fileUrl = sub.file_url
