@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { buildWeaknessProfile } from '../../utils/weakness'
 import { STUDENT_AI_DIRECT, feedbackVisible } from '../../lib/aiMode'
+import { phraseBank, sameSentence } from '../../utils/wordOrder'
+import MatchingLines from '../../components/ui/MatchingLines'
 import toast from 'react-hot-toast'
 import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code, Lock, Lightbulb, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { uploadFile, deleteFile } from '../../lib/cloudinary'
@@ -131,99 +133,8 @@ function DragWordInput({ q, value, onChange, disabled }) {
 
 /* ── MatchingInput ──────────────────────────────────────────── */
 function MatchingInput({ q, value, onChange, disabled }) {
-  const [rightItems, setRightItems] = useState(() => {
-    if (value) {
-      const pairs = {}
-      value.split(',').forEach(p => { const [l, r] = p.split('-'); if (l && r) pairs[l] = r })
-      const allRight = q.match_options || []
-      const used = new Set()
-      const ordered = (q.options || []).map(o => {
-        const rk = pairs[o.key]; if (!rk) return null
-        used.add(rk); return allRight.find(m => m.key === rk)
-      }).filter(Boolean)
-      const remaining = allRight.filter(m => !used.has(m.key))
-      return [...ordered, ...remaining]
-    }
-    return shuffle(q.match_options || [])
-  })
-  const [dragIdx, setDragIdx] = useState(null)
-  const [overIdx, setOverIdx] = useState(null)
-
-  function buildAnswer(items) {
-    const matchOpts = q.match_options || []
-    if (matchOpts.length > 0 && matchOpts.every((m, i) => items[i]?.key === m.key)) {
-      return q.correct_answer
-    }
-    return (q.options || []).map((o, i) => items[i] ? `${o.key}-${items[i].key}` : null).filter(Boolean).join(',')
-  }
-  useEffect(() => { if (!value) onChange(buildAnswer(rightItems)) }, [])
-
-  function onDragStart(i) { setDragIdx(i) }
-  function onDragOver(e, i) { e.preventDefault(); setOverIdx(i) }
-  function onDrop(i) {
-    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setOverIdx(null); return }
-    const next = [...rightItems]
-    const [moved] = next.splice(dragIdx, 1)
-    next.splice(i, 0, moved)
-    setRightItems(next); setDragIdx(null); setOverIdx(null)
-    onChange(buildAnswer(next))
-  }
-  function onDragEnd() { setDragIdx(null); setOverIdx(null) }
-
-  const correctPairs = new Set(
-    (q.options || []).map((o, i) => {
-      const r = (q.match_options || [])[i]
-      return r ? `${o.key}-${r.key}` : null
-    }).filter(Boolean)
-  )
-
-  return (
-    <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
-      <p className="text-xs text-gray-400 mb-3">Kéo cột phải để sắp xếp tương ứng với cột trái</p>
-      <div className="flex gap-3 items-start">
-        <div className="flex-1 space-y-2">
-          {(q.options || []).map(opt => (
-            <div key={opt.key} className="px-3 py-2 rounded-lg border-2 border-gray-200 bg-white text-sm text-gray-800 min-h-[40px] flex items-center">
-              <span className="font-bold mr-1">{opt.key}.</span>{opt.text}
-            </div>
-          ))}
-        </div>
-        <div className="flex flex-col text-gray-300 text-lg select-none">
-          {(q.options || []).map((_, i) => (
-            <div key={i} className="min-h-[40px] mb-2 flex items-center">→</div>
-          ))}
-        </div>
-        <div className="flex-1 space-y-2">
-          {rightItems.map((opt, i) => {
-            const pairKey = `${(q.options || [])[i]?.key}-${opt.key}`
-            const isCorrect = disabled && correctPairs.has(pairKey)
-            const isWrong = disabled && !correctPairs.has(pairKey)
-            return (
-              <div key={opt.key}
-                draggable={!disabled}
-                onDragStart={() => onDragStart(i)}
-                onDragOver={e => onDragOver(e, i)}
-                onDrop={() => onDrop(i)}
-                onDragEnd={onDragEnd}
-                className={`px-3 py-2 rounded-lg border-2 text-sm min-h-[40px] flex items-center gap-2 transition
-                  ${disabled
-                    ? isCorrect ? 'border-green-400 bg-green-50 text-green-800'
-                    : isWrong ? 'border-red-300 bg-red-50 text-red-800'
-                    : 'border-gray-200 bg-white'
-                    : dragIdx === i ? 'border-indigo-400 bg-indigo-50 opacity-50'
-                    : overIdx === i ? 'border-indigo-400 border-dashed bg-indigo-50/40'
-                    : 'border-gray-200 bg-white text-gray-700 cursor-grab hover:border-indigo-300'
-                  }`}
-              >
-                {!disabled && <span className="text-gray-300 shrink-0 select-none">⠿</span>}
-                {opt.text}
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
+  // Nối bằng đường thẳng (bấm trái → bấm phải), chạy được trên cả màn hình cảm ứng — xem ui/MatchingLines.jsx
+  return <MatchingLines q={q} value={value} onChange={onChange} disabled={disabled} showResult={disabled} />
 }
 
 /* ── FillBlankInput ─────────────────────────────────────────── */
@@ -376,16 +287,8 @@ function OrderingInput({ q, value, onChange, disabled }) {
 
 /* ── WordOrderInput ─────────────────────────────────────────── */
 function WordOrderInput({ q, value, onChange, disabled }) {
-  // Nếu options rỗng, tách từ correct_answer làm ngân hàng từ
-  const bankWords = useMemo(() => {
-    const opts = (q.options || []).filter(o => o && o.text)
-    if (opts.length > 0) return shuffle(opts.map(o => o.text))
-    if (q.correct_answer) {
-      const words = q.correct_answer.trim().split(/\s+/).filter(Boolean)
-      return shuffle(words)
-    }
-    return []
-  }, [q.id])
+  // Thẻ theo CỤM TỪ (không tách lẻ từng tiếng) — xem utils/wordOrder.js
+  const bankWords = useMemo(() => shuffle(phraseBank(q)), [q.id])
 
   const [ordered, setOrdered] = useState(() =>
     value ? value.split(',').map(w => w.trim()).filter(Boolean) : []
@@ -467,10 +370,7 @@ function checkAnswer(type, ans, correct) {
     const norm = s => s.split(',').map(p => p.trim()).sort().join(',')
     return norm(ans) === norm(correct)
   }
-  if (type === 'word_order') {
-    const sentence = ans.split(',').map(w => w.trim()).join(' ')
-    return sentence.toLowerCase() === correct.trim().toLowerCase()
-  }
+  if (type === 'word_order') return sameSentence(ans, correct)
   if (type === 'drag_word' || (type === 'fill_blank' && correct.includes(','))) {
     const a = ans.split(',').map(w => w.trim().toLowerCase())
     const c = correct.split(',').map(w => w.trim().toLowerCase())
@@ -1232,7 +1132,9 @@ export default function LessonPage() {
       const newSubs = [...taskSubmissions]
       newSubs[taskIdx] = subInserted
       setTaskSubmissions(newSubs)
-      if (newSubs.every(s => s !== null)) {
+      // Bài đọc thêm (optional) không cần nộp — đủ các bài bắt buộc là tính đã nộp thực hành
+      const tasksNow = parseTasks(lesson?.practice_instructions)
+      if (newSubs.every((s, k) => s !== null || tasksNow[k]?.optional)) {
         await upsertProgress({ practice_submitted: true })
       }
       await awardSticker(1, `Nộp xong bài thực hành ${taskIdx + 1}! 📝`)
@@ -1281,7 +1183,9 @@ export default function LessonPage() {
   const hasPractice = lesson.has_practice
   const embedUrl = getEmbedUrl(lesson.video_url)
   const practiceTasks = parseTasks(lesson.practice_instructions)
-  const submittedCount = taskSubmissions.filter(Boolean).length
+  // Chỉ đếm bài bắt buộc (bài đọc thêm — optional — không cần nộp)
+  const requiredCount = practiceTasks.filter(t => !t?.optional).length
+  const submittedCount = taskSubmissions.filter((s, k) => s && !practiceTasks[k]?.optional).length
 
   const theoryOk = !hasTheory || progress?.theory_read
   const videoOk = !hasVideo || progress?.video_watched
@@ -1533,7 +1437,7 @@ export default function LessonPage() {
             {leftPanelHidden ? 'Hiện lý thuyết' : 'Ẩn lý thuyết — đọc đề rộng hơn'}
           </button>
           <SectionCard icon={<Upload size={18} />} iconBg="bg-emerald-100" iconColor="text-emerald-600"
-            title="Bài thực hành" badge={`${submittedCount}/${practiceTasks.length} đã nộp`}
+            title="Bài thực hành" badge={`${submittedCount}/${requiredCount} đã nộp`}
             done={practiceOk} locked={practiceLocked}
             lockMessage={hasQuiz ? 'Hoàn thành bài tập trước để mở khóa'
               : hasPptx ? 'Xem bài giảng trước để mở khóa'
@@ -1582,7 +1486,7 @@ export default function LessonPage() {
                                           ? hasScore ? 'bg-indigo-600 text-white' : 'bg-green-500 text-white'
                                           : 'bg-orange-500 text-white'}`}
                                         style={!sub ? { animation: 'indicator-bounce 1.4s ease-in-out infinite' } : {}}>
-                                        {sub ? (hasScore ? `⭐ ${sub.score} điểm` : '✅ Đã nộp') : '▶ Làm bài!'}
+                                        {sub ? (hasScore ? `⭐ ${sub.score} điểm` : '✅ Đã nộp') : task?.optional ? '📖 Đọc thêm' : '▶ Làm bài!'}
                                       </div>
                                       {/* Circle */}
                                       <button onClick={() => setActiveTaskIdx(i)}
@@ -1655,7 +1559,7 @@ export default function LessonPage() {
                           <div className="flex-1 min-w-0">
                             <p className="font-black text-gray-800 text-base">Bài thực hành {i + 1}</p>
                             <p className="text-xs font-medium mt-0.5 text-gray-500">
-                              {sub ? `✅ Đã nộp · ${new Date(sub.submitted_at).toLocaleDateString('vi-VN')}` : '📤 Chưa nộp'}
+                              {sub ? `✅ Đã nộp · ${new Date(sub.submitted_at).toLocaleDateString('vi-VN')}` : task?.optional ? '📖 Bài đọc thêm — không cần nộp' : '📤 Chưa nộp'}
                             </p>
                           </div>
                           {feedbackVisible(sub) && sub?.score != null && (
@@ -1712,8 +1616,10 @@ export default function LessonPage() {
                                 🙋 Chưa hiểu bài? {STUDENT_AI_DIRECT ? 'Hỏi trợ giảng' : 'Hỏi thầy cô'}
                               </button>
 
-                              {/* Submitted view */}
-                              {sub && !isResubmitting ? (
+                              {/* Bài đọc thêm: không có ô nộp bài */}
+                              {task?.optional && !sub ? (
+                                <p className="text-sm text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5 text-center">📖 Đây là bài đọc thêm — em đọc để hiểu thêm, không cần nộp bài.</p>
+                              ) : sub && !isResubmitting ? (
                                 <div className="space-y-3">
                                   {sub.file_url && <SubmittedFile url={sub.file_url} name={sub.file_name} />}
                                   {sub.text_content && (

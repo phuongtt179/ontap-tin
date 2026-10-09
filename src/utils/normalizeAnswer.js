@@ -1,10 +1,9 @@
+import { sameSentence } from './wordOrder'
+
 export function normalizeAnswer(type, ans, correct) {
   if (type === 'essay') return false
   if (!ans) return false
-  if (type === 'word_order') {
-    const studentSentence = ans.split(',').map(w => w.trim()).join(' ')
-    return studentSentence.toLowerCase() === (correct || '').trim().toLowerCase()
-  }
+  if (type === 'word_order') return sameSentence(ans, correct)
   if (type === 'matching') {
     const norm = s => s?.split(',').map(p => p.trim()).sort().join(',')
     return norm(ans) === norm(correct)

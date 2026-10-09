@@ -14,7 +14,7 @@ function parseTasks(instructions) {
 }
 
 // Đề rỗng (hoặc chỉ là "[]") → AI không có gì để đối chiếu, từng cho 10 điểm cho bài gõ "1" → bỏ qua
-const isEmptyTask = t => !t || !String(t.instructions || '').trim() || String(t.instructions).trim() === '[]'
+const isEmptyTask = t => !t || t.optional || !String(t.instructions || '').trim() || String(t.instructions).trim() === '[]'
 
 const SINCE = {
   '30d': { label: '30 ngày gần đây', date: () => new Date(Date.now() - 30 * 864e5).toISOString() },

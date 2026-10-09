@@ -6,6 +6,7 @@ import { useUnits } from '../../hooks/useUnits'
 import { useLessonTitles } from '../../hooks/useLessonTitles'
 import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
+import { splitPhrases, storedPhrases } from '../../utils/wordOrder'
 import { X, Plus, Trash2, Loader2, Image } from 'lucide-react'
 
 const TYPES = [
@@ -135,8 +136,10 @@ function initFormFromQuestion(q) {
     if (!base.drag_distractors.length) base.drag_distractors = ['', '']
   }
   if (q.type === 'word_order') {
-    const correctWords = new Set((q.correct_answer || '').trim().split(/\s+/).filter(Boolean))
-    base.drag_distractors = q.options?.filter(o => !correctWords.has(o.text)).map(o => o.text) || ['', '']
+    // Câu đã lưu theo cụm → hiện lại dạng "cụm 1 / cụm 2 / ..." để giáo viên sửa được cách chia cụm
+    const { chunks, distractors } = storedPhrases(q)
+    if (chunks.some(c => /\s/.test(c))) base.correct_answer = chunks.join(' / ')
+    base.drag_distractors = distractors.length ? distractors : ['', '']
     if (!base.drag_distractors.length) base.drag_distractors = ['', '']
   }
   if (q.type === 'fill_blank' && q.correct_answer) {
@@ -253,13 +256,14 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
       }
       case 'word_order': {
         if (!form.correct_answer.trim()) { toast.error('Nhập câu đúng cần sắp xếp'); return null }
-        const correctWords = form.correct_answer.trim().split(/\s+/)
-        if (correctWords.length < 2) { toast.error('Câu phải có ít nhất 2 từ'); return null }
+        // Tách theo CỤM TỪ: giáo viên chia bằng "/", không có "/" thì tự gom 2–3 tiếng/cụm
+        const { sentence, chunks } = splitPhrases(form.correct_answer)
+        if (chunks.length < 2) { toast.error('Câu phải có ít nhất 2 cụm'); return null }
         const distractors = form.drag_distractors.map(w => w.trim()).filter(Boolean)
-        const allWords = [...correctWords, ...distractors]
+        const allWords = [...chunks, ...distractors]
         return {
           options: allWords.map((text, i) => ({ key: String.fromCharCode(65 + i), text })),
-          correct_answer: form.correct_answer.trim(),
+          correct_answer: sentence,
         }
       }
       case 'essay':
@@ -632,17 +636,17 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Câu đúng cần sắp xếp
-                  <span className="ml-2 text-xs font-normal text-gray-400">App sẽ tự tách thành từng từ</span>
+                  <span className="ml-2 text-xs font-normal text-gray-400">Ngăn các cụm từ bằng dấu / (không có / thì app tự gom 2–3 tiếng một cụm)</span>
                 </label>
                 <input
                   value={form.correct_answer}
                   onChange={e => setForm({ ...form, correct_answer: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Ví dụ: Con mèo ngồi trên bàn"
+                  placeholder="Ví dụ: Con mèo / ngồi / trên bàn học"
                 />
                 {form.correct_answer.trim() && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {form.correct_answer.trim().split(/\s+/).map((w, i) => (
+                    {splitPhrases(form.correct_answer).chunks.map((w, i) => (
                       <span key={i} className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-xs font-medium border border-indigo-200">{w}</span>
                     ))}
                   </div>

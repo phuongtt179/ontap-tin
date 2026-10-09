@@ -1,3 +1,5 @@
+import { splitPhrases } from './wordOrder'
+
 /**
  * Parse text from Word into structured questions.
  * Supports 8 types: multiple_choice, true_false, fill_blank, drag_word, ordering, matching, word_order, essay
@@ -173,7 +175,7 @@ export function parseQuestions(rawText) {
     const wordOrderMatch = line.match(/^(?:Câu đúng|Câu hoàn chỉnh)[:\s]+(.+)$/i)
     if (wordOrderMatch) {
       if (!current.typeLocked) current.type = 'word_order'
-      current.correct_answer = wordOrderMatch[1].trim()
+      current.correct_answer = wordOrderMatch[1].trim()   // có thể chứa "/" ngăn cụm — tách ở cuối
       continue
     }
 
@@ -235,9 +237,11 @@ function finalizeQuestion(q) {
   }
 
   // word_order: build word chips from correct_answer sentence
+  // Tách theo CỤM TỪ: "Câu đúng: Hiệu ứng / giúp bài / sinh động hơn"; không có "/" thì tự gom 2–3 tiếng
   if (q.type === 'word_order' && q.correct_answer && q.options.length === 0) {
-    const words = q.correct_answer.split(' ').filter(Boolean)
-    q.options = words.map((text, idx) => ({ key: String.fromCharCode(65 + idx), text }))
+    const { sentence, chunks } = splitPhrases(q.correct_answer)
+    q.correct_answer = sentence
+    q.options = chunks.map((text, idx) => ({ key: String.fromCharCode(65 + idx), text }))
   }
 
   // essay: options stores config

@@ -7,6 +7,8 @@ import { normalizeAnswer } from '../../utils/normalizeAnswer'
 import toast from 'react-hot-toast'
 import QuestionText from '../ui/QuestionText'
 import { CodeBlock, CodeBlockWithBlanks } from '../ui/CodeBlock'
+import { phraseBank } from '../../utils/wordOrder'
+import MatchingLines from '../ui/MatchingLines'
 
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
@@ -703,107 +705,8 @@ function FillBlankQuestion({ q, value, onChange, disabled, showResult }) {
 }
 
 function MatchingQuestion({ q, value, onChange, disabled }) {
-  const [rightItems, setRightItems] = useState(() => {
-    if (value) {
-      const pairs = {}
-      value.split(',').forEach(p => { const [l, r] = p.split('-'); if (l && r) pairs[l] = r })
-      const allRight = q.match_options || []
-      const used = new Set()
-      const ordered = (q.options || []).map(o => {
-        const rk = pairs[o.key]; if (!rk) return null
-        used.add(rk); return allRight.find(m => m.key === rk)
-      }).filter(Boolean)
-      const remaining = allRight.filter(m => !used.has(m.key))
-      return [...ordered, ...remaining]
-    }
-    return shuffle(q.match_options || [])
-  })
-  const [dragIdx, setDragIdx] = useState(null)
-  const [overIdx, setOverIdx] = useState(null)
-
-  function buildAnswer(items) {
-    // If arrangement matches original match_options order → return q.correct_answer directly
-    // so normalizeAnswer works regardless of what format correct_answer is stored in
-    const matchOpts = q.match_options || []
-    if (matchOpts.length > 0 && matchOpts.every((m, i) => items[i]?.key === m.key)) {
-      return q.correct_answer
-    }
-    return (q.options || []).map((o, i) => items[i] ? `${o.key}-${items[i].key}` : null).filter(Boolean).join(',')
-  }
-
-  useEffect(() => { if (!value) onChange(buildAnswer(rightItems)) }, [])
-
-  function onDragStart(i) { setDragIdx(i) }
-  function onDragOver(e, i) { e.preventDefault(); setOverIdx(i) }
-  function onDrop(i) {
-    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setOverIdx(null); return }
-    const next = [...rightItems]
-    const [moved] = next.splice(dragIdx, 1)
-    next.splice(i, 0, moved)
-    setRightItems(next); setDragIdx(null); setOverIdx(null)
-    onChange(buildAnswer(next))
-  }
-  function onDragEnd() { setDragIdx(null); setOverIdx(null) }
-
-  // Derive correct pairs from match_options structure (position-based, not string-based)
-  const correctPairs = new Set(
-    (q.options || []).map((o, i) => {
-      const r = (q.match_options || [])[i]
-      return r ? `${o.key}-${r.key}` : null
-    }).filter(Boolean)
-  )
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-4">
-      <p className="text-xs text-gray-400 mb-3">Kéo cột phải để sắp xếp tương ứng với cột trái</p>
-      <div className="flex gap-3 items-start">
-        <div className="flex-1 space-y-2">
-          {(q.options || []).map(opt => (
-            <div key={opt.key} className="px-3 py-2 rounded-lg border-2 border-gray-200 bg-gray-50 text-sm text-gray-800 min-h-[42px] flex items-center">
-              {opt.image_url && <img src={opt.image_url} alt="" className="h-12 w-auto mb-1 rounded" />}
-              <span className="font-bold mr-1">{opt.key}.</span>{opt.text}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex flex-col text-gray-300 text-lg select-none">
-          {(q.options || []).map((_, i) => (
-            <div key={i} className="min-h-[42px] mb-2 flex items-center">→</div>
-          ))}
-        </div>
-
-        <div className="flex-1 space-y-2">
-          {rightItems.map((opt, i) => {
-            const pairKey = `${(q.options || [])[i]?.key}-${opt.key}`
-            const isCorrect = disabled && correctPairs.has(pairKey)
-            const isWrong = disabled && !correctPairs.has(pairKey)
-            return (
-              <div key={opt.key}
-                draggable={!disabled}
-                onDragStart={() => onDragStart(i)}
-                onDragOver={e => onDragOver(e, i)}
-                onDrop={() => onDrop(i)}
-                onDragEnd={onDragEnd}
-                className={`px-3 py-2 rounded-lg border-2 text-sm min-h-[42px] flex items-center gap-2 transition
-                  ${disabled
-                    ? isCorrect ? 'border-green-400 bg-green-50 text-green-800'
-                    : isWrong ? 'border-red-300 bg-red-50 text-red-800'
-                    : 'border-gray-200 bg-gray-50'
-                    : dragIdx === i ? 'border-indigo-400 bg-indigo-50 opacity-50'
-                    : overIdx === i ? 'border-indigo-400 border-dashed bg-indigo-50/40'
-                    : 'border-gray-200 bg-white text-gray-700 cursor-grab hover:border-indigo-300'
-                  }`}
-              >
-                {!disabled && <span className="text-gray-300 shrink-0 select-none">⠿</span>}
-                {opt.image_url && <img src={opt.image_url} alt="" className="h-12 w-auto rounded" />}
-                {opt.text}
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
+  // Nối bằng đường thẳng (bấm trái → bấm phải), chạy được trên cả màn hình cảm ứng — xem ui/MatchingLines.jsx
+  return <MatchingLines q={q} value={value} onChange={onChange} disabled={disabled} showResult={disabled} />
 }
 
 function OrderingQuestion({ q, value, onChange, disabled }) {
@@ -1095,16 +998,10 @@ function DragWordQuestion({ q, value, onChange, disabled }) {
 
 // Sắp xếp từ thành câu hoàn chỉnh
 function WordOrderQuestion({ q, value, onChange, disabled }) {
-  // Fallback: nếu options rỗng nhưng correct_answer có, tự tách thành từ
-  const resolvedOptions = useMemo(() => {
-    const opts = normalizeOptions(q.options)
-    if (opts.length > 0) return opts
-    if (q.correct_answer) {
-      const words = q.correct_answer.trim().split(/\s+/).filter(Boolean)
-      return words.map((text, i) => ({ key: String.fromCharCode(65 + i), text }))
-    }
-    return []
-  }, [q.id])
+  // Thẻ theo CỤM TỪ (không tách lẻ từng tiếng) — xem utils/wordOrder.js
+  const resolvedOptions = useMemo(
+    () => phraseBank({ ...q, options: normalizeOptions(q.options) }).map((text, i) => ({ key: String.fromCharCode(65 + i), text })),
+    [q.id])
   const wordBank = useMemo(() => shuffle(resolvedOptions), [q.id])
   const [ordered, setOrdered] = useState(() => {
     if (value) return value.split(',').map(w => w.trim()).filter(Boolean)
