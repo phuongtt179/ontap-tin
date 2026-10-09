@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { buildWeaknessProfile } from '../../utils/weakness'
 import { STUDENT_AI_DIRECT, feedbackVisible } from '../../lib/aiMode'
 import { phraseBank, sameSentence } from '../../utils/wordOrder'
+import MatchingLines from '../../components/ui/MatchingLines'
 import toast from 'react-hot-toast'
 import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code, Lock, Lightbulb, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { uploadFile, deleteFile } from '../../lib/cloudinary'
@@ -132,99 +133,8 @@ function DragWordInput({ q, value, onChange, disabled }) {
 
 /* ── MatchingInput ──────────────────────────────────────────── */
 function MatchingInput({ q, value, onChange, disabled }) {
-  const [rightItems, setRightItems] = useState(() => {
-    if (value) {
-      const pairs = {}
-      value.split(',').forEach(p => { const [l, r] = p.split('-'); if (l && r) pairs[l] = r })
-      const allRight = q.match_options || []
-      const used = new Set()
-      const ordered = (q.options || []).map(o => {
-        const rk = pairs[o.key]; if (!rk) return null
-        used.add(rk); return allRight.find(m => m.key === rk)
-      }).filter(Boolean)
-      const remaining = allRight.filter(m => !used.has(m.key))
-      return [...ordered, ...remaining]
-    }
-    return shuffle(q.match_options || [])
-  })
-  const [dragIdx, setDragIdx] = useState(null)
-  const [overIdx, setOverIdx] = useState(null)
-
-  function buildAnswer(items) {
-    const matchOpts = q.match_options || []
-    if (matchOpts.length > 0 && matchOpts.every((m, i) => items[i]?.key === m.key)) {
-      return q.correct_answer
-    }
-    return (q.options || []).map((o, i) => items[i] ? `${o.key}-${items[i].key}` : null).filter(Boolean).join(',')
-  }
-  useEffect(() => { if (!value) onChange(buildAnswer(rightItems)) }, [])
-
-  function onDragStart(i) { setDragIdx(i) }
-  function onDragOver(e, i) { e.preventDefault(); setOverIdx(i) }
-  function onDrop(i) {
-    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setOverIdx(null); return }
-    const next = [...rightItems]
-    const [moved] = next.splice(dragIdx, 1)
-    next.splice(i, 0, moved)
-    setRightItems(next); setDragIdx(null); setOverIdx(null)
-    onChange(buildAnswer(next))
-  }
-  function onDragEnd() { setDragIdx(null); setOverIdx(null) }
-
-  const correctPairs = new Set(
-    (q.options || []).map((o, i) => {
-      const r = (q.match_options || [])[i]
-      return r ? `${o.key}-${r.key}` : null
-    }).filter(Boolean)
-  )
-
-  return (
-    <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
-      <p className="text-xs text-gray-400 mb-3">Kéo cột phải để sắp xếp tương ứng với cột trái</p>
-      <div className="flex gap-3 items-start">
-        <div className="flex-1 space-y-2">
-          {(q.options || []).map(opt => (
-            <div key={opt.key} className="px-3 py-2 rounded-lg border-2 border-gray-200 bg-white text-sm text-gray-800 min-h-[40px] flex items-center">
-              <span className="font-bold mr-1">{opt.key}.</span>{opt.text}
-            </div>
-          ))}
-        </div>
-        <div className="flex flex-col text-gray-300 text-lg select-none">
-          {(q.options || []).map((_, i) => (
-            <div key={i} className="min-h-[40px] mb-2 flex items-center">→</div>
-          ))}
-        </div>
-        <div className="flex-1 space-y-2">
-          {rightItems.map((opt, i) => {
-            const pairKey = `${(q.options || [])[i]?.key}-${opt.key}`
-            const isCorrect = disabled && correctPairs.has(pairKey)
-            const isWrong = disabled && !correctPairs.has(pairKey)
-            return (
-              <div key={opt.key}
-                draggable={!disabled}
-                onDragStart={() => onDragStart(i)}
-                onDragOver={e => onDragOver(e, i)}
-                onDrop={() => onDrop(i)}
-                onDragEnd={onDragEnd}
-                className={`px-3 py-2 rounded-lg border-2 text-sm min-h-[40px] flex items-center gap-2 transition
-                  ${disabled
-                    ? isCorrect ? 'border-green-400 bg-green-50 text-green-800'
-                    : isWrong ? 'border-red-300 bg-red-50 text-red-800'
-                    : 'border-gray-200 bg-white'
-                    : dragIdx === i ? 'border-indigo-400 bg-indigo-50 opacity-50'
-                    : overIdx === i ? 'border-indigo-400 border-dashed bg-indigo-50/40'
-                    : 'border-gray-200 bg-white text-gray-700 cursor-grab hover:border-indigo-300'
-                  }`}
-              >
-                {!disabled && <span className="text-gray-300 shrink-0 select-none">⠿</span>}
-                {opt.text}
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
+  // Nối bằng đường thẳng (bấm trái → bấm phải), chạy được trên cả màn hình cảm ứng — xem ui/MatchingLines.jsx
+  return <MatchingLines q={q} value={value} onChange={onChange} disabled={disabled} showResult={disabled} />
 }
 
 /* ── FillBlankInput ─────────────────────────────────────────── */
