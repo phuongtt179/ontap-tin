@@ -1,0 +1,228 @@
+================================================================
+PHẦN 1 — THÔNG TIN BÀI HỌC (điền vào form tạo bài học)
+================================================================
+
+Tên bài:   Bài 7: Hiệu ứng Animation
+Khoá:      KN-TIỂU HỌC
+Chủ đề:    5. Microsoft PowerPoint
+Mô tả:     Làm cho chữ và hình trên slide biết "bay, mờ, xoay, biến mất" — bài trình bày sinh động hơn!
+
+
+================================================================
+PHẦN 2 — LÝ THUYẾT (dán vào ô "💡 Lý thuyết (markdown)")
+================================================================
+
+Em đã từng xem phim hoạt hình chưa? Nhân vật bay vào, nhảy lên rồi biến mất — rất vui mắt đúng không? Trong PowerPoint, em cũng làm được như vậy cho chữ và hình ảnh trên slide bằng **hiệu ứng (Animation)**. 🎬
+
+## Hiệu ứng là gì?
+
+**Hiệu ứng** là cách một chữ hoặc một hình **xuất hiện, chuyển động hay biến mất** khi trình chiếu.
+Ví dụ: tiêu đề "Chào mừng các bạn" **bay từ dưới lên**, rồi bức ảnh con mèo **phóng to dần** ra giữa slide.
+
+## Có những loại hiệu ứng nào?
+
+Thẻ **Animations** có 3 nhóm chính, mỗi nhóm một màu:
+
+- 🟢 **Xuất hiện (Entrance)** — làm đối tượng hiện ra. Ví dụ: **Fly In** (bay vào), **Fade** (mờ dần hiện ra), **Zoom** (phóng to), **Wipe** (lau dần).
+- 🟡 **Nhấn mạnh (Emphasis)** — làm đối tượng đang có trên slide nổi bật. Ví dụ: **Spin** (xoay tròn), **Grow/Shrink** (phóng to, thu nhỏ).
+- 🔴 **Biến mất (Exit)** — làm đối tượng ẩn đi. Ví dụ: **Fade** (mờ dần biến mất), **Fly Out** (bay ra).
+
+Mẹo nhớ: xanh là **vào**, vàng là **nổi bật**, đỏ là **ra**.
+
+## Làm sao để thêm hiệu ứng?
+
+1. Bấm chọn chữ hoặc hình cần làm hiệu ứng.
+2. Vào thẻ **Animations**, bấm chọn một hiệu ứng (ví dụ **Fly In**).
+3. Muốn chọn hướng bay, bấm **Effect Options** (ví dụ: From Left — bay từ bên trái).
+4. Bấm **Preview** để xem thử.
+
+Ví dụ: chọn tiêu đề → Animations → Fly In → Effect Options → From Bottom. Tiêu đề sẽ bay từ dưới lên! ✈️
+
+## Hiệu ứng bắt đầu khi nào?
+
+Ở ô **Start** có 3 lựa chọn:
+
+- **On Click** — bấm chuột thì mới chạy. Hợp khi em vừa nói vừa trình chiếu.
+- **With Previous** — chạy **cùng lúc** với hiệu ứng trước.
+- **After Previous** — **tự chạy ngay sau** hiệu ứng trước, không cần bấm.
+
+Ô **Duration** chỉnh độ nhanh chậm: 00.50 là nửa giây, 01.00 là 1 giây.
+Muốn xem và đổi thứ tự các hiệu ứng, bấm **Animation Pane**: hiệu ứng nào nằm trên sẽ chạy trước.
+
+## Danh sách hiện từng dòng
+
+Với khung chữ có **bullet**, khi em thêm hiệu ứng, mỗi dòng sẽ hiện lần lượt từng dòng một — rất hợp khi em kể từng ý.
+
+## Chuyển trang (Transition)
+
+Hiệu ứng **giữa hai slide** gọi là **chuyển trang**. Chọn slide → thẻ **Transitions** → chọn kiểu, ví dụ **Fade** hoặc **Push**. Muốn mọi slide giống nhau thì bấm **Apply To All**.
+
+## Nhớ nhé!
+
+Hiệu ứng giúp bài trình bày sinh động, nhưng **dùng vừa đủ** thôi — mỗi slide chỉ vài hiệu ứng để người xem dễ theo dõi. Bấm **F5** để trình chiếu và ngắm thành quả của em nhé! 🌟
+
+
+================================================================
+PHẦN 3 — BÀI THỰC HÀNH (dán toàn bộ khối dưới đây vào ô nhập
+bài thực hành; app tự tách thành 7 bài, phần "Tiêu chí chấm"
+ở cuối mỗi bài chỉ AI và thầy cô thấy)
+================================================================
+
+BÀI 1 – Lời chào bay vào
+
+Nội dung cần gõ (1 slide):
+Tiêu đề: Chào mừng các bạn
+Dòng phụ: Lớp em học PowerPoint
+
+Yêu cầu:
+1. Tạo slide có tiêu đề và dòng phụ như trên.
+2. Cho tiêu đề hiệu ứng xuất hiện Fly In (bay vào).
+3. Cho dòng phụ hiệu ứng xuất hiện Fade (mờ dần hiện ra).
+4. Lưu bài với tên HoTen_HieuUng1.pptx và nộp lên hệ thống.
+
+Gợi ý: Chọn chữ → Animations → Fly In. Bấm Preview để xem thử.
+
+Tiêu chí chấm
+Gõ đúng tiêu đề và dòng phụ: 2đ
+Tiêu đề có hiệu ứng xuất hiện Fly In: 3đ
+Dòng phụ có hiệu ứng xuất hiện Fade: 3đ
+Đặt đúng tên file dạng HoTen_HieuUng1.pptx (không dấu, có họ tên của em): 2đ
+
+BÀI 2 – Con vật em yêu thích
+
+Nội dung cần gõ (1 slide):
+Tiêu đề: Con vật em yêu thích
+Danh sách có bullet:
+Con mèo
+Con chó
+Con thỏ
+
+Yêu cầu:
+1. Tạo slide có tiêu đề và danh sách 3 con vật dùng bullet.
+2. Chèn 1 ảnh con vật em thích vào bên phải slide.
+3. Cho danh sách hiệu ứng xuất hiện Wipe, các dòng hiện lần lượt từng dòng.
+4. Cho ảnh hiệu ứng xuất hiện Zoom.
+5. Lưu bài với tên HoTen_HieuUng2.pptx và nộp lên hệ thống.
+
+Gợi ý: Chọn cả khung danh sách rồi mới chọn hiệu ứng Wipe — mỗi dòng sẽ tự hiện lần lượt.
+
+Tiêu chí chấm
+Có tiêu đề và đủ 3 dòng danh sách: 2đ
+Có chèn ảnh: 2đ
+Danh sách có hiệu ứng xuất hiện chạy theo từng dòng: 3đ
+Ảnh có hiệu ứng xuất hiện Zoom: 2đ
+Đặt đúng tên file dạng HoTen_HieuUng2.pptx (không dấu, có họ tên của em): 1đ
+
+BÀI 3 – Các bước rửa tay tự chạy
+
+Nội dung cần gõ (1 slide):
+Tiêu đề: Các bước rửa tay
+Danh sách đánh số (Numbering):
+Làm ướt tay
+Xoa xà phòng
+Chà kỹ các ngón tay
+Rửa sạch và lau khô
+
+Yêu cầu:
+1. Tạo slide có tiêu đề và 4 bước được đánh số 1, 2, 3, 4.
+2. Thêm hiệu ứng xuất hiện cho danh sách (em chọn kiểu hiệu ứng mình thích).
+3. Đặt Start là After Previous để các bước tự hiện lần lượt, không cần bấm chuột.
+4. Lưu bài với tên HoTen_HieuUng3.pptx và nộp lên hệ thống.
+
+Gợi ý: Mở Animation Pane để thấy các dòng; chọn hết rồi đặt Start là After Previous.
+
+Tiêu chí chấm
+Có tiêu đề và đủ 4 bước đúng nội dung: 2đ
+Danh sách được đánh số (Numbering): 2đ
+Danh sách có hiệu ứng xuất hiện: 2đ
+Các bước tự chạy sau hiệu ứng trước (After Previous): 2đ
+Đặt đúng tên file dạng HoTen_HieuUng3.pptx (không dấu, có họ tên của em): 2đ
+
+BÀI 4 – Ngôi sao chăm ngoan
+
+Nội dung cần gõ (1 slide):
+Tiêu đề: Ngôi sao chăm ngoan
+Dòng chữ: Em luôn cố gắng mỗi ngày!
+
+Yêu cầu:
+1. Tạo slide có tiêu đề và dòng chữ như trên.
+2. Chèn 1 ảnh ngôi sao (hoặc chiếc cúp).
+3. Cho ảnh hiệu ứng nhấn mạnh Spin (xoay tròn).
+4. Cho dòng chữ "Em luôn cố gắng mỗi ngày!" một hiệu ứng nhấn mạnh bất kỳ (ví dụ Grow/Shrink).
+5. Lưu bài với tên HoTen_HieuUng4.pptx và nộp lên hệ thống.
+
+Gợi ý: Hiệu ứng nhấn mạnh có màu vàng trong thẻ Animations. Không thấy Spin thì bấm mũi tên mở rộng danh sách hiệu ứng.
+
+Tiêu chí chấm
+Gõ đúng tiêu đề và dòng chữ: 2đ
+Có chèn ảnh: 2đ
+Ảnh có hiệu ứng nhấn mạnh Spin: 3đ
+Dòng chữ có hiệu ứng nhấn mạnh: 2đ
+Đặt đúng tên file dạng HoTen_HieuUng4.pptx (không dấu, có họ tên của em): 1đ
+
+BÀI 5 – Ngày và đêm
+
+Nội dung cần gõ (1 slide):
+Tiêu đề: Ngày và đêm
+
+Yêu cầu:
+1. Tạo slide có tiêu đề "Ngày và đêm".
+2. Chèn 2 ảnh: 1 ảnh mặt trời và 1 ảnh mặt trăng.
+3. Ảnh mặt trời: hiệu ứng xuất hiện, sau đó hiệu ứng biến mất (Exit).
+4. Ảnh mặt trăng: hiệu ứng xuất hiện, xếp SAU hiệu ứng biến mất của mặt trời (mặt trăng hiện khi bấm chuột hay tự chạy đều được).
+5. Lưu bài với tên HoTen_HieuUng5.pptx và nộp lên hệ thống.
+
+Gợi ý: Muốn một ảnh có 2 hiệu ứng, chọn ảnh → Add Animation. Mở Animation Pane để kiểm tra thứ tự: mặt trời xuất hiện → mặt trời biến mất → mặt trăng xuất hiện.
+
+Tiêu chí chấm
+Có tiêu đề "Ngày và đêm": 1đ
+Có chèn 2 ảnh: 2đ
+Một ảnh có cả hiệu ứng xuất hiện và hiệu ứng biến mất: 3đ
+Thứ tự đúng: ảnh thứ nhất xuất hiện → ảnh thứ nhất biến mất → ảnh còn lại xuất hiện (bấm chuột hay tự chạy đều được): 2đ
+Đặt đúng tên file dạng HoTen_HieuUng5.pptx (không dấu, có họ tên của em): 2đ
+
+BÀI 6 – Giới thiệu bản thân có chuyển trang
+
+Nội dung cần làm (3 slide):
+Slide 1 – Tiêu đề: Giới thiệu về em. Dòng phụ: Tên em là ... (gõ tên của em)
+Slide 2 – Tiêu đề: Sở thích của em. Danh sách có bullet gồm ít nhất 3 sở thích.
+Slide 3 – Tiêu đề: Ước mơ của em. Chèn 1 ảnh về ước mơ của em.
+
+Yêu cầu:
+1. Tạo đủ 3 slide như trên.
+2. Đặt hiệu ứng chuyển trang (Transition) cho cả 3 slide.
+3. Lưu bài với tên HoTen_HieuUng6.pptx và nộp lên hệ thống.
+
+Gợi ý: Thẻ Transitions → chọn Fade hoặc Push → bấm Apply To All để cả 3 slide cùng có chuyển trang.
+
+Tiêu chí chấm
+Có đủ 3 slide với đúng 3 tiêu đề: 3đ
+Slide 2 có danh sách bullet ít nhất 3 dòng: 1đ
+Slide 3 có chèn ảnh: 1đ
+Cả 3 slide đều có hiệu ứng chuyển trang: 3đ
+Đặt đúng tên file dạng HoTen_HieuUng6.pptx (không dấu, có họ tên của em): 2đ
+
+BÀI 7 – Bài thuyết trình: Mùa em yêu thích
+
+Nội dung cần làm (3 slide):
+Slide 1 – Tiêu đề: Mùa em yêu thích. Dòng phụ: tên mùa em thích (ví dụ: Mùa hè).
+Slide 2 – Tiêu đề: Vì sao em thích. Danh sách có bullet gồm 4 lý do. Chèn 1 ảnh về mùa đó.
+Slide 3 – Tiêu đề: Cảm ơn các bạn đã lắng nghe!
+
+Yêu cầu:
+1. Slide 1: tiêu đề có hiệu ứng xuất hiện, thời lượng (Duration) 1 giây.
+2. Slide 2: danh sách 4 lý do hiện lần lượt từng dòng, mỗi dòng hiện khi bấm chuột (On Click); ảnh có hiệu ứng nhấn mạnh.
+3. Slide 3: tiêu đề có hiệu ứng xuất hiện bất kỳ.
+4. Đặt chuyển trang cho cả 3 slide.
+5. Lưu bài với tên HoTen_HieuUng7.pptx và nộp lên hệ thống.
+
+Gợi ý: Ô Duration ghi 01.00 nghĩa là 1 giây. Bấm F5 để trình chiếu thử từ đầu.
+
+Tiêu chí chấm
+Đủ 3 slide đúng tiêu đề, slide 2 có 4 lý do dạng bullet và có ảnh: 2đ
+Tiêu đề slide 1 có hiệu ứng xuất hiện, thời lượng 1 giây: 2đ
+Danh sách slide 2 hiện từng dòng, mỗi dòng khi bấm chuột: 2đ
+Ảnh slide 2 có hiệu ứng nhấn mạnh: 1đ
+Tiêu đề slide 3 có hiệu ứng xuất hiện: 1đ
+Cả 3 slide có chuyển trang: 1đ
+Đặt đúng tên file dạng HoTen_HieuUng7.pptx (không dấu, có họ tên của em): 1đ

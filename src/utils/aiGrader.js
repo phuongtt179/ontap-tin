@@ -1,5 +1,6 @@
 import JSZip from 'jszip'
 import { generateSb3Text } from './sb3Text'
+import { animationLines } from './pptxAnimations'
 import { apiFetch } from '../lib/apiFetch'
 
 function getFileType(fileUrl, textContent) {
@@ -221,8 +222,10 @@ async function extractContent(fileUrl, textContent, type) {
             algnVal = resolvedTitleAlgn || undefined
           }
           const algnLabel = alignMap[algnVal]
+          // Tách riêng đánh số (Numbering) khỏi bullet ký hiệu để AI chấm được yêu cầu "đánh số 1, 2, 3"
           const bulletTag = /<a:buNone/.test(pPrBlock) ? 'no-bullet'
-            : /<a:buChar|<a:buAutoNum/.test(pPrBlock) ? 'bullet' : null
+            : /<a:buAutoNum/.test(pPrBlock) ? 'numbering'
+            : /<a:buChar/.test(pPrBlock) ? 'bullet' : null
           const runs = p.match(/<a:r>[\s\S]*?<\/a:r>/g) || []
           const runTexts = runs.map(run => {
             const tMatch = run.match(/<a:t(?:\s[^>]*)?>([^<]*)<\/a:t>/)
@@ -251,7 +254,9 @@ async function extractContent(fileUrl, textContent, type) {
           lines.push(prefix ? `${prefix}${lineText}` : lineText)
         }
       }
-      if (lines.length) slides.push(`[Slide ${i + 1}]:\n${lines.join('\n')}`)
+      // Hiệu ứng (animation) + chuyển trang (transition) của slide — để AI chấm được bài Animation
+      const anim = animationLines(xml)
+      if (lines.length || anim.length) slides.push(`[Slide ${i + 1}]:\n${[...lines, ...anim].join('\n')}`)
     }
     return slides.join('\n')
   }
@@ -293,7 +298,7 @@ export async function gradeStudent(submissions, taskDefs) {
       content: type !== 'image' ? await extractContent(fileUrl, textContent, type) : null,
       imageUrl: type === 'image' ? fileUrl : null,
       // Tên file hay chứa họ tên học sinh → chỉ gửi khi đề/tiêu chí thật sự yêu cầu đặt tên file
-      fileName: /tên file|đặt tên|lưu (file )?(với )?tên|lưu bằng tên/i.test(`${instructions}\n${taskDefs[i]?.rubric || ''}`) ? (sub.file_name || null) : null,
+      fileName: /tên file|đặt tên|(lưu|nộp)[^\n.]{0,30}\btên\b/i.test(`${instructions}\n${taskDefs[i]?.rubric || ''}`) ? (sub.file_name || null) : null,
       // Không nộp file, chỉ gõ ghi chú — báo rõ cho AI biết để không lẫn ghi chú của học sinh
       // với 1 bài nộp file thật (trước đây AI không biết điều này nên có thể chấm nhầm điểm cao
       // cho ghi chú không liên quan tới yêu cầu đề bài).
