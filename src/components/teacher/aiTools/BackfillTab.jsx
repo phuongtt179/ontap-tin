@@ -53,7 +53,7 @@ export default function BackfillTab({ onChanged }) {
     const { data: pool, error } = await baseQuery(
       supabase.from('lesson_submissions')
         .select('id, user_id, lesson_id, file_url, file_name, text_content, content_json, submitted_at, profiles(full_name), lessons(title, practice_instructions)')
-    ).order('submitted_at', { ascending: false }).limit(Math.min(batch * 5, 250))
+    ).order('submitted_at', { ascending: false }).limit(Math.min(batch * 5, 500))
     if (error) { toast.error('Không tải được danh sách bài'); setRunning(false); return }
 
     // Lấy dư rồi lọc: bài thuộc bài học không có đề thực hành sẽ luôn chưa có điểm — nếu không lọc,
@@ -117,7 +117,7 @@ export default function BackfillTab({ onChanged }) {
           Mỗi lượt chấm
           <select value={batch} onChange={e => setBatch(Number(e.target.value))} disabled={running}
             className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
-            {[10, 20, 50].map(n => <option key={n} value={n}>{n} bài</option>)}
+            {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n} bài</option>)}
           </select>
         </label>
         {running ? (

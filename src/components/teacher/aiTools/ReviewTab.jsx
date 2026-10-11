@@ -38,7 +38,7 @@ async function saveReview(item, { edit = false, score, comment } = {}) {
   return true
 }
 
-function ReviewCard({ item, onDone }) {
+function ReviewCard({ item, onDone, selected, onToggle }) {
   const [editing, setEditing] = useState(false)
   const [score, setScore] = useState(String(item.score ?? ''))
   const [comment, setComment] = useState(item.teacher_comment || '')
@@ -57,8 +57,10 @@ function ReviewCard({ item, onDone }) {
 
   const reason = REASONS[item.reason] || REASONS.sample
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
+    <div className={`bg-white border rounded-xl p-4 space-y-2 ${selected ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-gray-200'}`}>
       <div className="flex items-start gap-2 flex-wrap">
+        <input type="checkbox" checked={selected} onChange={() => onToggle(item.id)}
+          className="mt-1 w-4 h-4 accent-indigo-600 cursor-pointer" title="Chọn bài này để đặt điểm hàng loạt" />
         <div className="flex-1 min-w-0">
           <div className="font-bold text-gray-800">{item.student_name}</div>
           <div className="text-xs text-gray-500">{item.lesson_title} · bài {taskIdx + 1} · {item.grade} · nộp {new Date(item.submitted_at).toLocaleDateString('vi-VN')}</div>
@@ -128,34 +130,82 @@ function ReviewCard({ item, onDone }) {
   )
 }
 
+// Số bài mỗi trang — máy chủ (ai_review_queue) cho tối đa 100
+const PAGE_SIZES = [20, 50, 100]
+const EMPTY_COMMENT = 'Bài nộp gần như trống nên thầy/cô chưa chấm được. Em làm lại và nộp bài đầy đủ nhé!'
+
+function readPageSize() {
+  try { const n = Number(localStorage.getItem('aiReviewPageSize')); return PAGE_SIZES.includes(n) ? n : 20 } catch { return 20 }
+}
+
 export default function ReviewTab({ summary, onChanged }) {
   const [reason, setReason] = useState(null)
   const [items, setItems] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [bulk, setBulk] = useState(false)
+  const [progress, setProgress] = useState('')
+  const [pageSize, setPageSize] = useState(readPageSize)
+  const [selected, setSelected] = useState(() => new Set())
+  const [bulkScore, setBulkScore] = useState('0')
+  const [bulkComment, setBulkComment] = useState(EMPTY_COMMENT)
 
-  function pickReason(r) { setReason(r); setItems(null) }
+  function pickReason(r) {
+    setReason(r); setItems(null)
+    // Nhóm "bài gần như trống" thường cho 0 điểm kèm lời nhắc nộp lại; nhóm khác để thầy/cô tự gõ
+    setBulkComment(r === 'empty' ? EMPTY_COMMENT : '')
+  }
 
-  // Duyệt cả trang — chỉ cho nhóm an toàn (bài bình thường, bài đầu, mẫu ngẫu nhiên)
-  async function approvePage() {
-    if (!confirm(`Đồng ý điểm AI cho ${items.length} bài đang hiện? Thầy/cô nên lướt qua trước khi đồng ý.`)) return
+  function changePageSize(n) {
+    setPageSize(n); setItems(null)
+    try { localStorage.setItem('aiReviewPageSize', String(n)) } catch { /* trình duyệt chặn lưu — không sao */ }
+  }
+
+  function toggle(id) {
+    setSelected(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s })
+  }
+  const allSelected = items?.length > 0 && items.every(i => selected.has(i.id))
+  function toggleAll() { setSelected(allSelected ? new Set() : new Set(items.map(i => i.id))) }
+
+  // Lưu lần lượt từng bài (không chạy song song: sticker của cùng một học sinh không được cộng chồng lên nhau)
+  async function runBulk(list, opts, doneMsg) {
     setBulk(true)
     let ok = 0
-    for (const it of items) if (await saveReview(it)) ok++
-    setBulk(false)
-    toast.success(`Đã duyệt ${ok} bài`)
+    for (let i = 0; i < list.length; i++) {
+      setProgress(`Đang lưu ${i + 1}/${list.length}...`)
+      if (await saveReview(list[i], opts)) ok++
+    }
+    setBulk(false); setProgress('')
+    toast.success(doneMsg(ok))
     setItems(null); setReloadKey(k => k + 1)
     onChanged?.()
   }
 
+  // Duyệt cả trang — chỉ cho nhóm an toàn (bài bình thường, bài đầu, mẫu ngẫu nhiên)
+  async function approvePage() {
+    if (!confirm(`Đồng ý điểm AI cho ${items.length} bài đang hiện? Thầy/cô nên lướt qua trước khi đồng ý.`)) return
+    await runBulk(items, {}, ok => `Đã duyệt ${ok} bài`)
+  }
+
+  // Đặt cùng một điểm (và nhận xét) cho các bài đã chọn — dùng ở mọi nhóm, hay dùng nhất là "bài gần như trống"
+  async function setScoreSelected() {
+    const list = items.filter(i => selected.has(i.id))
+    const score = parseFloat(bulkScore)
+    if (!list.length) { toast.error('Chưa chọn bài nào'); return }
+    if (isNaN(score) || score < 0 || score > 10) { toast.error('Điểm từ 0 đến 10'); return }
+    if (!confirm(`Đặt ${score} điểm cho ${list.length} bài đã chọn?${bulkComment.trim() ? '\nNhận xét gửi học sinh: ' + bulkComment.trim() : ''}`)) return
+    await runBulk(list, { edit: true, score, comment: bulkComment.trim() }, ok => `Đã đặt ${score} điểm cho ${ok} bài`)
+  }
+
   useEffect(() => {
-    supabase.rpc('ai_review_queue', { p_reason: reason, p_limit: 20 }).then(({ data, error }) => {
+    supabase.rpc('ai_review_queue', { p_reason: reason, p_limit: pageSize }).then(({ data, error }) => {
       if (error) { toast.error('Không tải được hàng đợi duyệt'); setItems([]) } else setItems(data || [])
+      setSelected(new Set())
     })
-  }, [reason, reloadKey])
+  }, [reason, reloadKey, pageSize])
 
   function handleDone(item) {
     setItems(prev => prev.filter(i => i.id !== item.id))
+    setSelected(prev => { const s = new Set(prev); s.delete(item.id); return s })
     onChanged?.()
   }
 
@@ -179,6 +229,37 @@ export default function ReviewTab({ summary, onChanged }) {
           </button>
         ))}
       </div>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-gray-600">Mỗi trang:</span>
+        {PAGE_SIZES.map(n => (
+          <button key={n} onClick={() => changePageSize(n)} disabled={bulk}
+            className={`text-xs font-semibold px-3 py-1 rounded-full border ${pageSize === n ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-300'}`}>
+            {n} bài
+          </button>
+        ))}
+      </div>
+      {items?.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2 text-sm">
+          <label className="flex items-center gap-1.5 font-semibold text-indigo-800 cursor-pointer">
+            <input type="checkbox" checked={allSelected} onChange={toggleAll} disabled={bulk} className="w-4 h-4 accent-indigo-600" />
+            Chọn tất cả ({items.length})
+          </label>
+          <span className="text-indigo-700">· Đã chọn <b>{selected.size}</b></span>
+          <span className="ml-auto flex items-center gap-1">
+            Đặt điểm
+            <input type="number" min="0" max="10" step="0.5" value={bulkScore} onChange={e => setBulkScore(e.target.value)} disabled={bulk}
+              className="w-16 border border-gray-300 rounded-lg px-2 py-1" />
+          </span>
+          <input value={bulkComment} onChange={e => setBulkComment(e.target.value)} disabled={bulk}
+            placeholder="Nhận xét gửi học sinh (để trống nếu không cần)"
+            className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-2 py-1" />
+          <button onClick={setScoreSelected} disabled={bulk || selected.size === 0}
+            className="flex items-center gap-1 font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg disabled:opacity-50">
+            {bulk ? <Loader2 size={13} className="animate-spin" /> : <Pencil size={13} />} Đặt điểm cho {selected.size} bài
+          </button>
+          {progress && <span className="w-full text-xs text-indigo-700">{progress}</span>}
+        </div>
+      )}
       {BULK_OK.includes(reason) && items?.length > 0 && (
         <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
           <p className="text-sm text-green-800 flex-1">Lướt qua các bài bên dưới; nếu điểm AI đều hợp lý, đồng ý cả trang một lần.</p>
@@ -194,7 +275,7 @@ export default function ReviewTab({ summary, onChanged }) {
         <p className="text-center text-gray-400 py-10">Không còn bài nào trong nhóm này 🎉</p>
       ) : (
         <div className="grid md:grid-cols-2 gap-3">
-          {items.map(it => <ReviewCard key={it.id} item={it} onDone={handleDone} />)}
+          {items.map(it => <ReviewCard key={it.id} item={it} onDone={handleDone} selected={selected.has(it.id)} onToggle={toggle} />)}
         </div>
       )}
     </div>
