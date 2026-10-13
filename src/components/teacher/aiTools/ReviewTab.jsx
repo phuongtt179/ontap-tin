@@ -16,7 +16,7 @@ const REASONS = {
 const BULK_OK = ['normal', 'first', 'sample']
 
 // Duyệt 1 bài: đồng ý điểm AI (edit=false) hoặc lưu điểm giáo viên sửa. Cộng sticker như luồng duyệt cũ.
-async function saveReview(item, { edit = false, score, comment } = {}) {
+async function saveReview(item, { edit = false, score, comment, allowResubmit = false } = {}) {
   const newScore = edit ? score : Number(item.score)
   const awardSticker = !item.sticker_awarded && newScore != null
   const updates = {
@@ -25,6 +25,8 @@ async function saveReview(item, { edit = false, score, comment } = {}) {
     ai_score: Number(item.score),
     ...(edit && { score: newScore, teacher_comment: comment, graded_by: 'teacher' }),
     ...(awardSticker && { sticker_awarded: true }),
+    // Bài chấm tay mặc định bị khoá nộp lại → mở khoá khi thầy/cô yêu cầu học sinh làm lại
+    ...(allowResubmit && { allow_resubmit: true }),
   }
   const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', item.id)
   if (error) { toast.error('Lưu thất bại: ' + error.message); return false }
@@ -148,11 +150,13 @@ export default function ReviewTab({ summary, onChanged }) {
   const [selected, setSelected] = useState(() => new Set())
   const [bulkScore, setBulkScore] = useState('0')
   const [bulkComment, setBulkComment] = useState(EMPTY_COMMENT)
+  const [bulkResubmit, setBulkResubmit] = useState(true)
 
   function pickReason(r) {
     setReason(r); setItems(null)
     // Nhóm "bài gần như trống" thường cho 0 điểm kèm lời nhắc nộp lại; nhóm khác để thầy/cô tự gõ
     setBulkComment(r === 'empty' ? EMPTY_COMMENT : '')
+    setBulkResubmit(r === 'empty')
   }
 
   function changePageSize(n) {
@@ -192,8 +196,8 @@ export default function ReviewTab({ summary, onChanged }) {
     const score = parseFloat(bulkScore)
     if (!list.length) { toast.error('Chưa chọn bài nào'); return }
     if (isNaN(score) || score < 0 || score > 10) { toast.error('Điểm từ 0 đến 10'); return }
-    if (!confirm(`Đặt ${score} điểm cho ${list.length} bài đã chọn?${bulkComment.trim() ? '\nNhận xét gửi học sinh: ' + bulkComment.trim() : ''}`)) return
-    await runBulk(list, { edit: true, score, comment: bulkComment.trim() }, ok => `Đã đặt ${score} điểm cho ${ok} bài`)
+    if (!confirm(`Đặt ${score} điểm cho ${list.length} bài đã chọn?${bulkComment.trim() ? '\nNhận xét gửi học sinh: ' + bulkComment.trim() : ''}${bulkResubmit ? '\nHọc sinh được nộp lại bài.' : ''}`)) return
+    await runBulk(list, { edit: true, score, comment: bulkComment.trim(), allowResubmit: bulkResubmit },ok => `Đã đặt ${score} điểm cho ${ok} bài`)
   }
 
   useEffect(() => {
@@ -253,6 +257,10 @@ export default function ReviewTab({ summary, onChanged }) {
           <input value={bulkComment} onChange={e => setBulkComment(e.target.value)} disabled={bulk}
             placeholder="Nhận xét gửi học sinh (để trống nếu không cần)"
             className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-2 py-1" />
+          <label className="flex items-center gap-1 text-indigo-800 cursor-pointer" title="Bài thầy/cô chấm tay mặc định bị khoá; tích ô này để học sinh vẫn nộp lại được">
+            <input type="checkbox" checked={bulkResubmit} onChange={e => setBulkResubmit(e.target.checked)} disabled={bulk} className="w-4 h-4 accent-indigo-600" />
+            Cho phép nộp lại
+          </label>
           <button onClick={setScoreSelected} disabled={bulk || selected.size === 0}
             className="flex items-center gap-1 font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg disabled:opacity-50">
             {bulk ? <Loader2 size={13} className="animate-spin" /> : <Pencil size={13} />} Đặt điểm cho {selected.size} bài
