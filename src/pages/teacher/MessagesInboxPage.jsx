@@ -43,29 +43,9 @@ export default function MessagesInboxPage() {
       ? msgs[msgs.length - 1].created_at
       : new Date().toISOString()
 
-    const channel = supabase.channel('teacher_inbox_' + selected.student.id)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
-        filter: `student_id=eq.${selected.student.id}`
-      }, payload => {
-        if ((payload.new.channel || 'teacher') !== 'teacher') return  // bỏ qua log AI
-        setSelected(prev => {
-          if (!prev) return prev
-          if (prev.messages.some(m => m.id === payload.new.id)) return prev
-          return { ...prev, messages: [...prev.messages, payload.new] }
-        })
-        setThreads(prev => prev.map(t =>
-          t.student.id === selected.student.id && !t.messages.some(m => m.id === payload.new.id)
-            ? { ...t, messages: [...t.messages, payload.new], lastMsg: payload.new }
-            : t
-        ))
-        lastCreatedAtRef.current = payload.new.created_at
-      })
-      .subscribe()
-
-    // Polling fallback mỗi 4 giây
+    // Tải tin mới mỗi 15 giây khi tab đang mở (không dùng Supabase Realtime — nó làm máy chủ gói miễn phí quá tải)
     const interval = setInterval(async () => {
-      if (!lastCreatedAtRef.current) return
+      if (document.hidden || !lastCreatedAtRef.current) return
       const { data } = await supabase
         .from('messages').select('*')
         .eq('student_id', selected.student.id)
@@ -87,12 +67,9 @@ export default function MessagesInboxPage() {
         }))
         lastCreatedAtRef.current = data[data.length - 1].created_at
       }
-    }, 4000)
+    }, 15000)
 
-    return () => {
-      supabase.removeChannel(channel)
-      clearInterval(interval)
-    }
+    return () => clearInterval(interval)
   }, [selected?.student?.id])
 
   useEffect(() => {

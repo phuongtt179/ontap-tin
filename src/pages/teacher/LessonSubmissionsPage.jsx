@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { summarizeClassErrors } from '../../utils/weakness'
@@ -150,7 +150,7 @@ export default function LessonSubmissionsPage() {
   const [classes, setClasses] = useState([])
   const [filterClass, setFilterClass] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
-  const [realtimeConnected, setRealtimeConnected] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const [selected, setSelected] = useState(null) // { student, submissions }
@@ -164,67 +164,33 @@ export default function LessonSubmissionsPage() {
 
   useEffect(() => { loadAll() }, [id])
 
-  // Realtime: tự cập nhật khi học sinh nộp bài hoặc hoàn thành
+  // Tự làm mới bài nộp + tiến độ mỗi 60 giây khi tab đang mở trên màn hình.
+  // (Trước đây dùng Supabase Realtime — bỏ vì nó dò thay đổi liên tục, làm máy chủ gói miễn phí bị quá tải.)
+  const studentIdsRef = useRef([])
   useEffect(() => {
-    const channel = supabase
-      .channel(`lesson-submissions-${id}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'lesson_submissions',
-        filter: `lesson_id=eq.${id}`,
-      }, payload => {
-        const newSub = payload.new
-        setSubmissionMap(prev => {
-          const existing = prev[newSub.user_id] || []
-          if (existing.find(s => s.id === newSub.id)) return prev
-          toast.success('Học sinh vừa nộp bài!', { icon: '📩' })
-          return { ...prev, [newSub.user_id]: [...existing, newSub] }
-        })
+    async function refresh() {
+      if (document.hidden || !studentIdsRef.current.length) return
+      const userIds = studentIdsRef.current
+      const [{ data: progData }, { data: subData }] = await Promise.all([
+        supabase.from('lesson_progress').select('*').eq('lesson_id', id).in('user_id', userIds),
+        supabase.from('lesson_submissions').select('*').eq('lesson_id', id).in('user_id', userIds),
+      ])
+      if (!progData || !subData) return   // lỗi mạng — giữ dữ liệu cũ, lần sau thử lại
+      const pm = {}; progData.forEach(p => { pm[p.user_id] = p })
+      const sm = {}; subData.forEach(sb => { if (!sm[sb.user_id]) sm[sb.user_id] = []; sm[sb.user_id].push(sb) })
+      setProgressMap(pm)
+      setSubmissionMap(prev => {
+        const oldIds = new Set(Object.values(prev).flat().map(x => x.id))
+        if (subData.some(x => !oldIds.has(x.id))) toast.success('Có học sinh vừa nộp bài!', { icon: '📩' })
+        return sm
       })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'lesson_submissions',
-        filter: `lesson_id=eq.${id}`,
-      }, payload => {
-        const updated = payload.new
-        setSubmissionMap(prev => {
-          const subs = prev[updated.user_id] || []
-          return { ...prev, [updated.user_id]: subs.map(s => s.id === updated.id ? updated : s) }
-        })
-        setSelected(prev => {
-          if (!prev || prev.student.id !== updated.user_id) return prev
-          return { ...prev, submissions: prev.submissions.map(s => s.id === updated.id ? updated : s) }
-        })
-        // Thông báo khi học sinh nộp lại (cleared reviewed_at)
-        if (!updated.allow_resubmit && !updated.reviewed_at && updated.submitted_at) {
-          toast('Học sinh vừa nộp lại bài!', { icon: '🔄' })
-        }
-      })
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'lesson_progress',
-        filter: `lesson_id=eq.${id}`,
-      }, payload => {
-        const p = payload.new
-        setProgressMap(prev => ({ ...prev, [p.user_id]: p }))
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'lesson_progress',
-        filter: `lesson_id=eq.${id}`,
-      }, payload => {
-        const p = payload.new
-        setProgressMap(prev => ({ ...prev, [p.user_id]: p }))
-      })
-      .subscribe(status => {
-        setRealtimeConnected(status === 'SUBSCRIBED')
-      })
-
-    return () => { supabase.removeChannel(channel) }
+      setSelected(prev => prev ? { ...prev, submissions: sm[prev.student.id] || prev.submissions } : prev)
+      setLastRefresh(new Date())
+    }
+    const timer = setInterval(refresh, 60000)
+    const onVisible = () => { if (!document.hidden) refresh() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) }
   }, [id])
 
   async function loadAll() {
@@ -252,6 +218,7 @@ export default function LessonSubmissionsPage() {
 
     const allStudents = studentData || []
     setStudents(allStudents)
+    studentIdsRef.current = allStudents.map(st => st.id)
 
     // Unique classes
     const cls = [...new Set(allStudents.map(s => s.class_name).filter(Boolean))].sort()
@@ -597,9 +564,9 @@ export default function LessonSubmissionsPage() {
             })()}
           </>
         )}
-        <div className={`ml-auto flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${realtimeConnected ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-          <Wifi size={11} className={realtimeConnected ? 'animate-pulse' : ''} />
-          {realtimeConnected ? 'Đang cập nhật tự động' : 'Đang kết nối...'}
+        <div className="ml-auto flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-green-50 text-green-600" title="Bài nộp mới tự hiện sau tối đa 1 phút">
+          <Wifi size={11} />
+          Tự làm mới mỗi phút{lastRefresh ? ` · ${lastRefresh.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : ''}
         </div>
       </div>
 
