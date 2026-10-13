@@ -1,3 +1,4 @@
+import { apiFetch } from './apiFetch'
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 
@@ -37,10 +38,6 @@ export async function uploadFile(file) {
 export async function deleteFile(url) {
   if (!url) return
   try {
-    await fetch('/api/deleteFile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    })
+    await apiFetch('/api/deleteFile', { url })   // kèm token đăng nhập — máy chủ từ chối người lạ
   } catch { /* bỏ qua, không ảnh hưởng thao tác của người dùng */ }
 }
