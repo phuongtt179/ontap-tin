@@ -955,6 +955,16 @@ export default function LessonPage() {
     setStickerModal({ stickerCount: updated.sticker_count, stickerTotal: updated.sticker_total, threshold, reason, count })
   }
 
+  // Thưởng sticker "nộp bài" / "đạt bài kiểm tra" qua máy chủ: mỗi bài chỉ thưởng ĐÚNG 1 LẦN dù mở bao nhiêu tab
+  // (máy chủ tự kiểm tra đã nộp/đã đạt thật chưa và tự tính số sticker — xem migration_sticker_once.sql)
+  async function awardOnce(kind, taskIdx, reasonFn) {
+    const { data, error } = await supabase.rpc('award_sticker_once', { p_kind: kind, p_lesson: id, p_task: taskIdx ?? 0 })
+    if (error) { toast.error('Không cộng được sticker: ' + error.message); return false }
+    if (!data?.awarded) return false
+    setStickerModal({ stickerCount: data.sticker_count, stickerTotal: data.sticker_total, threshold: stickerThreshold, reason: reasonFn(data.count), count: data.count })
+    return true
+  }
+
   async function recordActivity() {
     const result = await updateStreak(user.id)
     if (!result?.isNew) return
@@ -1045,12 +1055,10 @@ export default function LessonPage() {
   }
 
   async function handleQuizSubmit({ correct, total, passed }) {
-    const wasAlreadyPassed = progress?.quiz_passed
-    await upsertProgress({ quiz_correct: correct, quiz_total: total, quiz_passed: passed, quiz_current_idx: 0 })
-    if (passed && !wasAlreadyPassed) {
-      const pct = total > 0 ? correct / total : 0
-      const count = pct >= 1 ? 5 : pct >= 0.9 ? 4 : pct >= 0.85 ? 3 : pct >= 0.75 ? 2 : 1
-      await awardSticker(count, `Vượt qua bài kiểm tra! (${correct}/${total} câu đúng) 🎯`)
+    // Đã đạt rồi thì giữ "đạt" (làm lại ở tab khác mà trượt cũng không mất trạng thái đạt)
+    const keepPassed = passed || !!progress?.quiz_passed
+    await upsertProgress({ quiz_correct: correct, quiz_total: total, quiz_passed: keepPassed, quiz_current_idx: 0 })
+    if (passed && await awardOnce('quiz', 0, () => `Vượt qua bài kiểm tra! (${correct}/${total} câu đúng) 🎯`)) {
       recordActivity()
     } else if (passed) {
       toast.success('Chúc mừng! Bạn đã đạt bài tập')
@@ -1128,7 +1136,16 @@ export default function LessonPage() {
         content_json: { task_index: taskIdx },
         submitted_at: new Date().toISOString(),
       }).select().single()
-      if (error) throw error
+      if (error) {
+        // Máy chủ chặn nộp trùng (thường do đã nộp ở tab khác) → tải lại để thấy bài đã nộp và nút "Nộp lại"
+        if (error.code === '23505' || /duplicate_submission/.test(error.message || '')) {
+          toast.error('Bài này em đã nộp rồi (có thể ở tab khác). Muốn đổi bài thì bấm "Nộp lại" nhé.')
+          if (fileUrl) deleteFile(fileUrl)
+          loadAll()
+          return
+        }
+        throw error
+      }
       const newSubs = [...taskSubmissions]
       newSubs[taskIdx] = subInserted
       setTaskSubmissions(newSubs)
@@ -1137,7 +1154,7 @@ export default function LessonPage() {
       if (newSubs.every((s, k) => s !== null || tasksNow[k]?.optional)) {
         await upsertProgress({ practice_submitted: true })
       }
-      await awardSticker(1, `Nộp xong bài thực hành ${taskIdx + 1}! 📝`)
+      await awardOnce('submit', taskIdx, () => `Nộp xong bài thực hành ${taskIdx + 1}! 📝`)
       recordActivity()
       triggerAiGrade(subInserted, taskIdx)
     } catch (err) {
