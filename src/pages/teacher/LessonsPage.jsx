@@ -365,7 +365,11 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
       if (!res.ok) {
         toast.error(data.error === 'quota_rpd' || data.error === 'quota_rpm'
           ? 'AI đang quá tải, thầy/cô thử lại sau ít phút nhé'
-          : 'Không tạo được nội dung, thử lại sau')
+          : res.status === 504
+            ? 'AI soạn quá lâu nên bị ngắt. Thầy/cô thử lại, hoặc yêu cầu ít bài thực hành hơn (ví dụ 3–4 bài) rồi bấm tạo thêm lần nữa'
+            : data.error === 'parse_error'
+              ? 'AI trả về nội dung bị lỗi định dạng, thầy/cô bấm tạo lại nhé'
+              : 'Không tạo được nội dung, thử lại sau')
         return
       }
       setForm(f => ({
