@@ -1,7 +1,8 @@
 import { getGeminiKeys, callGeminiRotate, isDailyLimit } from './_gemini.js'
 import { requireUser, STAFF } from './_auth.js'
 
-export const config = { maxDuration: 30 }
+// Soạn lý thuyết + nhiều bài thực hành có thể mất > 30 giây → cho chờ tới 60 giây (trước đây hay bị 504)
+export const config = { maxDuration: 60 }
 
 const MODEL = 'gemini-2.5-flash'
 
@@ -58,7 +59,9 @@ export default async function handler(req, res) {
 
   const payload = JSON.stringify({
     contents: [{ role: 'user', parts: [{ text: buildPrompt({ title, grade, topic, brief }) }] }],
-    generationConfig: { temperature: 0.85, maxOutputTokens: 6144 },
+    // Tắt bước "suy nghĩ" của 2.5-flash (vừa chậm vừa tiêu hết hạn mức token → bị cắt cụt); ép trả đúng JSON;
+    // đủ chỗ cho lý thuyết + khoảng 10 bài thực hành
+    generationConfig: { temperature: 0.85, maxOutputTokens: 16000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
   })
 
   let geminiRes
