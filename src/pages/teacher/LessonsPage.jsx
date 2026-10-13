@@ -19,6 +19,7 @@ import JSZip from 'jszip'
 import { generateSb3Text } from '../../utils/sb3Text'
 import { parsePracticeTasks } from '../../utils/practiceTaskParser'
 import { apiFetch } from '../../lib/apiFetch'
+import AiNewQuestionsPanel from '../../components/teacher/AiNewQuestionsPanel'
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 const TYPE_LABELS = {
@@ -769,6 +770,12 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
             </div>
           ) : step === 2 ? (
             <div>
+              <AiNewQuestionsPanel form={form} userId={user?.id} onCreated={ids => {
+                // Câu mới tạo: tự tích chọn cho bài + bỏ lọc để thấy ngay ở đầu danh sách
+                setForm(f => ({ ...f, question_ids: [...new Set([...f.question_ids, ...ids])] }))
+                setFilterTopic(''); setFilterUnit(''); setFilterLessonTitle(''); setFilterDiff('')
+                setRefreshKey(k => k + 1)
+              }} />
               {/* Filters */}
               <div className="flex gap-2 mb-3 flex-wrap items-center">
                 <select value={filterTopic} onChange={e => { setFilterTopic(e.target.value); setFilterUnit(''); setFilterLessonTitle('') }}
