@@ -17,7 +17,6 @@ import { CodeBlock, CodeBlockWithBlanks } from '../../components/ui/CodeBlock'
 import StickerModal from '../../components/student/StickerModal'
 import RewardModal from '../../components/student/RewardModal'
 import { updateStreak, STREAK_MILESTONES } from '../../utils/updateStreak'
-import { adjustStickerCount } from '../../utils/stickerAward'
 import { gradeStudent } from '../../utils/aiGrader'
 import PDFViewer from '../../components/ui/PDFViewer'
 import AskTutorModal from '../../components/student/AskTutorModal'
@@ -948,13 +947,6 @@ export default function LessonPage() {
     setLoading(false)
   }
 
-  async function awardSticker(count = 1, reason) {
-    const threshold = stickerThreshold
-    const { data: updated, error } = await adjustStickerCount(user.id, count, { affectsTotal: true })
-    if (error) { toast.error('Không cộng được sticker: ' + error.message); return }
-    setStickerModal({ stickerCount: updated.sticker_count, stickerTotal: updated.sticker_total, threshold, reason, count })
-  }
-
   // Thưởng sticker "nộp bài" / "đạt bài kiểm tra" qua máy chủ: mỗi bài chỉ thưởng ĐÚNG 1 LẦN dù mở bao nhiêu tab
   // (máy chủ tự kiểm tra đã nộp/đã đạt thật chưa và tự tính số sticker — xem migration_sticker_once.sql)
   async function awardOnce(kind, taskIdx, reasonFn) {
@@ -969,8 +961,10 @@ export default function LessonPage() {
     const result = await updateStreak(user.id)
     if (!result?.isNew) return
     if (result.milestone) {
+      // Sticker mốc chuỗi đã được máy chủ cộng trong record_activity — ở đây chỉ hiện thông báo
       const { stickers, emoji, label } = result.milestone
-      await awardSticker(stickers, `${emoji} ${label} Nhận ${stickers} sticker thưởng! 🎉`)
+      setStickerModal({ stickerCount: result.stickerCount, stickerTotal: result.stickerTotal, threshold: stickerThreshold,
+        reason: `${emoji} ${label} Nhận ${stickers} sticker thưởng! 🎉`, count: stickers })
     } else if (result.streakDays > 1) {
       toast(`🔥 ${result.streakDays} ngày học liên tiếp!`, { duration: 3000 })
     } else {

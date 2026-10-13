@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { requireUser } from './_auth.js'
 
 export const config = { maxDuration: 15 }
 
@@ -19,6 +20,8 @@ function parseTarget(url) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
+  // Trước đây ai cũng gọi được (biết URL là xoá được file của người khác) → bắt buộc đã đăng nhập
+  if (!(await requireUser(req, res))) return
 
   const { url } = req.body || {}
   const target = parseTarget(url)

@@ -7,38 +7,14 @@ export const STREAK_MILESTONES = {
   30: { stickers: 30, emoji: '🏆',  label: '1 tháng liên tiếp!' },
 }
 
+// Ghi nhận hoạt động học hôm nay qua hàm máy chủ record_activity (migration_secure_profiles.sql):
+// tính chuỗi ngày học + cộng sticker mốc chuỗi trong 1 giao dịch có khoá dòng → mở nhiều tab cũng chỉ tính 1 lần,
+// học sinh không tự sửa được chuỗi/sticker. `userId` giữ để tương thích, máy chủ tự lấy từ phiên đăng nhập.
+// eslint-disable-next-line no-unused-vars
 export async function updateStreak(userId) {
-  const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-
-  const { data: prof } = await supabase
-    .from('profiles')
-    .select('streak_days, last_active_date, streak_max')
-    .eq('id', userId)
-    .single()
-
-  if (!prof) return null
-
-  // Đã học hôm nay rồi → không tính thêm
-  if (prof.last_active_date === today) {
-    return { streakDays: prof.streak_days ?? 0, isNew: false }
-  }
-
-  const yesterday = new Date()
-  yesterday.setDate(yesterday.getDate() - 1)
-  const yesterdayStr = yesterday.toISOString().slice(0, 10)
-
-  const newStreak = prof.last_active_date === yesterdayStr
-    ? (prof.streak_days ?? 0) + 1
-    : 1
-
-  const newMax = Math.max(prof.streak_max ?? 0, newStreak)
-
-  await supabase.from('profiles').update({
-    streak_days: newStreak,
-    last_active_date: today,
-    streak_max: newMax,
-  }).eq('id', userId)
-
-  const milestone = STREAK_MILESTONES[newStreak] ?? null
-  return { streakDays: newStreak, isNew: true, milestone }
+  const { data, error } = await supabase.rpc('record_activity')
+  if (error || !data) return null
+  if (!data.isNew) return { streakDays: data.streakDays ?? 0, isNew: false }
+  const milestone = data.bonus > 0 ? (STREAK_MILESTONES[data.streakDays] ?? { stickers: data.bonus, emoji: '🔥', label: '' }) : null
+  return { streakDays: data.streakDays, isNew: true, milestone, stickerCount: data.sticker_count, stickerTotal: data.sticker_total }
 }

@@ -1,12 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../context/AuthContext'
 import { X, Gift, CheckCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { adjustStickerCount } from '../../utils/stickerAward'
 
 export default function RewardModal({ stickerCount, threshold, grade, onClose, onRedeemed }) {
-  const { user } = useAuth()
   const [rewards, setRewards] = useState([])
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -47,21 +44,16 @@ export default function RewardModal({ stickerCount, threshold, grade, onClose, o
       // nếu HS mở tab khác kiếm thêm sticker hoặc giáo viên vừa cộng/trừ
       // tay) — đây chính là nguyên nhân từng gây "mất sticker" khi trừ theo
       // kiểu ghi đè tuyệt đối bằng số cũ.
-      const { data: updated, error: profErr, insufficient } = await adjustStickerCount(user.id, -cost)
-      if (insufficient) { toast.error('Sticker của bạn vừa thay đổi, không đủ để đổi quà này nữa'); return }
-      if (profErr) throw profErr
-
-      const { error: reqErr } = await supabase.from('reward_requests').insert({
-        student_id: user.id,
-        reward_item_id: selected.id,
-        sticker_cost: cost,
-        status: 'pending',
-      })
-      if (reqErr) throw reqErr
-
-      setFinalCount(updated.sticker_count)
+      // Máy chủ (redeem_reward) tự lấy giá quà, kiểm tra đủ sticker, trừ và tạo yêu cầu trong cùng 1 giao dịch
+      const { data, error } = await supabase.rpc('redeem_reward', { p_item: selected.id })
+      if (error) throw error
+      if (!data?.ok) {
+        toast.error(data?.reason === 'insufficient' ? 'Sticker của bạn vừa thay đổi, không đủ để đổi quà này nữa' : 'Món quà này hiện không đổi được')
+        return
+      }
+      setFinalCount(data.sticker_count)
       setDone(true)
-      onRedeemed?.(updated.sticker_count)
+      onRedeemed?.(data.sticker_count)
     } catch (err) {
       toast.error('Có lỗi xảy ra: ' + err.message)
     } finally {
