@@ -5,7 +5,8 @@ import { useEnrollments } from '../../hooks/useEnrollments'
 import { useSelectedGradeContext } from '../../context/SelectedGradeContext'
 import { useHeaderStats } from '../../context/HeaderStatsContext'
 import { useExamGuard } from '../../context/ExamGuardContext'
-import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle, Sparkles, Check, ChevronDown, CheckCircle, Trophy } from 'lucide-react'
+import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle, Sparkles, Check, ChevronDown, CheckCircle, Trophy, KeyRound } from 'lucide-react'
+import ChangePasswordModal from './ChangePasswordModal'
 
 export default function Layout({ children }) {
   const { profile, user, signOut, isTeacher } = useAuth()
@@ -13,6 +14,7 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showPwd, setShowPwd] = useState(false)
   const { guardedAction } = useExamGuard()
 
   async function handleSignOut() {
@@ -173,6 +175,12 @@ export default function Layout({ children }) {
                 </>
               )}
               <button
+                onClick={() => { setShowPwd(true); setOpen(false) }}
+                className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2 transition"
+              >
+                <KeyRound size={14} /> Đổi mật khẩu
+              </button>
+              <button
                 onClick={() => guardedAction(handleSignOut)}
                 className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2 transition"
               >
@@ -220,6 +228,12 @@ export default function Layout({ children }) {
             <HeroWidgets />
           </div>
         )}
+        <button
+          onClick={() => { setShowPwd(true); setSidebarOpen(false) }}
+          className="flex items-center gap-2 px-3 py-2 text-sm text-indigo-200 hover:text-white hover:bg-indigo-600 rounded-lg w-full transition"
+        >
+          <KeyRound size={16} /> Đổi mật khẩu
+        </button>
         <button
           onClick={() => guardedAction(handleSignOut)}
           className="flex items-center gap-2 px-3 py-2 text-sm text-indigo-200 hover:text-white hover:bg-indigo-600 rounded-lg w-full transition"
@@ -346,6 +360,8 @@ export default function Layout({ children }) {
           <div className="flex-1 bg-black/50" onClick={() => setSidebarOpen(false)} />
         </div>
       )}
+
+      {showPwd && user?.email && <ChangePasswordModal email={user.email} onClose={() => setShowPwd(false)} />}
 
       {/* ── Main content ── */}
       <main className="flex-1 overflow-auto min-h-0">
