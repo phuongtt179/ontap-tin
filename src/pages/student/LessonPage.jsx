@@ -1676,7 +1676,8 @@ export default function LessonPage() {
                                   ) : (
                                     <p className="text-xs text-gray-400 italic text-center py-2">⏳ Chờ giáo viên nhận xét...</p>
                                   )}
-                                  {(!sub.reviewed_at || sub.allow_resubmit) && (
+                                  {/* Bài AI chấm (kể cả đã được thầy/cô duyệt) luôn nộp lại được; bài thầy/cô chấm tay chỉ nộp lại khi được cho phép */}
+                                  {(!sub.reviewed_at || sub.graded_by === 'ai' || sub.allow_resubmit) && (
                                     <button onClick={() => {
                                       const nn = [...taskNotes]; nn[i] = sub.text_content || ''; setTaskNotes(nn)
                                       setResubmitTask(i)
