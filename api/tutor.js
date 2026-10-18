@@ -1,7 +1,7 @@
 import { getGeminiKeys, callGeminiRotate, isDailyLimit } from './_gemini.js'
 import { requireUser, studentAiDirect } from './_auth.js'
 
-export const config = { maxDuration: 30 }
+export const config = { maxDuration: 60 }   // đủ thời gian thử lại + chuyển model dự phòng khi Google quá tải
 
 // Model cho trợ giảng — dùng chung với api/grade.js (chấm text) cho đồng bộ
 const MODEL = 'gemini-3.1-flash-lite'
