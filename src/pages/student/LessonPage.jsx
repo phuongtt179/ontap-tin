@@ -1023,7 +1023,7 @@ export default function LessonPage() {
     setQuizActive(true)
   }
 
-  async function triggerAiGrade(sub, taskIdx) {
+  async function triggerAiGrade(sub, taskIdx, { retry = true } = {}) {
     // Mặc định học sinh không kích hoạt AI: bài chờ giáo viên chấm (có AI hỗ trợ) và duyệt
     if (!sub || !STUDENT_AI_DIRECT) return
     // Cooldown: không chấm lại nếu AI vừa chấm trong 5 phút
@@ -1034,8 +1034,8 @@ export default function LessonPage() {
     const taskDefs = parseTasks(lesson?.practice_instructions)
     const taskDef = taskDefs[taskIdx]
     if (!taskDef) return
-    // Jitter ngẫu nhiên 2–15s để tránh cả lớp gửi Gemini cùng lúc
-    await new Promise(r => setTimeout(r, 2000 + Math.random() * 13000))
+    // Jitter ngẫu nhiên 1–4s để cả lớp không gửi cùng lúc (trước đây 2–15s: học sinh hay rời trang trước khi kịp chấm)
+    await new Promise(r => setTimeout(r, 1000 + Math.random() * 3000))
     setAiGradingTask(taskIdx)
     try {
       const { results } = await gradeStudent([sub], [taskDef])
@@ -1044,9 +1044,33 @@ export default function LessonPage() {
       const updates = { score: result.score, ai_score: result.score, teacher_comment: result.comment, graded_by: 'ai', ai_graded_at: new Date().toISOString(), ai_breakdown: result.breakdown || null, ai_suspect: !!result.ai_suspect, ai_suspect_reason: result.ai_suspect_reason || null }
       await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
       setTaskSubmissions(prev => { const next = [...prev]; next[taskIdx] = { ...sub, ...updates }; return next })
-    } catch { /* quota or network — fail silently, giáo viên sẽ chấm tay */ }
+    } catch (err) {
+      // Lỗi tạm thời (mạng, AI quá tải theo phút) → thử lại 1 lần sau 20 giây; hết lượt cả ngày thì thôi,
+      // lần sau học sinh mở lại bài sẽ được chấm bù (xem effect "chấm bù" bên dưới)
+      if (retry && err?.quotaType !== 'quota_rpd') {
+        setAiGradingTask(null)
+        await new Promise(r => setTimeout(r, 20000))
+        return triggerAiGrade(sub, taskIdx, { retry: false })
+      }
+    }
     finally { setAiGradingTask(null) }
   }
+
+  // Chấm bù: bài đã nộp mà AI chưa chấm (học sinh rời trang trước khi kịp chấm, hoặc AI lỗi lúc đó)
+  // → khi học sinh mở lại bài học thì chấm lần lượt từng bài. Mỗi lần mở trang chỉ chạy 1 lượt.
+  const catchupDone = useRef(false)
+  useEffect(() => {
+    if (loading || !lesson || catchupDone.current || !STUDENT_AI_DIRECT) return
+    const pending = taskSubmissions
+      .map((sub, i) => ({ sub, i }))
+      .filter(({ sub }) => sub && sub.score == null && !sub.graded_by && !sub.ai_graded_at
+        && Date.now() - new Date(sub.submitted_at).getTime() > 60 * 1000)
+    if (!pending.length) return
+    catchupDone.current = true
+    ;(async () => {
+      for (const { sub, i } of pending) await triggerAiGrade(sub, i, { retry: false })
+    })()
+  }, [loading, lesson, taskSubmissions]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleQuizSubmit({ correct, total, passed }) {
     // Đã đạt rồi thì giữ "đạt" (làm lại ở tab khác mà trượt cũng không mất trạng thái đạt)
