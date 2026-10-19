@@ -79,12 +79,58 @@ export function parseTestCases(instructions) {
   return tests
 }
 
-async function runPythonTest(code, input, expected, points) {
-  // Cho phép \n trong test để mô tả input/output NHIỀU DÒNG
-  const stdin = input.replace(/\\n/g, '\n')
-  const exp = expected.replace(/\\n/g, '\n')
-  // Chạy thử bằng Wandbox (miễn phí, không cần khoá). Piston công khai (emkc.org) đã khoá từ 15/2/2026
-  // → mọi test trả rỗng, AI tưởng bài sai hết và chấm thấp oan.
+// ── Chạy Python ──────────────────────────────────────────────────────────────
+// Trình duyệt: Pyodide trong Web Worker (src/utils/pyWorker.js) — chạy trên máy học sinh, không phụ thuộc
+// dịch vụ ngoài (Wandbox giới hạn theo IP, cả lớp chung mạng trường dễ bị chặn).
+// Máy chủ (api/grade-pending) hoặc trình duyệt không tải được Pyodide → Wandbox.
+// (Piston công khai emkc.org đã khoá từ 15/2/2026 → mọi test trả rỗng, AI chấm thấp oan.)
+const PY_LOAD_TIMEOUT = 60000   // lần đầu tải Pyodide (~10MB, trình duyệt lưu cache cho lần sau)
+const PY_RUN_TIMEOUT = 8000     // mỗi lần chạy — quá giờ coi như lặp vô hạn
+let pyWorker = null
+let pyMsgId = 0
+
+function getPyWorker() {
+  if (pyWorker) return pyWorker
+  const w = new Worker(new URL('./pyWorker.js', import.meta.url))
+  w.ready = new Promise(resolve => {
+    const t = setTimeout(() => resolve(false), PY_LOAD_TIMEOUT)
+    w.addEventListener('message', function onReady(e) {
+      if (e.data?.ready === undefined) return
+      clearTimeout(t); w.removeEventListener('message', onReady); resolve(e.data.ready)
+    })
+    w.addEventListener('error', () => { clearTimeout(t); resolve(false) })
+  })
+  pyWorker = w
+  return w
+}
+
+function killPyWorker() {
+  try { pyWorker?.terminate() } catch { /* đã huỷ */ }
+  pyWorker = null
+}
+
+async function runInBrowser(code, stdin) {
+  let w
+  try { w = getPyWorker() } catch { return { loadError: true } }
+  if (!(await w.ready)) { killPyWorker(); return { loadError: true } }
+  return new Promise(resolve => {
+    const id = ++pyMsgId
+    const timer = setTimeout(() => {
+      w.removeEventListener('message', onMsg)
+      killPyWorker()   // dừng hẳn vòng lặp vô hạn; lần sau tạo worker mới (Pyodide đã có trong cache)
+      resolve({ stdout: '', stderr: `Chương trình chạy quá ${PY_RUN_TIMEOUT / 1000} giây (có thể bị lặp vô hạn)`, timeout: true })
+    }, PY_RUN_TIMEOUT)
+    function onMsg(e) {
+      if (e.data?.id !== id) return
+      clearTimeout(timer); w.removeEventListener('message', onMsg)
+      resolve({ stdout: e.data.stdout || '', stderr: e.data.stderr || '' })
+    }
+    w.addEventListener('message', onMsg)
+    w.postMessage({ id, code, stdin })
+  })
+}
+
+async function runOnWandbox(code, stdin) {
   try {
     const res = await fetch('https://wandbox.org/api/compile.json', {
       method: 'POST',
@@ -92,13 +138,31 @@ async function runPythonTest(code, input, expected, points) {
       body: JSON.stringify({ compiler: 'cpython-3.12.7', code, stdin }),
       signal: AbortSignal.timeout(20000),
     })
-    if (!res.ok) return { input, expected, actual: '', passed: false, points, error: true }
+    if (!res.ok) return { error: true }
     const data = await res.json()
-    const actual = (data.program_output || '').trim()
-    return { input, expected, actual, passed: actual === exp.trim(), points }
+    return { stdout: data.program_output || '', stderr: data.program_error || '' }
   } catch {
-    return { input, expected, actual: '', passed: false, points, error: true }
+    return { error: true }
   }
+}
+
+// Chạy 1 chương trình Python với stdin cho trước → { stdout, stderr } hoặc { error: true } khi không chạy được
+export async function runPython(code, stdin = '') {
+  if (typeof window !== 'undefined' && typeof Worker !== 'undefined') {
+    const r = await runInBrowser(code, stdin)
+    if (!r.loadError) return r
+  }
+  return runOnWandbox(code, stdin)
+}
+
+async function runPythonTest(code, input, expected, points) {
+  // Cho phép \n trong test để mô tả input/output NHIỀU DÒNG
+  const stdin = input.replace(/\\n/g, '\n')
+  const exp = expected.replace(/\\n/g, '\n')
+  const r = await runPython(code, stdin)
+  if (r.error) return { input, expected, actual: '', passed: false, points, error: true }
+  const actual = r.stdout.trim()
+  return { input, expected, actual, passed: actual === exp.trim(), points }
 }
 
 async function extractContent(fileUrl, textContent, type) {
@@ -290,9 +354,9 @@ export async function prepareTasks(submissions, taskDefs) {
       const testCases = parseTestCases(instructions + '\n' + (taskDefs[i]?.rubric || ''))
       if (testCases.length > 0) {
         const code = await extractContent(fileUrl, textContent, 'py')
-        testResults = await Promise.all(
-          testCases.map(tc => runPythonTest(code, tc.input, tc.expected, tc.points))
-        )
+        // Chạy lần lượt từng test (1 worker chạy tuần tự; Wandbox cũng đỡ bị chặn vì gửi dồn)
+        testResults = []
+        for (const tc of testCases) testResults.push(await runPythonTest(code, tc.input, tc.expected, tc.points))
         // Dịch vụ chạy thử trục trặc → KHÔNG gửi kết quả giả "sai hết"; để AI chấm bằng cách đọc code
         if (testResults.some(r => r.error)) testResults = null
       }
