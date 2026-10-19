@@ -7,6 +7,7 @@ import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, U
 import MarkdownContent from '../../components/ui/MarkdownContent'
 import Sb3Viewer from '../../components/ui/Sb3Viewer'
 import { gradeStudent } from '../../utils/aiGrader'
+import { runPython } from '../../utils/gradePrep.js'
 import { adjustStickerCount } from '../../utils/stickerAward'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -47,19 +48,10 @@ function CodeViewer({ url, ext }) {
     setRunning(true)
     setOutput(null)
     try {
-      // Wandbox (Piston công khai đã khoá từ 15/2/2026)
-      const res = await fetch('https://wandbox.org/api/compile.json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ compiler: 'cpython-3.12.7', code: content, stdin }),
-      })
-      if (!res.ok) throw new Error(`máy chạy thử báo lỗi ${res.status}`)
-      const data = await res.json()
-      setOutput({
-        stdout: data.program_output || '',
-        stderr: data.program_error || '',
-        ok: !data.program_error,
-      })
+      // Chạy ngay trong trình duyệt (Pyodide), không được thì Wandbox — xem utils/gradePrep.js
+      const r = await runPython(content, stdin)
+      if (r.error) throw new Error('không chạy được chương trình, thử lại sau')
+      setOutput({ stdout: r.stdout, stderr: r.stderr, ok: !r.stderr })
     } catch (err) {
       setOutput({ stdout: '', stderr: 'Lỗi kết nối: ' + err.message, ok: false })
     }
