@@ -20,26 +20,45 @@ const PROP_VI = {
 }
 const tr = v => (v == null ? v : (MENU_VI[v] ?? KEY_VI[v] ?? v))
 
-// Đọc 1 input → chuỗi mô tả. Xử lý cả literal, menu, và reporter lồng nhau.
-export function describeInput(blocks, input) {
+// Đọc 1 input → { text, literal }. literal = chữ/số học sinh gõ tay (hoặc mục chọn trong menu);
+// không literal = biến hoặc khối (phép toán, cảm biến…) thả vào ô.
+// Lưu ý: khi thả khối vào ô, Scratch vẫn giữ chữ mặc định cũ (vd "Xin chào!") ẩn ở input[2] —
+// KHÔNG được đọc chữ ẩn đó khi ô đang chứa khối.
+function inputInfo(blocks, input) {
   if (!input) return null
   const inner = input[1]
-  // shadow literal: [1, [type, value]]
-  if (Array.isArray(inner)) return String(inner[1] ?? '')
+  if (Array.isArray(inner)) {
+    // [12, tên, id] = biến thả thẳng vào ô; [13, tên, id] = danh sách; còn lại = chữ/số gõ tay
+    if (inner[0] === 12) return { text: `[biến ${inner[1]}]`, literal: false }
+    if (inner[0] === 13) return { text: `[danh sách ${inner[1]}]`, literal: false }
+    return { text: String(inner[1] ?? ''), literal: true }
+  }
   // tham chiếu block khác
   if (typeof inner === 'string') {
     const sub = blocks[inner]
     if (!sub) return null
     const rep = formatReporter(blocks, sub)
-    if (rep != null) return rep
+    if (rep != null) return { text: rep, literal: false }
     // menu block → lấy field đầu tiên (đã dịch)
     const ff = Object.values(sub.fields || {})[0]
-    return ff ? tr(ff[0]) : null
+    return ff ? { text: tr(ff[0]), literal: true } : null
   }
   // fallback literal ở input[2]
   const fb = input[2]
-  if (Array.isArray(fb)) return String(fb[1] ?? '')
+  if (Array.isArray(fb)) return { text: String(fb[1] ?? ''), literal: true }
   return null
+}
+
+const isNum = s => String(s).trim() !== '' && !isNaN(Number(s))
+
+// Chuỗi mô tả 1 input để AI phân biệt rõ: chữ gõ tay trong ngoặc kép "…", số giữ nguyên,
+// biến [biến x], khối lồng (a + b) — trước đây khối/biến cũng bị đặt trong ngoặc kép như chữ
+// gõ tay nên AI tưởng em "chưa dùng phép toán".
+export function describeInput(blocks, input) {
+  const info = inputInfo(blocks, input)
+  if (!info) return null
+  if (!info.literal || isNum(info.text)) return info.text
+  return `"${info.text}"`
 }
 
 // Định dạng block dạng reporter / boolean (điều kiện, phép toán, cảm biến...)
@@ -78,8 +97,8 @@ function formatReporter(blocks, block) {
     case 'operator_divide':   return `(${x(v('NUM1'))} / ${x(v('NUM2'))})`
     case 'operator_mod':      return `${x(v('NUM1'))} mod ${x(v('NUM2'))}`
     case 'operator_random':   return `số ngẫu nhiên từ ${x(v('FROM'))} đến ${x(v('TO'))}`
-    case 'operator_join':     return `nối ${x(v('STRING1'))} và ${x(v('STRING2'))}`
-    case 'operator_length':   return `độ dài của ${x(v('STRING'))}`
+    case 'operator_join':     return `(nối ${x(v('STRING1'))} và ${x(v('STRING2'))})`
+    case 'operator_length':   return `(độ dài của ${x(v('STRING'))})`
     // ── Chuyển động / hiển thị (reporter) ──
     case 'motion_xposition':  return 'tọa độ x'
     case 'motion_yposition':  return 'tọa độ y'
@@ -88,10 +107,10 @@ function formatReporter(blocks, block) {
     case 'looks_backdropnumbername': return `${f('NUMBER_NAME') === 'name' ? 'tên' : 'số'} phông nền`
     case 'looks_size':        return 'kích thước'
     // ── Biến / danh sách ──
-    case 'data_variable':     return f('VARIABLE')
-    case 'data_listcontents': return f('LIST')
-    case 'data_itemoflist':   return `phần tử ${x(v('INDEX'))} của ${x(f('LIST'))}`
-    case 'data_lengthoflist': return `độ dài của ${x(f('LIST'))}`
+    case 'data_variable':     return `[biến ${f('VARIABLE')}]`
+    case 'data_listcontents': return `[danh sách ${f('LIST')}]`
+    case 'data_itemoflist':   return `phần tử ${x(v('INDEX'))} của [danh sách ${x(f('LIST'))}]`
+    case 'data_lengthoflist': return `độ dài của [danh sách ${x(f('LIST'))}]`
     default:
       return null   // không phải reporter đã biết → để describeInput fallback về field
   }
@@ -101,7 +120,10 @@ function formatBlock(blocks, block) {
   const { opcode, inputs = {}, fields = {} } = block
   const v = k => describeInput(blocks, inputs[k])
   const f = k => fields[k]?.[0] ?? null
-  const q = s => s ? `"${s}"` : '...'
+  const q = s => s ?? '...'                     // input: describeInput đã tự đặt ngoặc kép cho chữ gõ tay
+  const qf = s => s ? `"${s}"` : '...'         // field (tên phím, tin nhắn, phông nền…)
+  const bien = s => `[biến ${s ?? '...'}]`
+  const ds = s => `[danh sách ${s ?? '...'}]`
   const n = s => s ?? '...'
   const x = s => s ?? '...'
 
@@ -126,14 +148,14 @@ function formatBlock(blocks, block) {
     case 'looks_thinkforsecs':      return `Nghĩ ${q(v('MESSAGE'))} trong ${n(v('SECS'))} giây`
     case 'looks_show':              return 'Hiện nhân vật'
     case 'looks_hide':              return 'Ẩn nhân vật'
-    case 'looks_switchcostumeto':   return `Chuyển trang phục: ${q(v('COSTUME') ?? f('COSTUME'))}`
+    case 'looks_switchcostumeto':   return `Chuyển trang phục: ${v('COSTUME') ?? qf(f('COSTUME'))}`
     case 'looks_nextcostume':       return 'Trang phục kế tiếp'
-    case 'looks_switchbackdropto':  return `Đổi phông nền: ${q(v('BACKDROP') ?? f('BACKDROP'))}`
+    case 'looks_switchbackdropto':  return `Đổi phông nền: ${v('BACKDROP') ?? qf(f('BACKDROP'))}`
     case 'looks_nextbackdrop':      return 'Phông nền kế tiếp'
     case 'looks_setsizeto':         return `Đặt kích thước = ${n(v('SIZE'))}%`
     case 'looks_changesizeby':      return `Đổi kích thước ${n(v('CHANGE'))}`
-    case 'sound_play':              return `Bắt đầu âm thanh ${q(v('SOUND_MENU') ?? f('SOUND_MENU'))}`
-    case 'sound_playuntildone':     return `Phát âm thanh ${q(v('SOUND_MENU') ?? f('SOUND_MENU'))} đến hết`
+    case 'sound_play':              return `Bắt đầu âm thanh ${v('SOUND_MENU') ?? qf(f('SOUND_MENU'))}`
+    case 'sound_playuntildone':     return `Phát âm thanh ${v('SOUND_MENU') ?? qf(f('SOUND_MENU'))} đến hết`
     case 'sound_stopallsounds':     return 'Ngừng mọi âm thanh'
     case 'control_forever':         return 'Lặp mãi'
     case 'control_repeat':          return `Lặp lại ${n(v('TIMES'))} lần`
@@ -146,25 +168,25 @@ function formatBlock(blocks, block) {
     case 'control_create_clone_of': return `Tạo bản sao của ${x(v('CLONE_OPTION') ?? f('CLONE_OPTION'))}`
     case 'control_delete_this_clone': return 'Xóa bản sao này'
     case 'event_whenflagclicked':   return 'Khi bấm cờ xanh'
-    case 'event_whenkeypressed':    return `Khi bấm phím ${q(tr(f('KEY_OPTION')))}`
+    case 'event_whenkeypressed':    return `Khi bấm phím ${qf(tr(f('KEY_OPTION')))}`
     case 'event_whenthisspriteclicked': return 'Khi bấm vào nhân vật này'
-    case 'event_whenbackdropswitchesto': return `Khi phông nền chuyển sang ${q(f('BACKDROP'))}`
-    case 'event_whenbroadcastreceived': return `Khi nhận ${q(f('BROADCAST_OPTION'))}`
+    case 'event_whenbackdropswitchesto': return `Khi phông nền chuyển sang ${qf(f('BACKDROP'))}`
+    case 'event_whenbroadcastreceived': return `Khi nhận ${qf(f('BROADCAST_OPTION'))}`
     case 'event_broadcast':         return `Phát tin ${q(v('BROADCAST_INPUT'))}`
     case 'event_broadcastandwait':  return `Phát tin ${q(v('BROADCAST_INPUT'))} và đợi`
     case 'sensing_askandwait':      return `Hỏi ${q(v('QUESTION'))} và đợi`
     case 'sensing_resettimer':      return 'Đặt lại đồng hồ bấm giờ'
-    case 'data_setvariableto':      return `Đặt ${q(f('VARIABLE'))} = ${n(v('VALUE'))}`
-    case 'data_changevariableby':   return `Thay đổi ${q(f('VARIABLE'))} thêm ${n(v('VALUE'))}`
-    case 'data_showvariable':       return `Hiện biến ${q(f('VARIABLE'))}`
-    case 'data_hidevariable':       return `Ẩn biến ${q(f('VARIABLE'))}`
-    case 'data_addtolist':          return `Thêm ${q(v('ITEM'))} vào ${q(f('LIST'))}`
-    case 'data_deleteoflist':       return `Xóa phần tử ${n(v('INDEX'))} của ${q(f('LIST'))}`
-    case 'data_deletealloflist':    return `Xóa tất cả trong ${q(f('LIST'))}`
-    case 'data_insertatlist':       return `Chèn ${n(v('ITEM'))} tại vị trí ${n(v('INDEX'))} của ${q(f('LIST'))}`
-    case 'data_replaceitemoflist':  return `Thay phần tử ${n(v('INDEX'))} của ${q(f('LIST'))} bằng ${n(v('ITEM'))}`
-    case 'data_showlist':           return `Hiện danh sách ${q(f('LIST'))}`
-    case 'data_hidelist':           return `Ẩn danh sách ${q(f('LIST'))}`
+    case 'data_setvariableto':      return `Đặt ${bien(f('VARIABLE'))} = ${n(v('VALUE'))}`
+    case 'data_changevariableby':   return `Thay đổi ${bien(f('VARIABLE'))} thêm ${n(v('VALUE'))}`
+    case 'data_showvariable':       return `Hiện biến ${bien(f('VARIABLE'))}`
+    case 'data_hidevariable':       return `Ẩn biến ${bien(f('VARIABLE'))}`
+    case 'data_addtolist':          return `Thêm ${q(v('ITEM'))} vào ${ds(f('LIST'))}`
+    case 'data_deleteoflist':       return `Xóa phần tử ${n(v('INDEX'))} của ${ds(f('LIST'))}`
+    case 'data_deletealloflist':    return `Xóa tất cả trong ${ds(f('LIST'))}`
+    case 'data_insertatlist':       return `Chèn ${n(v('ITEM'))} tại vị trí ${n(v('INDEX'))} của ${ds(f('LIST'))}`
+    case 'data_replaceitemoflist':  return `Thay phần tử ${n(v('INDEX'))} của ${ds(f('LIST'))} bằng ${n(v('ITEM'))}`
+    case 'data_showlist':           return `Hiện danh sách ${ds(f('LIST'))}`
+    case 'data_hidelist':           return `Ẩn danh sách ${ds(f('LIST'))}`
     case 'pen_clear':               return 'Xóa bút'
     case 'pen_penDown':             return 'Hạ bút'
     case 'pen_penUp':               return 'Nâng bút'
@@ -217,7 +239,8 @@ export function generateSb3Text(project) {
   const totalScripts = allTargets.reduce((s, t) =>
     s + Object.values(t.blocks || {}).filter(b => b.topLevel).length, 0)
 
-  let text = `Nhân vật: ${sprites.map(s => s.name).join(', ') || 'không có'}\n`
+  let text = 'Quy ước: "…" = chữ học sinh gõ tay; [biến x] = biến; (…) = khối phép toán/khối lồng thả vào ô (KHÔNG phải chữ gõ tay)\n'
+  text += `Nhân vật: ${sprites.map(s => s.name).join(', ') || 'không có'}\n`
   text += `Tổng scripts: ${totalScripts}\n\n`
 
   for (const target of allTargets) {

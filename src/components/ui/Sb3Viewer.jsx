@@ -14,7 +14,9 @@ const STOP_VI = { all: 'tất cả', 'this script': 'kịch bản này', 'other 
 const ROT_VI = { 'left-right': 'trái-phải', "don't rotate": 'không xoay', 'all around': 'xung quanh' }
 const FB_VI = { front: 'trên cùng', back: 'sau cùng', forward: 'lên trước', backward: 'ra sau' }
 
-function q(s) { return s ? `"${s}"` : '...' }  // quoted or placeholder
+// Giá trị từ ô nhập đã được describeInput đặt ngoặc kép (chữ gõ tay) hoặc đánh dấu [biến]/(khối) sẵn;
+// chỉ đặt ngoặc kép cho tên lấy từ field (trang phục, âm thanh…) chưa có ngoặc
+function q(s) { return !s ? '...' : /^["([]/.test(s) || !isNaN(Number(s)) ? s : `"${s}"` }
 function n(s) { return s ?? '...' }              // number or placeholder
 
 // Format block label với giá trị thực tế
