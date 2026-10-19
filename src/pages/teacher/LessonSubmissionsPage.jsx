@@ -47,22 +47,18 @@ function CodeViewer({ url, ext }) {
     setRunning(true)
     setOutput(null)
     try {
-      const res = await fetch('https://emkc.org/api/v2/piston/execute', {
+      // Wandbox (Piston công khai đã khoá từ 15/2/2026)
+      const res = await fetch('https://wandbox.org/api/compile.json', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          language: 'python',
-          version: '3.10',
-          files: [{ content }],
-          stdin: stdin,
-        }),
+        body: JSON.stringify({ compiler: 'cpython-3.12.7', code: content, stdin }),
       })
+      if (!res.ok) throw new Error(`máy chạy thử báo lỗi ${res.status}`)
       const data = await res.json()
-      const run = data.run || {}
       setOutput({
-        stdout: run.stdout || '',
-        stderr: run.stderr || '',
-        ok: !run.stderr,
+        stdout: data.program_output || '',
+        stderr: data.program_error || '',
+        ok: !data.program_error,
       })
     } catch (err) {
       setOutput({ stdout: '', stderr: 'Lỗi kết nối: ' + err.message, ok: false })
