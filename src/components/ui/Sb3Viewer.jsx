@@ -3,42 +3,11 @@ import JSZip from 'jszip'
 import { Loader2, ExternalLink } from 'lucide-react'
 import { describeInput } from '../../utils/sb3Text'
 
-// Lấy giá trị từ input của block (literal hoặc sub-block menu)
+// Lấy giá trị từ input của block — dùng chung describeInput (như khi gửi AI chấm) để đọc đúng cả
+// khối phép toán/biến thả vào ô (trước đây chỉ lấy field đầu tiên hoặc chữ mặc định ẩn bên dưới,
+// nên "nói (a + b)" bị hiện thành "nói Xin chào!")
 function resolveInput(blocks, input) {
-  if (!input) return null
-  const mode = input[0]
-  const inner = input[1]
-
-  if (mode === 1) {
-    if (Array.isArray(inner)) return String(inner[1] ?? '') // literal value
-    if (typeof inner === 'string') {
-      // sub-block (menu dropdown)
-      const sub = blocks[inner]
-      if (sub) {
-        const firstField = Object.values(sub.fields || {})[0]
-        return firstField?.[0] ?? null
-      }
-    }
-  } else if (mode === 3) {
-    if (typeof inner === 'string') {
-      const sub = blocks[inner]
-      if (sub) {
-        const firstField = Object.values(sub.fields || {})[0]
-        if (firstField?.[0]) return firstField[0]
-      }
-    }
-    const fallback = input[2]
-    if (Array.isArray(fallback)) return String(fallback[1] ?? '')
-  } else if (mode === 2) {
-    if (typeof inner === 'string') {
-      const sub = blocks[inner]
-      if (sub) {
-        const firstField = Object.values(sub.fields || {})[0]
-        return firstField?.[0] ?? null
-      }
-    }
-  }
-  return null
+  return describeInput(blocks, input)
 }
 
 const STOP_VI = { all: 'tất cả', 'this script': 'kịch bản này', 'other scripts in sprite': 'kịch bản khác' }
