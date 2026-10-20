@@ -1,11 +1,14 @@
 import { getGeminiKeys, callGeminiRotate, isDailyLimit } from './_gemini.js'
 import { requireUser, STAFF } from './_auth.js'
 import { buildSystemPrompt } from './tutor.js'
+import { slideScriptPrompt, slideBuildPrompt } from './_slidePrompts.js'
 
 // Các công cụ AI cho giáo viên (Trung tâm AI). Gộp chung 1 file để không tăng số serverless
 // function trên Vercel. action:
 //   - 'lesson_notes': soạn ghi chú nội bộ cho gia sư AI từ chữ trong slide bài giảng
 //   - 'insights'    : tổng hợp các câu học sinh hỏi gia sư AI → chủ đề hay bối rối + gắn cờ an toàn
+//   - 'slide_script': AI viết kịch bản bài giảng web từ nội dung bài học (giáo viên duyệt)
+//   - 'slide_build' : AI dựng slide JSON từ kịch bản đã duyệt
 export const config = { maxDuration: 60 }
 
 const MODEL = 'gemini-3.1-flash-lite'
@@ -273,6 +276,18 @@ export default async function handler(req, res) {
     const qs = questions.slice(0, 400).map(q => ({ id: Number(q.id), text: String(q.text || '').slice(0, 300) }))
     prompt = insightsPrompt({ lessonLabel: lessonLabel || 'bài học', questions: qs })
     generationConfig = { temperature: 0.2, maxOutputTokens: 3000, responseMimeType: 'application/json' }
+  } else if (action === 'slide_script') {
+    const { lessonTitle, grade, topic, sourceText, questions, extra } = req.body
+    if (!String(lessonTitle || '').trim()) return res.status(400).json({ error: 'no_title' })
+    model = 'gemini-2.5-flash'
+    prompt = slideScriptPrompt({ lessonTitle, grade, topic, sourceText, questions: Array.isArray(questions) ? questions.map(q => String(q).slice(0, 400)) : [], extra })
+    generationConfig = { temperature: 0.7, maxOutputTokens: 8000, thinkingConfig: { thinkingBudget: 0 } }
+  } else if (action === 'slide_build') {
+    const { kichBan } = req.body
+    if (!String(kichBan || '').trim()) return res.status(400).json({ error: 'no_script' })
+    model = 'gemini-2.5-flash'
+    prompt = slideBuildPrompt({ kichBan })
+    generationConfig = { temperature: 0.3, maxOutputTokens: 16000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
   } else {
     return res.status(400).json({ error: 'bad_action' })
   }
@@ -297,6 +312,17 @@ export default async function handler(req, res) {
   if (!text) return res.status(500).json({ error: 'empty' })
 
   if (action === 'lesson_notes') return res.status(200).json({ notes: text })
+  if (action === 'slide_script') return res.status(200).json({ text: text.replace(/^```[a-z]*\n|\n```$/g, '').trim() })
+  if (action === 'slide_build') {
+    try {
+      const parsed = JSON.parse(text.replace(/```json\s*|\s*```/g, ''))
+      const slides = Array.isArray(parsed) ? parsed : (parsed.slides || [])
+      if (!slides.length) return res.status(500).json({ error: 'empty' })
+      return res.status(200).json({ slides })
+    } catch {
+      return res.status(500).json({ error: 'parse_error' })
+    }
+  }
   // Bỏ fence ``` nếu AI lỡ bọc cả khối (định dạng câu hỏi dùng ---python, không dùng backtick)
   if (action === 'questions') {
     const allowed = Array.isArray(req.body.types) && req.body.types.length ? req.body.types.map(t => TYPE_CODES[t]).filter(Boolean) : null

@@ -38,6 +38,11 @@ import LearnPage from './pages/student/LearnPage'
 import LessonPage from './pages/student/LessonPage'
 import JoinCoursePage from './pages/student/JoinCoursePage'
 import NotesPage from './pages/student/NotesPage'
+import { lazy, Suspense } from 'react'
+// Bài giảng web: tải khi mở (trình soạn + chế độ dạy khá nặng)
+const SlideEditorPage = lazy(() => import('./pages/teacher/SlideEditorPage'))
+const TeachPage = lazy(() => import('./pages/teacher/TeachPage'))
+const DangTai = <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
 
 function RootRedirect() {
   const { profile, loading } = useAuth()
@@ -109,6 +114,16 @@ export default function App() {
           <Route path="/teacher/lessons" element={
             <ProtectedRoute role="teacher">
               <Layout><LessonsPage /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/teacher/lessons/:id/slides" element={
+            <ProtectedRoute role="teacher">
+              <Layout><Suspense fallback={DangTai}><SlideEditorPage /></Suspense></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/teacher/lessons/:id/teach" element={
+            <ProtectedRoute role="teacher">
+              <Suspense fallback={DangTai}><TeachPage /></Suspense>
             </ProtectedRoute>
           } />
           <Route path="/teacher/lessons/:id/submissions" element={

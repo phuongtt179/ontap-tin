@@ -1,0 +1,67 @@
+// Biểu tượng nét vẽ dùng trong bài giảng web (chép từ app Lớp học số). <Icon ten="sao" /> · cỡ theo chữ · màu theo currentColor.
+const P = {
+  lich: 'M4 6h16v14H4zM4 10h16M9 3v4M15 3v4',
+  so_do: 'M3 5h7v5H3zM14 5h7v5h-7zM3 14h7v5H3zM14 14h7v5h-7z',
+  kiem_tra: 'M9 4h6v3H9zM6 6h12v15H6zM9 12l2 2 4-4',
+  on_tap: 'M4 5c3-1 6-1 8 1v14c-2-2-5-2-8-1zM20 5c-3-1-6-1-8 1v14c2-2 5-2 8-1z',
+  danh_gia: 'M5 20V10M12 20V4M19 20v-7',
+  cong_cu: 'M14 6a4 4 0 00-5 5l-6 6 3 3 6-6a4 4 0 005-5l-3 3-3-3z',
+  sao: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
+  goi_ten: 'M12 12m-8 0a8 8 0 1016 0 8 8 0 10-16 0M12 12m-3 0a3 3 0 106 0 3 3 0 10-6 0M12 2v3M12 19v3M2 12h3M19 12h3',
+  nhom: 'M9 11a4 4 0 100-8 4 4 0 000 8zM3 21v-2a5 5 0 0110 0v2M17 11a3 3 0 100-6M21 21v-2a4 4 0 00-3-3.9',
+  hoi: 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.5 9a2.5 2.5 0 114 2c-.9.6-1.5 1.1-1.5 2.2M12 17h.01',
+  ve: 'M4 20l4-1L19 8l-3-3L5 16zM14 6l3 3',
+  tap_trung: 'M3 12s3.5-7 9-7 9 7 9 7-3.5 7-9 7-9-7-9-7zM12 12m-3 0a3 3 0 106 0 3 3 0 10-6 0',
+  chu: 'M5 6V4h14v2M12 4v16M9 20h6',
+  dong_ho: 'M12 13m-8 0a8 8 0 1016 0 8 8 0 10-16 0M12 9v4l2 2M9 2h6',
+  loa: 'M3 10v4h4l6 5V5L7 10zM16 9a4 4 0 010 6M19 6a8 8 0 010 12',
+  thoat: 'M6 6l12 12M18 6L6 18',
+  chay: 'M7 4l13 8-13 8z',
+  tai_lieu: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7',
+  but: 'M4 20h4L19 9l-4-4L4 16zM13 7l4 4',
+  diem_danh: 'M8 4h8v3H8zM5 6h14v15H5zM8 12h1M11 12h5M8 16h1M11 16h5',
+  them: 'M12 5v14M5 12h14',
+  xoa: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+  sua: 'M4 20h4L19 9l-4-4L4 16z',
+  lien_ket: 'M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1',
+  tai_xuong: 'M12 4v11M7 10l5 5 5-5M5 20h14',
+  lam_moi: 'M20 11a8 8 0 10-2.3 5.7M20 4v7h-7',
+  hoan_tac: 'M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3',
+  bieu_do: 'M4 20h16M7 16v-5M12 16V7M17 16v-8',
+  dong: 'M6 6h12v12H6z',
+  mo_khoa: 'M7 11V7a5 5 0 019.6-2M5 11h14v10H5z',
+  nguoi: 'M12 11a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',
+  canh_bao: 'M12 3l10 18H2zM12 10v5M12 18h.01',
+  dung: 'M5 12l5 5L20 7',
+  thich: 'M7 10v10H4V10zM7 10l4-7c1.5 0 2.5 1 2.2 2.6L12.5 10H19a2 2 0 012 2.3l-1.2 6A2 2 0 0117.8 20H7',
+  nhac: 'M12 8v5M12 16h.01M12 21a9 9 0 100-18 9 9 0 000 18z',
+  sach: 'M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3zM5 17a3 3 0 013-3h11',
+  tim: 'M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-5-5',
+  anh: 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15 9h.01',
+  huy_hieu: 'M12 15a6 6 0 100-12 6 6 0 000 12zM8.5 14L7 22l5-3 5 3-1.5-8',
+  may: 'M3 4h18v12H3zM8 20h8M12 16v4',
+  ai: 'M12 3l1.8 4.7L18 9.5l-4.2 1.8L12 16l-1.8-4.7L6 9.5l4.2-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
+  in: 'M7 8V3h10v5M7 17H4v-7h16v7h-3M7 14h10v7H7z',
+  luu: 'M5 3h11l3 3v15H5zM8 3v6h7V3M8 14h8v7H8z',
+  mui_ten_trai: 'M15 5l-7 7 7 7',
+  // dùng trong bài giảng web
+  khoa: 'M8 15m-5 0a5 5 0 1010 0 5 5 0 10-10 0M11.5 11.5L21 2M17 6l3 3M14.5 8.5l2.5 2.5',
+  cup: 'M7 4h10v5a5 5 0 01-10 0zM7 6H4v1a3 3 0 003 3M17 6h3v1a3 3 0 01-3 3M12 14v4M8 21h8M10 18h4',
+  chuot: 'M12 3a6 6 0 016 6v6a6 6 0 01-12 0V9a6 6 0 016-6zM12 3v6',
+  ban_phim: 'M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M7 14h10',
+  web: 'M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18',
+  thu_muc: 'M3 6h6l2 2h10v11H3z',
+  tep: 'M6 3h9l4 4v14H6zM14 3v5h5',
+  bong_den: 'M9 18h6M10 21h4M12 3a6 6 0 00-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0012 3z',
+  khien: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
+  tay: 'M8 13V5a1.5 1.5 0 013 0v6M11 10V4a1.5 1.5 0 013 0v6M14 10V5a1.5 1.5 0 013 0v8a7 7 0 01-7 7 6 6 0 01-5-3l-2-4a1.5 1.5 0 012.6-1.5L8 13',
+  ngoi_sao: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z',
+  co: 'M5 21V4M5 4h11l-2 4 2 4H5'
+};
+export const TEN_ICON = Object.keys(P);
+export default function Icon({ ten, co = '1.1em', net = 2.1, className = '', style }) {
+  return (
+    <svg width={co} height={co} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={net} strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true" className={'inline-block shrink-0 ' + className} style={{ verticalAlign: '-0.15em', ...style }}><path d={P[ten] || P.hoi} /></svg>
+  );
+}
