@@ -109,7 +109,7 @@ export default async function handler(req, res) {
 
   let geminiRes
   try {
-    geminiRes = await callGeminiRotate({ model: MODEL, keys, payload })
+    geminiRes = await callGeminiRotate({ model: MODEL, keys, payload, primaryTimeoutMs: 15000 })   // chậm quá → model dự phòng
   } catch {
     return res.status(500).json({ error: 'network' })
   }

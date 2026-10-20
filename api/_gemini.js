@@ -15,7 +15,7 @@ export const isDailyLimit = obj => /daily|per[_ ]?day|perday|rpd|quota.*day/i.te
 
 // Model dự phòng khi model chính bị Google báo quá tải (503 "high demand") hoặc lỗi máy chủ 500
 const FALLBACKS = ['gemini-2.5-flash', 'gemini-3.1-flash-lite']   // (2.5-flash-lite đã bị Google ngừng — 404)
-const isOverloaded = res => res && (res.status === 503 || res.status === 500)
+const isOverloaded = res => res && (res.status === 503 || res.status === 500 || res.status === 504)
 
 // thinkingConfig.thinkingBudget là tham số của dòng 2.5 — bỏ đi khi chuyển sang model khác cho chắc.
 // Model 2.5 dùng làm DỰ PHÒNG mà payload không nói gì về "suy nghĩ" → tắt suy nghĩ: mặc định 2.5-flash
@@ -34,28 +34,44 @@ function payloadFor(model, payload, duPhong = false) {
 // Gọi Gemini generateContent: tự xoay vòng key khi gặp 429; model chính quá tải thì thử lại 1 lần
 // rồi lần lượt chuyển sang model dự phòng. Trả về đối tượng Response (chưa đọc body) để caller tự xử lý;
 // res.aiModel / res.aiTries cho biết model nào đã trả lời và sau mấy lần gọi (để chẩn đoán chậm).
-export async function callGeminiRotate({ model, keys, payload }) {
+// primaryTimeoutMs (tuỳ chọn, cho việc cần trả lời nhanh như chấm bài / trợ giảng): model chính quá thời gian
+// này chưa trả lời thì bỏ, chuyển ngay sang model dự phòng (20/10/2026 3.1-flash-lite có lúc mất ~20 giây/lần).
+export async function callGeminiRotate({ model, keys, payload, primaryTimeoutMs }) {
   let tries = 1
   const xong = (r, m) => { if (r) { r.aiModel = m; r.aiTries = tries } return r }
-  let res = await callModel({ model, keys, payload: payloadFor(model, payload) })
-  if (!isOverloaded(res)) return xong(res, model)
-  await new Promise(r => setTimeout(r, 1200))
-  tries++
-  res = await callModel({ model, keys, payload: payloadFor(model, payload) })
+  let res = await callModel({ model, keys, payload: payloadFor(model, payload), timeoutMs: primaryTimeoutMs })
+  if (!res?.timedOut) {
+    if (!isOverloaded(res)) return xong(res, model)
+    await new Promise(r => setTimeout(r, 1200))
+    tries++
+    res = await callModel({ model, keys, payload: payloadFor(model, payload), timeoutMs: primaryTimeoutMs })
+  }
   let dung = model
   for (const fb of FALLBACKS.filter(m => m !== model)) {
-    if (!isOverloaded(res)) return xong(res, dung)
+    if (!isOverloaded(res) && !res?.timedOut) return xong(res, dung)
     tries++; dung = fb
     res = await callModel({ model: fb, keys, payload: payloadFor(fb, payload, true) })
   }
   return xong(res, dung)
 }
 
-async function callModel({ model, keys, payload }) {
-  const attempt = key => fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload }
-  )
+// Kết quả giả khi quá thời gian chờ (để vòng lặp dự phòng xử lý như lỗi quá tải)
+const hetGio = () => ({ status: 504, ok: false, timedOut: true, json: async () => ({ error: 'timeout' }), clone() { return this } })
+
+async function callModel({ model, keys, payload, timeoutMs }) {
+  const attempt = async key => {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`
+    const init = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload }
+    if (!timeoutMs) return fetch(url, init)
+    try {
+      // Có giới hạn thời gian: đọc trọn nội dung ngay trong thời hạn (tránh bị cắt ngang lúc caller đọc sau)
+      const r = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) })
+      return new Response(await r.arrayBuffer(), { status: r.status, headers: r.headers })
+    } catch (e) {
+      if (e?.name === 'TimeoutError' || e?.name === 'AbortError') return hetGio()
+      throw e
+    }
+  }
 
   // Xáo trộn thứ tự key → mỗi lần gọi random chọn 1 key; key nào hết lượt mới nhảy sang key khác
   const order = [...keys].sort(() => Math.random() - 0.5)
