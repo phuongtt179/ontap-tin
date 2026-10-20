@@ -17,28 +17,38 @@ export const isDailyLimit = obj => /daily|per[_ ]?day|perday|rpd|quota.*day/i.te
 const FALLBACKS = ['gemini-2.5-flash', 'gemini-3.1-flash-lite']   // (2.5-flash-lite đã bị Google ngừng — 404)
 const isOverloaded = res => res && (res.status === 503 || res.status === 500)
 
-// thinkingConfig.thinkingBudget là tham số của dòng 2.5 — bỏ đi khi chuyển sang model khác cho chắc
-function payloadFor(model, payload) {
-  if (model.startsWith('gemini-2.5')) return payload
+// thinkingConfig.thinkingBudget là tham số của dòng 2.5 — bỏ đi khi chuyển sang model khác cho chắc.
+// Model 2.5 dùng làm DỰ PHÒNG mà payload không nói gì về "suy nghĩ" → tắt suy nghĩ: mặc định 2.5-flash
+// suy nghĩ rất lâu (chấm 1 bài 30–50 giây, học sinh tưởng không có điểm rồi đóng trang).
+function payloadFor(model, payload, duPhong = false) {
   try {
     const p = JSON.parse(payload)
-    if (p.generationConfig?.thinkingConfig) delete p.generationConfig.thinkingConfig
+    if (model.startsWith('gemini-2.5')) {
+      if (!duPhong || p.generationConfig?.thinkingConfig) return payload
+      p.generationConfig = { ...(p.generationConfig || {}), thinkingConfig: { thinkingBudget: 0 } }
+    } else if (p.generationConfig?.thinkingConfig) delete p.generationConfig.thinkingConfig
     return JSON.stringify(p)
   } catch { return payload }
 }
 
 // Gọi Gemini generateContent: tự xoay vòng key khi gặp 429; model chính quá tải thì thử lại 1 lần
-// rồi lần lượt chuyển sang model dự phòng. Trả về đối tượng Response (chưa đọc body) để caller tự xử lý.
+// rồi lần lượt chuyển sang model dự phòng. Trả về đối tượng Response (chưa đọc body) để caller tự xử lý;
+// res.aiModel / res.aiTries cho biết model nào đã trả lời và sau mấy lần gọi (để chẩn đoán chậm).
 export async function callGeminiRotate({ model, keys, payload }) {
+  let tries = 1
+  const xong = (r, m) => { if (r) { r.aiModel = m; r.aiTries = tries } return r }
   let res = await callModel({ model, keys, payload: payloadFor(model, payload) })
-  if (!isOverloaded(res)) return res
+  if (!isOverloaded(res)) return xong(res, model)
   await new Promise(r => setTimeout(r, 1200))
+  tries++
   res = await callModel({ model, keys, payload: payloadFor(model, payload) })
+  let dung = model
   for (const fb of FALLBACKS.filter(m => m !== model)) {
-    if (!isOverloaded(res)) return res
-    res = await callModel({ model: fb, keys, payload: payloadFor(fb, payload) })
+    if (!isOverloaded(res)) return xong(res, dung)
+    tries++; dung = fb
+    res = await callModel({ model: fb, keys, payload: payloadFor(fb, payload, true) })
   }
-  return res
+  return xong(res, dung)
 }
 
 async function callModel({ model, keys, payload }) {
