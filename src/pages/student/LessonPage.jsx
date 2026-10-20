@@ -1065,6 +1065,21 @@ export default function LessonPage() {
 
   // Chấm bù: bài đã nộp mà AI chưa chấm (học sinh rời trang trước khi kịp chấm, hoặc AI lỗi lúc đó)
   // → khi học sinh mở lại bài học thì chấm lần lượt từng bài. Mỗi lần mở trang chỉ chạy 1 lượt.
+  // Bài đã nộp mà chưa có điểm (trình duyệt chấm chưa xong / không kịp → máy chủ chấm bù sau vài phút):
+  // khi trang đang mở thì 20 giây hỏi lại 1 lần để điểm tự hiện, học sinh không phải tải lại trang.
+  useEffect(() => {
+    if (!STUDENT_AI_DIRECT) return
+    const choIds = taskSubmissions.filter(s => s && s.score == null && !s.graded_by).map(s => s.id)
+    if (!choIds.length) return
+    const t = setInterval(async () => {
+      if (document.hidden) return
+      const { data } = await supabase.from('lesson_submissions').select('*').in('id', choIds)
+      const coDiem = (data || []).filter(r => r.score != null || r.graded_by)
+      if (coDiem.length) setTaskSubmissions(prev => prev.map(s => (s && coDiem.find(r => r.id === s.id)) || s))
+    }, 20000)
+    return () => clearInterval(t)
+  }, [taskSubmissions])
+
   const catchupDone = useRef(false)
   useEffect(() => {
     if (loading || !lesson || catchupDone.current || !STUDENT_AI_DIRECT) return
@@ -1683,7 +1698,7 @@ export default function LessonPage() {
                                   )}
                                   {aiGradingTask === i ? (
                                     <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2.5 border border-amber-200">
-                                      <Loader2 size={13} className="animate-spin" /> AI đang chấm bài...
+                                      <Loader2 size={13} className="animate-spin" /> AI đang chấm bài… có thể mất tới 1 phút, em đừng đóng trang nhé
                                     </div>
                                   ) : feedbackVisible(sub) ? (
                                     <div className={`rounded-xl p-4 border ${sub.graded_by === 'ai' ? 'border-amber-200 bg-amber-50' : 'border-indigo-200 bg-indigo-50'}`}>

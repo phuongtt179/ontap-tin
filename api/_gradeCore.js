@@ -119,7 +119,10 @@ Quy tắc:
     contents: [{ parts }],
     generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
   })
+  const t0 = Date.now()
   const geminiRes = await callGeminiRotate({ model, keys, payload })
+  // Chẩn đoán chậm: model nào trả lời, sau mấy lần gọi, mất bao lâu (client bỏ qua trường này)
+  const ai = { model: geminiRes.aiModel, tries: geminiRes.aiTries, ms: Date.now() - t0 }
 
   if (geminiRes.status === 429) {
     const body = await geminiRes.json().catch(() => ({}))
@@ -170,7 +173,7 @@ Quy tắc:
       r.ai_suspect = !!r?.ai_suspect
       if (!r.ai_suspect) r.ai_suspect_reason = null
     }
-    return reply(200, { results })
+    return reply(200, { results, ai })
   } catch {
     return reply(500, { error: 'parse_error', raw: text })
   }
