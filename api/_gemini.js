@@ -46,11 +46,18 @@ export async function callGeminiRotate({ model, keys, payload, primaryTimeoutMs 
     tries++
     res = await callModel({ model, keys, payload: payloadFor(model, payload), timeoutMs: primaryTimeoutMs })
   }
+  const chinhQuaGio = !!res?.timedOut
   let dung = model
   for (const fb of FALLBACKS.filter(m => m !== model)) {
     if (!isOverloaded(res) && !res?.timedOut) return xong(res, dung)
     tries++; dung = fb
     res = await callModel({ model: fb, keys, payload: payloadFor(fb, payload, true) })
+  }
+  // Đã bỏ model chính vì chậm mà dự phòng cũng không dùng được (hết lượt ngày / quá tải) → quay lại
+  // chờ model chính, lần này không giới hạn thời gian (chậm còn hơn báo lỗi)
+  if (chinhQuaGio && (res.status === 429 || isOverloaded(res))) {
+    tries++; dung = model
+    res = await callModel({ model, keys, payload: payloadFor(model, payload) })
   }
   return xong(res, dung)
 }
