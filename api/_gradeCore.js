@@ -120,7 +120,8 @@ Quy tắc:
     generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
   })
   const t0 = Date.now()
-  const geminiRes = await callGeminiRotate({ model, keys, payload })
+  // Bài chữ: model chính quá 15 giây → sang dự phòng ngay (bài có ảnh dùng 2.5-flash vốn chậm hơn → không đặt)
+  const geminiRes = await callGeminiRotate({ model, keys, payload, primaryTimeoutMs: hasImage ? undefined : 15000 })
   // Chẩn đoán chậm: model nào trả lời, sau mấy lần gọi, mất bao lâu (client bỏ qua trường này)
   const ai = { model: geminiRes.aiModel, tries: geminiRes.aiTries, ms: Date.now() - t0 }
 
