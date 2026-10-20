@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -21,6 +21,8 @@ import { gradeStudent } from '../../utils/aiGrader'
 import PDFViewer from '../../components/ui/PDFViewer'
 import AskTutorModal from '../../components/student/AskTutorModal'
 import { topicKeyOf } from '../../utils/lessonSteps'
+// Bài giảng web (trình chiếu) – tải khi bài có bài giảng web
+const LessonSlidesViewer = lazy(() => import('../../components/slides/LessonSlidesViewer.jsx'))
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5) }
 
@@ -381,7 +383,7 @@ function checkAnswer(type, ans, correct) {
 function calcCompleted(prog, les) {
   const theoryOk = !les.ai_context || prog.theory_read
   const videoOk = !les.video_url || prog.video_watched
-  const pptxOk = !les.pptx_url || prog.pptx_viewed
+  const pptxOk = !(les.pptx_url || les.has_slides) || prog.pptx_viewed
   const quizOk = !(les.question_ids?.length > 0) || prog.quiz_passed
   const practiceOk = !les.has_practice || prog.practice_submitted
   return theoryOk && videoOk && pptxOk && quizOk && practiceOk
@@ -819,6 +821,7 @@ export default function LessonPage() {
   const [courseRoadmap, setCourseRoadmap] = useState('')   // lộ trình khóa (cho AI trả lời câu hỏi chương trình)
   const wasCompleted = useRef(false)
   const [pptxMarking, setPptxMarking] = useState(false)
+  const [webSlides, setWebSlides] = useState(null)   // bài giảng web (lesson_slides) – có thì hiện thay PPTX
 
   useEffect(() => {
     if (user) loadAll()
@@ -834,6 +837,10 @@ export default function LessonPage() {
         .select('id').eq('lesson_id', id).eq('user_id', user.id).maybeSingle()
       if (!visRow) { toast.error('Bài học này chưa mở cho em'); navigate(-1); return }
     }
+    if (lessonData.has_slides) {
+      supabase.from('lesson_slides').select('slides').eq('lesson_id', id).maybeSingle()
+        .then(({ data }) => setWebSlides(data?.slides?.length ? data.slides : null))
+    } else setWebSlides(null)
 
     // Chặn truy cập bài bị KHOÁ (chưa publish, hoặc đã publish nhưng chủ đề/
     // bài chưa được mở cho LỚP của học sinh) — trang con đường bài học chỉ
@@ -1213,7 +1220,7 @@ export default function LessonPage() {
 
   const hasTheory = !!lesson.ai_context
   const hasVideo = !!lesson.video_url
-  const hasPptx = !!lesson.pptx_url
+  const hasPptx = !!lesson.pptx_url || !!lesson.has_slides
   const hasQuiz = questions.length > 0
   const hasPractice = lesson.has_practice
   const embedUrl = getEmbedUrl(lesson.video_url)
@@ -1394,9 +1401,15 @@ export default function LessonPage() {
           const isPdf = lesson.pptx_url?.split('?')[0].toLowerCase().endsWith('.pdf')
           return (
           <SectionCard icon={<FileText size={18} />} iconBg="bg-orange-100" iconColor="text-orange-600"
-            title={isPdf ? 'Bài giảng (PDF)' : 'Bài giảng (PowerPoint)'} done={pptxOk} locked={pptxLocked}
+            title={webSlides ? 'Bài giảng' : isPdf ? 'Bài giảng (PDF)' : 'Bài giảng (PowerPoint)'} done={pptxOk} locked={pptxLocked}
             lockMessage="Xem video trước để mở khóa">
-            {leftPanelHidden ? null : isPdf ? (
+            {leftPanelHidden ? null : webSlides ? (
+              <Suspense fallback={<div className="w-full rounded-xl bg-gray-100 mb-4 flex items-center justify-center text-sm text-gray-400" style={{ aspectRatio: '16/9' }}>Đang tải bài giảng…</div>}>
+                <LessonSlidesViewer slides={webSlides} onXemHet={() => { if (!progress?.pptx_viewed && !pptxMarking) handleMarkPptxViewed() }} />
+              </Suspense>
+            ) : !lesson.pptx_url ? (
+              <div className="w-full rounded-xl bg-gray-100 mb-4 flex items-center justify-center text-sm text-gray-400" style={{ aspectRatio: '16/9' }}>Đang tải bài giảng…</div>
+            ) : isPdf ? (
               <div className="mb-4">
                 <PDFViewer url={lesson.pptx_url} />
               </div>

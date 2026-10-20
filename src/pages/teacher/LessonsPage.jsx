@@ -8,7 +8,7 @@ import { useUnits, useUnitsByGrade } from '../../hooks/useUnits'
 import { useLessonTitles } from '../../hooks/useLessonTitles'
 import toast from 'react-hot-toast'
 import {
-  Plus, Pencil, Trash2, FileText, X, Loader2, Check, Upload,
+  Plus, Pencil, Trash2, FileText, X, Loader2, Check, Upload, Presentation, MonitorPlay,
   ToggleLeft, ToggleRight, RefreshCw, PlayCircle, BookOpen, ClipboardList,
   ChevronDown, ChevronRight, Eye, Filter, Sparkles, Users,
 } from 'lucide-react'
@@ -1574,6 +1574,22 @@ export default function LessonsPage() {
                     >
                       <Eye size={15} />
                     </button>
+                    <button
+                      onClick={() => navigate(`/teacher/lessons/${lesson.id}/slides`)}
+                      className={`p-1.5 transition ${lesson.has_slides ? 'text-violet-600 hover:text-violet-800' : 'text-gray-400 hover:text-violet-600'}`}
+                      title={lesson.has_slides ? 'Sửa bài giảng web' : 'Soạn bài giảng web (AI hỗ trợ)'}
+                    >
+                      <Presentation size={15} />
+                    </button>
+                    {lesson.has_slides && (
+                      <button
+                        onClick={() => navigate(`/teacher/lessons/${lesson.id}/teach`)}
+                        className="p-1.5 text-green-600 hover:text-green-800 transition"
+                        title="Dạy bài này (trình chiếu + công cụ lớp học)"
+                      >
+                        <MonitorPlay size={15} />
+                      </button>
+                    )}
                     <button
                       onClick={() => navigate(`/teacher/lessons/${lesson.id}/submissions`)}
                       className="p-1.5 text-gray-400 hover:text-indigo-600 transition"
