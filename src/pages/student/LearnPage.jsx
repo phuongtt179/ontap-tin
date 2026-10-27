@@ -251,8 +251,9 @@ export default function LearnPage() {
         />
       </div>
 
-      {/* Trợ lý AI chat trực tiếp — chỉ hiện khi bật chế độ học sinh tương tác trực tiếp với AI */}
-      {STUDENT_AI_DIRECT && <AssistantBubble
+      {/* Bong bóng trợ lý: gợi ý bài mới / chưa xong (không dùng AI); chat AI chỉ khi bật chế độ trực tiếp */}
+      {<AssistantBubble
+        choChat={STUDENT_AI_DIRECT}
         user={user}
         profile={profile}
         lessons={lessons}
