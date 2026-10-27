@@ -88,7 +88,7 @@ export default function TeacherDashboard() {
       { count: practiceToday },
     ] = await Promise.all([
       supabase.from('attendance_sessions').select('id').eq('session_date', todayStr),
-      supabase.from('exam_sessions').select('id', { count: 'exact', head: true }).gte('created_at', since),
+      supabase.from('exam_sessions').select('id', { count: 'exact', head: true }).gte('started_at', since),   // exam_sessions không có cột created_at (từng lỗi 400)
       supabase.from('quiz_sessions').select('id', { count: 'exact', head: true }).gte('created_at', since),
     ])
 
