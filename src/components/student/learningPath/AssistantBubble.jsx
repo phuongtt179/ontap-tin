@@ -5,8 +5,10 @@ import { supabase } from '../../../lib/supabase'
 import { topicKeyOf } from '../../../utils/lessonSteps'
 import { apiFetch } from '../../../lib/apiFetch'
 
-// Bong bóng trợ lý AI nổi góc dưới phải — bóc nguyên khối chat mascot từ LearnPage.jsx.
-// Hành vi giữ nguyên 100%: tự mở 1 lần/ngày, gợi ý bài mới/chưa xong, chat trực tiếp /api/tutor.
+// Bong bóng trợ lý nổi góc dưới phải — bóc nguyên khối chat mascot từ LearnPage.jsx.
+// Tự mở 1 lần/ngày, gợi ý bài mới / bài chưa xong (lọc bằng quy tắc trong code, KHÔNG dùng AI).
+// choChat = true mới có ô chat trực tiếp với AI (/api/tutor). Từ 27/10/2026 tắt (học sinh không trò chuyện
+// với AI tạo sinh) → bong bóng chỉ còn gợi ý bài + nút "Hỏi thầy cô".
 //
 // `unlockedTopics`/`unlockedLessonMap`: dùng để lọc bỏ bài CHƯA MỞ KHOÁ khỏi
 // mọi gợi ý/link (nudge lẫn nút "Vào học" trong câu trả lời AI) — trước đây
@@ -15,7 +17,7 @@ import { apiFetch } from '../../../lib/apiFetch'
 export default function AssistantBubble({
   user, profile, lessons, displayedLessons, progressMap,
   selectedGrade, courseScope, courseRoadmap, lessonsCompleted, navigate,
-  unlockedTopics, unlockedLessonMap,
+  unlockedTopics, unlockedLessonMap, choChat = false,
 }) {
   const isUnlockedLesson = l => {
     if (unlockedTopics == null || unlockedLessonMap == null) return true // không thuộc lớp nào -> không giới hạn
@@ -125,7 +127,7 @@ export default function AssistantBubble({
       {/* Khung chat mascot — nổi góc phải dưới */}
       {nudgeOpen && (
         <div className="fixed bottom-4 right-4 z-50 w-[min(94vw,370px)]">
-          <div className="rounded-3xl shadow-2xl overflow-hidden flex flex-col" style={{ height: 'min(78vh, 560px)', background: 'var(--card)', border: '2px solid var(--stone)' }}>
+          <div className="rounded-3xl shadow-2xl overflow-hidden flex flex-col" style={{ ...(choChat ? { height: 'min(78vh, 560px)' } : { maxHeight: 'min(78vh, 560px)' }), background: 'var(--card)', border: '2px solid var(--stone)' }}>
             {/* Header */}
             <div className="flex items-center gap-2.5 px-4 py-3 text-white shrink-0" style={{ background: 'linear-gradient(135deg, var(--grape), #5b3fe0)' }}>
               <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-2xl animate-bounce select-none" style={{ animationDuration: '2.5s' }}>
@@ -133,7 +135,7 @@ export default function AssistantBubble({
               </div>
               <div className="flex-1 min-w-0 leading-tight">
                 <div className="font-display font-black text-sm">Trợ lý học tập</div>
-                <div className="text-white/80 text-[11px]">hỏi bài, hỏi chương trình, cách dùng app...</div>
+                <div className="text-white/80 text-[11px]">{choChat ? 'hỏi bài, hỏi chương trình, cách dùng app...' : 'gợi ý bài nên học hôm nay'}</div>
               </div>
               <button onClick={closeNudge} className="w-7 h-7 rounded-full hover:bg-white/20 flex items-center justify-center" title="Thu gọn">
                 <X size={16} />
@@ -167,7 +169,7 @@ export default function AssistantBubble({
               </div>
 
               {/* Tin nhắn hội thoại */}
-              {chatMsgs.map((m, i) => {
+              {choChat && chatMsgs.map((m, i) => {
                 const isAi = m.role === 'ai'
                 const parsed = isAi ? parseLessonLinks(m.content) : null
                 return (
@@ -206,7 +208,7 @@ export default function AssistantBubble({
                   </div>
                 )
               })}
-              {chatLoading && (
+              {choChat && chatLoading && (
                 <div className="flex justify-start">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0 mr-2" style={{ background: 'linear-gradient(135deg, var(--grape), #5b3fe0)' }}>
                     <Sparkles size={13} />
@@ -218,7 +220,7 @@ export default function AssistantBubble({
               )}
 
               {/* Gợi ý câu hỏi (chỉ khi chưa chat) */}
-              {chatMsgs.length === 0 && !chatLoading && (
+              {choChat && chatMsgs.length === 0 && !chatLoading && (
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {['Khóa này học những gì?', 'Làm sao nộp bài?', 'Sticker để làm gì?'].map(s => (
                     <button
@@ -235,8 +237,19 @@ export default function AssistantBubble({
               <div ref={chatEndRef} />
             </div>
 
+            {/* Không chat với AI: thắc mắc thì nhắn thầy cô */}
+            {!choChat && (
+              <div className="px-3 py-2.5 shrink-0" style={{ background: 'var(--card)', borderTop: '1px solid var(--stone)' }}>
+                <button onClick={() => navigate('/student/messages')}
+                  className="w-full rounded-2xl px-3 py-2 text-sm font-bold text-white transition hover:brightness-105"
+                  style={{ background: 'linear-gradient(135deg, var(--grape), #5b3fe0)' }}>
+                  🙋 Có thắc mắc? Hỏi thầy cô
+                </button>
+              </div>
+            )}
+
             {/* Ô nhập */}
-            <div className="px-3 py-2.5 flex gap-2 items-end shrink-0" style={{ background: 'var(--card)', borderTop: '1px solid var(--stone)' }}>
+            {choChat && <div className="px-3 py-2.5 flex gap-2 items-end shrink-0" style={{ background: 'var(--card)', borderTop: '1px solid var(--stone)' }}>
               <textarea
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
@@ -255,7 +268,7 @@ export default function AssistantBubble({
               >
                 {chatLoading ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
               </button>
-            </div>
+            </div>}
           </div>
         </div>
       )}

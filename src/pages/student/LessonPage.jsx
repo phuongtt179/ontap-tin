@@ -20,6 +20,7 @@ import { updateStreak, STREAK_MILESTONES } from '../../utils/updateStreak'
 import { gradeStudent } from '../../utils/aiGrader'
 import PDFViewer from '../../components/ui/PDFViewer'
 import AskTutorModal from '../../components/student/AskTutorModal'
+import PyTestStatus from '../../components/student/PyTestStatus'
 import { topicKeyOf } from '../../utils/lessonSteps'
 // Bài giảng web (trình chiếu) – tải khi bài có bài giảng web
 const LessonSlidesViewer = lazy(() => import('../../components/slides/LessonSlidesViewer.jsx'))
@@ -1065,18 +1066,17 @@ export default function LessonPage() {
 
   // Chấm bù: bài đã nộp mà AI chưa chấm (học sinh rời trang trước khi kịp chấm, hoặc AI lỗi lúc đó)
   // → khi học sinh mở lại bài học thì chấm lần lượt từng bài. Mỗi lần mở trang chỉ chạy 1 lượt.
-  // Bài đã nộp mà chưa có điểm (trình duyệt chấm chưa xong / không kịp → máy chủ chấm bù sau vài phút):
-  // khi trang đang mở thì 20 giây hỏi lại 1 lần để điểm tự hiện, học sinh không phải tải lại trang.
+  // Bài đã nộp mà học sinh chưa thấy nhận xét (chờ giáo viên duyệt / máy chủ chấm bù): khi trang đang mở thì
+  // định kỳ hỏi lại để nhận xét tự hiện ngay khi có, học sinh không phải tải lại trang.
   useEffect(() => {
-    if (!STUDENT_AI_DIRECT) return
-    const choIds = taskSubmissions.filter(s => s && s.score == null && !s.graded_by).map(s => s.id)
+    const choIds = taskSubmissions.filter(s => s && !feedbackVisible(s)).map(s => s.id)
     if (!choIds.length) return
     const t = setInterval(async () => {
       if (document.hidden) return
       const { data } = await supabase.from('lesson_submissions').select('*').in('id', choIds)
-      const coDiem = (data || []).filter(r => r.score != null || r.graded_by)
-      if (coDiem.length) setTaskSubmissions(prev => prev.map(s => (s && coDiem.find(r => r.id === s.id)) || s))
-    }, 20000)
+      const moi = (data || []).filter(feedbackVisible)
+      if (moi.length) setTaskSubmissions(prev => prev.map(s => (s && moi.find(r => r.id === s.id)) || s))
+    }, STUDENT_AI_DIRECT ? 20000 : 60000)
     return () => clearInterval(t)
   }, [taskSubmissions])
 
@@ -1696,6 +1696,7 @@ export default function LessonPage() {
                                       <p className="text-sm text-orange-700 font-semibold">Giáo viên cho phép bạn nộp lại bài này!</p>
                                     </div>
                                   )}
+                                  {!feedbackVisible(sub) && <PyTestStatus fileUrl={sub.file_url} task={task} />}
                                   {aiGradingTask === i ? (
                                     <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2.5 border border-amber-200">
                                       <Loader2 size={13} className="animate-spin" /> AI đang chấm bài… có thể mất tới 1 phút, em đừng đóng trang nhé
@@ -1737,7 +1738,7 @@ export default function LessonPage() {
                                       )}
                                     </div>
                                   ) : (
-                                    <p className="text-xs text-gray-400 italic text-center py-2">⏳ Chờ giáo viên nhận xét...</p>
+                                    <p className="text-xs text-gray-400 italic text-center py-2">⏳ Thầy cô sẽ xem bài và nhận xét – em quay lại sau nhé (nhận xét tự hiện ở đây)</p>
                                   )}
                                   {/* Bài AI chấm (kể cả đã được thầy/cô duyệt) luôn nộp lại được; bài thầy/cô chấm tay chỉ nộp lại khi được cho phép */}
                                   {(!sub.reviewed_at || sub.graded_by === 'ai' || sub.allow_resubmit) && (

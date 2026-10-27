@@ -5,10 +5,11 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
 
 // Chế độ học sinh tương tác TRỰC TIẾP với AI (gia sư trả lời ngay, AI chấm ngay khi nộp).
-// Mặc định TẮT — điều khoản Gemini API không cho dùng trong ứng dụng hướng tới người dưới 18 tuổi,
-// nên học sinh chỉ nhận nội dung AI sau khi giáo viên duyệt. Bật lại bằng biến môi trường trên Vercel.
+// TẮT CỐ ĐỊNH từ 27/10/2026 — điều khoản Gemini API không cho dùng trong ứng dụng hướng tới người dưới
+// 18 tuổi, nên học sinh chỉ nhận nội dung AI sau khi giáo viên duyệt. Biến môi trường VITE_STUDENT_AI_DIRECT
+// không còn tác dụng (đồng bộ với src/lib/aiMode.js).
 export function studentAiDirect() {
-  return ['1', 'true', 'on'].includes(String(process.env.VITE_STUDENT_AI_DIRECT || '').toLowerCase())
+  return false
 }
 
 export const STAFF = ['teacher', 'assistant']
