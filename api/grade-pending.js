@@ -1,6 +1,7 @@
 // Máy chủ tự chấm các bài nộp mà AI chưa chấm (học sinh đóng trang trước khi trình duyệt kịp chấm,
 // mạng chập chờn, AI quá tải lúc đó…). Supabase pg_cron gọi endpoint này vài phút một lần
 // (xem migration_grade_pending.sql) — không còn phụ thuộc việc học sinh mở lại bài.
+// ⚠ 27/10/2026: ĐÃ GỠ lịch pg_cron (cạn Disk IO gói nano) — endpoint không còn được gọi; giáo viên tự bấm chấm.
 import { gradeTasks } from './_gradeCore.js'
 import { prepareTasks } from '../src/utils/gradePrep.js'
 

@@ -1,3 +1,7 @@
+-- ⚠ ĐÃ BỎ 27/10/2026: người dùng chạy `select cron.unschedule('grade-pending');` (lịch 2 phút/lần góp phần cạn
+--   Disk IO của gói nano). Từ đó giáo viên tự bấm chấm: Trung tâm AI → Chấm bài mới, hoặc trang Bài nộp của từng bài.
+--   api/grade-pending.js vẫn còn nhưng không còn gì gọi tới. Đừng chạy lại phần cron.schedule bên dưới.
+--
 -- Máy chủ tự chấm bài AI bỏ sót (19/10/2026)
 -- Trước đây AI chỉ chấm trên trình duyệt học sinh ngay sau khi nộp → em đóng trang sớm là bài không được chấm
 -- (Scratch: chỉ ~15% bài được chấm). Nay Supabase gọi /api/grade-pending 2 phút/lần để chấm các bài còn sót.
