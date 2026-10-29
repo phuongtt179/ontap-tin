@@ -28,7 +28,9 @@
       "Bash(cat ~/.supabase/access-token 2>/dev/null || echo \"no token\")",
       "Read(//c/Users/Administrator/.supabase/**)",
       "Bash(git -C \"e:/UNG DUNG/ONTAP TIN \\(Tieu hoc\\)\" status)",
-      "Bash(git -C \"e:/UNG DUNG/ONTAP TIN \\(Tieu hoc\\)\" diff)"
+      "Bash(git -C \"e:/UNG DUNG/ONTAP TIN \\(Tieu hoc\\)\" diff)",
+      "Bash(npm run *)",
+      "Bash(node --check --input-type=module)"
     ]
   }
 }
