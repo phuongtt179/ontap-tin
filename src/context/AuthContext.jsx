@@ -45,11 +45,23 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function fetchProfile(userId) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
+    // Máy chủ quá tải / vừa khởi động lại có thể trả 503 tạm thời — thử lại vài lần,
+    // KHÔNG coi lỗi mạng là "không có hồ sơ" (trước đây đăng xuất oan người dùng).
+    let data = null, error = null
+    for (let lan = 0; lan < 4; lan++) {
+      ;({ data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle())
+      if (!error) break
+      await new Promise(r => setTimeout(r, 1500 * (lan + 1)))
+    }
+
+    if (error) {
+      isAuthenticatedRef.current = false
+      await supabase.auth.signOut()
+      setProfile(null)
+      setLoading(false)
+      toast.error('Máy chủ đang bận, em chờ ít phút rồi đăng nhập lại nhé.')
+      return
+    }
 
     if (!data) {
       isAuthenticatedRef.current = false
