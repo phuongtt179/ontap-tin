@@ -2,18 +2,20 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
-import { ShieldCheck, RefreshCw, BookOpenText, MessagesSquare, Lightbulb, MessageCircleQuestion } from 'lucide-react'
+import { ShieldCheck, RefreshCw, BookOpenText, MessagesSquare, Lightbulb, MessageCircleQuestion, BookMarked } from 'lucide-react'
 import QuestionsTab from '../../components/teacher/aiTools/QuestionsTab'
 import HintsTab from '../../components/teacher/aiTools/HintsTab'
 import ReviewTab from '../../components/teacher/aiTools/ReviewTab'
 import BackfillTab from '../../components/teacher/aiTools/BackfillTab'
 import TutorNotesTab from '../../components/teacher/aiTools/TutorNotesTab'
 import InsightsTab from '../../components/teacher/aiTools/InsightsTab'
+import FaqTab from '../../components/teacher/aiTools/FaqTab'
 
 const TABS = [
   { key: 'backfill', label: 'Chấm bài mới', icon: RefreshCw },
   { key: 'review', label: 'Duyệt bài AI chấm', icon: ShieldCheck },
   { key: 'questions', label: 'Câu hỏi học sinh', icon: MessageCircleQuestion },
+  { key: 'faq', label: 'Hỏi đáp mẫu', icon: BookMarked },
   { key: 'notes', label: 'Nội dung gia sư', icon: BookOpenText },
   { key: 'insights', label: 'HS đang thắc mắc', icon: MessagesSquare },
   { key: 'hints', label: 'Gợi ý câu hỏi', icon: Lightbulb },
@@ -67,7 +69,7 @@ export default function AiToolsPage() {
         <select value={lop} onChange={e => setLop(e.target.value)} disabled={!grade} className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white disabled:opacity-50">
           <option value="">{grade ? 'Tất cả lớp' : 'Chọn khoá trước'}</option>{lops.map(l => <option key={l} value={l}>{l}</option>)}
         </select>
-        <span className="text-xs text-gray-400">Áp dụng cho Chấm bài mới · Duyệt bài AI chấm · Câu hỏi học sinh (bài nộp 30 ngày gần đây)</span>
+        <span className="text-xs text-gray-400">Áp dụng cho Chấm bài mới · Duyệt bài AI chấm · Câu hỏi học sinh · Hỏi đáp mẫu</span>
       </div>
       <div className="flex gap-1 overflow-x-auto border-b border-gray-200">
         {TABS.map(t => (
@@ -80,6 +82,7 @@ export default function AiToolsPage() {
       {tab === 'review' && <ReviewTab summary={summary} onChanged={loadSummary} loc={loc} />}
       {tab === 'backfill' && <BackfillTab onChanged={loadSummary} loc={loc} />}
       {tab === 'questions' && <QuestionsTab onChanged={loadSummary} loc={loc} />}
+      {tab === 'faq' && <FaqTab loc={loc} />}
       {tab === 'notes' && <TutorNotesTab />}
       {tab === 'insights' && <InsightsTab />}
       {tab === 'hints' && <HintsTab />}

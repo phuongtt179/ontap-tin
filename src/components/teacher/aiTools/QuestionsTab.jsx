@@ -77,7 +77,7 @@ export default function QuestionsTab({ onChanged, loc = {} }) {
     }
   }
 
-  async function finish(q, status) {
+  async function finish(q, status, { luuMau = false } = {}) {
     const text = (drafts[q.id]?.text || '').trim()
     if (status === 'answered' && !text) { toast.error('Câu trả lời đang trống'); return false }
     setSending(s => ({ ...s, [q.id]: true }))
@@ -86,6 +86,11 @@ export default function QuestionsTab({ onChanged, loc = {} }) {
     }).eq('id', q.id)
     setSending(s => ({ ...s, [q.id]: false }))
     if (error) { toast.error('Lưu thất bại: ' + error.message); return false }
+    // Lưu thành hỏi đáp mẫu đã duyệt của bài → lần sau em khác hỏi cùng ý sẽ nhận ngay câu trả lời này
+    if (luuMau && q.lesson_id) {
+      const { error: e2 } = await supabase.from('lesson_faq').insert({ lesson_id: q.lesson_id, question: q.question.slice(0, 500), answer: text.slice(0, 3000), approved: true, approved_at: new Date().toISOString(), source: 'student', created_by: user.id })
+      if (e2) toast.error('Đã gửi nhưng chưa lưu được hỏi đáp mẫu: ' + e2.message); else toast.success('Đã gửi và lưu thành hỏi đáp mẫu')
+    }
     setItems(prev => prev.filter(x => x.id !== q.id))
     return true
   }
@@ -156,6 +161,9 @@ export default function QuestionsTab({ onChanged, loc = {} }) {
                     className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 disabled:opacity-50"><X size={12} /> Bỏ qua</button>
                   <button onClick={() => finish(q, 'answered').then(ok => ok && onChanged?.())} disabled={sending[q.id] || !d?.text?.trim()}
                     className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-600 text-white disabled:opacity-50"><Send size={12} /> Gửi</button>
+                  {q.lesson_id && <button onClick={() => finish(q, 'answered', { luuMau: true }).then(ok => ok && onChanged?.())} disabled={sending[q.id] || !d?.text?.trim()}
+                    title="Gửi cho em này và lưu thành hỏi đáp mẫu của bài — em khác hỏi cùng ý sẽ nhận ngay câu trả lời"
+                    className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-teal-600 text-white disabled:opacity-50"><Send size={12} /> Gửi + lưu mẫu</button>}
                 </div>
               </div>
             )
