@@ -139,14 +139,16 @@ export default function MessagesInboxPage() {
 
   async function loadAll() {
     setLoading(true)
-    const { data: allMsgs } = await supabase.from('messages').select('*').order('created_at', { ascending: true })
-    if (!allMsgs || allMsgs.length === 0) { setThreads([]); setLoading(false); return }
+    // Tách kênh: 'teacher' = chat thật với giáo viên (ít, tải đủ), 'ai' = log hỏi trợ giảng (hàng chục nghìn dòng,
+    // ~14 MB) → ở đây chỉ lấy mốc thời gian để xếp danh sách; nội dung log AI tải riêng khi mở 1 học sinh (openThread).
+    const [{ data: teacherMsgs }, { data: aiMoc }] = await Promise.all([
+      supabase.from('messages').select('*').or('channel.eq.teacher,channel.is.null').order('created_at', { ascending: true }),
+      supabase.from('messages').select('student_id, created_at').eq('channel', 'ai').order('created_at', { ascending: false }).limit(1000),
+    ])
+    const aiMsgs = (aiMoc || []).reverse().map(m => ({ ...m, content: '🤖 Hỏi đáp AI', sender_role: 'student', _moc: true }))
+    if (!teacherMsgs?.length && !aiMsgs.length) { setThreads([]); setLoading(false); return }
 
-    // Tách kênh: 'teacher' = chat thật với giáo viên, 'ai' = log hỏi trợ giảng
-    const teacherMsgs = allMsgs.filter(m => (m.channel || 'teacher') === 'teacher')
-    const aiMsgs = allMsgs.filter(m => m.channel === 'ai')
-
-    const studentIds = [...new Set(allMsgs.map(m => m.student_id))]
+    const studentIds = [...new Set([...(teacherMsgs || []), ...aiMsgs].map(m => m.student_id))]
     const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', studentIds)
     const { data: enrollments } = await supabase.from('student_enrollments').select('user_id, class_name').in('user_id', studentIds)
     const classMap = {}
@@ -154,7 +156,7 @@ export default function MessagesInboxPage() {
     const profileMap = {}
     ;(profiles || []).forEach(p => { profileMap[p.id] = { ...p, class_name: classMap[p.id] || '' } })
 
-    const tMap = {}; teacherMsgs.forEach(m => { (tMap[m.student_id] ||= []).push(m) })
+    const tMap = {}; (teacherMsgs || []).forEach(m => { (tMap[m.student_id] ||= []).push(m) })
     const aMap = {}; aiMsgs.forEach(m => { (aMap[m.student_id] ||= []).push(m) })
 
     const result = studentIds.map(sid => {
@@ -180,6 +182,14 @@ export default function MessagesInboxPage() {
     setSelected(thread)
     setInput('')
     setShowAiLog(false)
+    // Log hỏi đáp AI của riêng học sinh này (danh sách chỉ có mốc thời gian)
+    if (thread.aiMessages?.some(m => m._moc)) {
+      const { data: aiLog } = await supabase.from('messages').select('*')
+        .eq('student_id', thread.student.id).eq('channel', 'ai').order('created_at', { ascending: true }).limit(500)
+      const capNhat = t => (t.student.id === thread.student.id ? { ...t, aiMessages: aiLog || [] } : t)
+      setSelected(prev => (prev ? capNhat(prev) : prev))
+      setThreads(prev => prev.map(capNhat))
+    }
     // Đánh dấu đã đọc
     await supabase.from('messages').update({ is_read: true })
       .eq('student_id', thread.student.id).eq('sender_role', 'student').eq('is_read', false)
