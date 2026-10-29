@@ -23,7 +23,7 @@ const SINCE = {
 }
 const DELAY_MS = 6000  // giãn nhịp giữa các bài để không giành lượt Gemini với học sinh đang học
 
-export default function BackfillTab({ onChanged }) {
+export default function BackfillTab({ onChanged, loc = {} }) {
   const [since, setSince] = useState('30d')
   const [batch, setBatch] = useState(20)
   const [count, setCount] = useState(null)
@@ -34,15 +34,18 @@ export default function BackfillTab({ onChanged }) {
 
   function baseQuery(q) {
     q = q.is('score', null).is('graded_by', null).is('reviewed_at', null)
+    if (loc.grade) q = q.eq('lessons.grade', loc.grade)
+    if (loc.hsLop) q = q.in('user_id', loc.hsLop.length ? loc.hsLop : ['00000000-0000-0000-0000-000000000000'])
     const d = SINCE[since].date()
     return d ? q.gte('submitted_at', d) : q
   }
 
   useEffect(() => {
+    if (loc.lop && !loc.hsLop) return
     setCount(null)
-    baseQuery(supabase.from('lesson_submissions').select('id', { count: 'exact', head: true }))
+    baseQuery(supabase.from('lesson_submissions').select('id, lessons!inner(grade)', { count: 'exact', head: true }))
       .then(({ count }) => setCount(count ?? 0))
-  }, [since]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [since, loc.grade, loc.lop, loc.hsLop]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const addLog = (entry) => setLog(prev => [entry, ...prev].slice(0, 200))
   const sleep = ms => new Promise(r => setTimeout(r, ms))
@@ -52,7 +55,7 @@ export default function BackfillTab({ onChanged }) {
     setRunning(true); setLog([])
     const { data: pool, error } = await baseQuery(
       supabase.from('lesson_submissions')
-        .select('id, user_id, lesson_id, file_url, file_name, text_content, content_json, submitted_at, profiles(full_name), lessons(title, practice_instructions)')
+        .select('id, user_id, lesson_id, file_url, file_name, text_content, content_json, submitted_at, profiles(full_name), lessons!inner(title, grade, practice_instructions)')
     ).order('submitted_at', { ascending: false }).limit(Math.min(batch * 5, 500))
     if (error) { toast.error('Không tải được danh sách bài'); setRunning(false); return }
 

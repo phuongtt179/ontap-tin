@@ -11,7 +11,7 @@ const BATCH = 15
 
 // Câu hỏi học sinh gửi thầy cô (chế độ giáo viên làm trung gian): AI soạn NHÁP theo đúng quy tắc gia sư,
 // giáo viên đọc/sửa rồi mới gửi. Học sinh không bao giờ đọc được bản nháp chưa duyệt.
-export default function QuestionsTab({ onChanged }) {
+export default function QuestionsTab({ onChanged, loc = {} }) {
   const { user } = useAuth()
   const [items, setItems] = useState(null)
   const [drafts, setDrafts] = useState({})    // id -> { text, skip }
@@ -19,16 +19,20 @@ export default function QuestionsTab({ onChanged }) {
   const [sending, setSending] = useState({})
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from('student_questions')
-      .select('id, student_id, lesson_id, mode, question, context, created_at, profiles!student_questions_student_id_fkey(full_name), lessons(title, grade, description, ai_context, ai_tutor_notes)')
-      .eq('status', 'pending').order('created_at', { ascending: true }).limit(100)
+    if (loc.lop && !loc.hsLop) return
+    let q = supabase.from('student_questions')
+      .select(`id, student_id, lesson_id, mode, question, context, created_at, profiles!student_questions_student_id_fkey(full_name), lessons${loc.grade ? '!inner' : ''}(title, grade, description, ai_context, ai_tutor_notes)`)
+      .eq('status', 'pending')
+    if (loc.grade) q = q.eq('lessons.grade', loc.grade)
+    if (loc.hsLop) q = q.in('student_id', loc.hsLop.length ? loc.hsLop : ['00000000-0000-0000-0000-000000000000'])
+    const { data, error } = await q.order('created_at', { ascending: true }).limit(100)
     if (error) { toast.error('Không tải được câu hỏi'); setItems([]); return }
     setItems(data || [])
     const ids = (data || []).map(q => q.id)
     if (!ids.length) { setDrafts({}); return }
     const { data: d } = await supabase.from('student_question_drafts').select('question_id, draft, skip_reason').in('question_id', ids)
     setDrafts(Object.fromEntries((d || []).map(x => [x.question_id, { text: x.draft || '', skip: x.skip_reason }])))
-  }, [])
+  }, [loc.grade, loc.lop, loc.hsLop])   // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load() }, [load])
 
