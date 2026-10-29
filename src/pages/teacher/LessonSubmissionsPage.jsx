@@ -188,8 +188,23 @@ export default function LessonSubmissionsPage() {
       setSelected(prev => prev ? { ...prev, submissions: sm[prev.student.id] || prev.submissions } : prev)
       setLastRefresh(new Date())
     }
-    const timer = setInterval(refresh, 60000)
-    const onVisible = () => { if (!document.hidden) refresh() }
+    // Hỏi nhẹ vài cột trạng thái trước; chỉ khi có thay đổi (bài mới, điểm mới, tiến độ mới) mới tải đầy đủ
+    let dauVet = null
+    async function kiemTra() {
+      if (document.hidden || !studentIdsRef.current.length) return
+      const userIds = studentIdsRef.current
+      const [{ data: p }, { data: s }] = await Promise.all([
+        supabase.from('lesson_progress').select('id, updated_at').eq('lesson_id', id).in('user_id', userIds),
+        supabase.from('lesson_submissions').select('id, submitted_at, score, muc, graded_by, reviewed_at, ai_graded_at, allow_resubmit').eq('lesson_id', id).in('user_id', userIds),
+      ])
+      if (!p || !s) return
+      const moi = JSON.stringify([p.map(x => x.id + x.updated_at).sort(), s.map(x => Object.values(x).join('|')).sort()])
+      if (moi === dauVet) return
+      dauVet = moi
+      await refresh()   // lần đầu cũng tải 1 lần để không lỡ thay đổi từ lúc mở trang
+    }
+    const timer = setInterval(kiemTra, 120000)
+    const onVisible = () => { if (!document.hidden) kiemTra() }
     document.addEventListener('visibilitychange', onVisible)
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) }
   }, [id])
