@@ -1070,15 +1070,22 @@ export default function LessonPage() {
   // → khi học sinh mở lại bài học thì chấm lần lượt từng bài. Mỗi lần mở trang chỉ chạy 1 lượt.
   // Bài đã nộp mà học sinh chưa thấy nhận xét (chờ giáo viên duyệt / máy chủ chấm bù): khi trang đang mở thì
   // định kỳ hỏi lại để nhận xét tự hiện ngay khi có, học sinh không phải tải lại trang.
+  // Chỉ hỏi các cột trạng thái (nhẹ); bài nào đã hiện được nhận xét mới tải đầy đủ. Dừng sau 30 phút
+  // (chờ giáo viên duyệt có thể mất cả ngày — hỏi mãi làm máy chủ nano quá tải).
   useEffect(() => {
     const choIds = taskSubmissions.filter(s => s && !feedbackVisible(s)).map(s => s.id)
     if (!choIds.length) return
+    const batDau = Date.now()
     const t = setInterval(async () => {
+      if (Date.now() - batDau > 30 * 60000) { clearInterval(t); return }
       if (document.hidden) return
-      const { data } = await supabase.from('lesson_submissions').select('*').in('id', choIds)
-      const moi = (data || []).filter(feedbackVisible)
-      if (moi.length) setTaskSubmissions(prev => prev.map(s => (s && moi.find(r => r.id === s.id)) || s))
-    }, STUDENT_AI_DIRECT ? 20000 : 60000)
+      const { data } = await supabase.from('lesson_submissions')
+        .select('id, score, teacher_comment, graded_by, reviewed_at, ai_graded_at').in('id', choIds)
+      const xongIds = (data || []).filter(feedbackVisible).map(r => r.id)
+      if (!xongIds.length) return
+      const { data: moi } = await supabase.from('lesson_submissions').select('*').in('id', xongIds)
+      if (moi?.length) setTaskSubmissions(prev => prev.map(s => (s && moi.find(r => r.id === s.id)) || s))
+    }, STUDENT_AI_DIRECT ? 20000 : 180000)
     return () => clearInterval(t)
   }, [taskSubmissions])
 
