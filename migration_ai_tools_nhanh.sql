@@ -4,12 +4,13 @@
 -- (kể cả bài đã duyệt). 8.853 bài "chưa duyệt" phần lớn thuộc giai đoạn AI trả kết quả thẳng (11–27/10) — học sinh đã xem.
 -- Sửa: chỉ xét bài CHƯA DUYỆT nộp trong 30 ngày gần đây (dùng index lesson_submissions_ai_unreviewed_idx);
 --       ai_tools_summary đếm các nhóm trong 1 lần quét. Kết quả trả về giữ nguyên cấu trúc.
--- Thêm tham số p_grade (khoá — theo bài học) và p_class (lớp — theo ghi danh), bỏ trống = tất cả.
+-- Thêm tham số p_grade (khoá — theo bài học), p_class (lớp — theo ghi danh), p_muc (mức AI gợi ý T/H/C: ≥8 / 5–8 / <5), bỏ trống = tất cả.
 
 drop function if exists public.ai_review_queue(text, integer);
+drop function if exists public.ai_review_queue(text, integer, text, text);
 drop function if exists public.ai_tools_summary();
 
-create or replace function public.ai_review_queue(p_reason text default null, p_limit integer default 30, p_grade text default null, p_class text default null)
+create or replace function public.ai_review_queue(p_reason text default null, p_limit integer default 30, p_grade text default null, p_class text default null, p_muc text default null)
 returns table(id uuid, user_id uuid, lesson_id uuid, student_name text, lesson_title text, grade text, score numeric,
               ai_breakdown jsonb, teacher_comment text, ai_suspect_reason text, file_url text, file_name text,
               text_content text, content_json jsonb, submitted_at timestamptz, sticker_awarded boolean, reason text, reason_total bigint)
@@ -26,6 +27,7 @@ begin
     from public.lesson_submissions s
     where s.reviewed_at is null and s.graded_by = 'ai' and s.score is not null
       and s.submitted_at >= now() - interval '30 days'
+      and (p_muc is null or (p_muc = 'T' and s.score >= 8) or (p_muc = 'H' and s.score >= 5 and s.score < 8) or (p_muc = 'C' and s.score < 5))
       and (p_grade is null or exists (select 1 from public.lessons lx where lx.id = s.lesson_id and lx.grade = p_grade))
       and (p_class is null or exists (select 1 from public.student_enrollments e where e.user_id = s.user_id
                                       and e.class_name = p_class and e.is_approved and (p_grade is null or e.grade = p_grade)))
@@ -52,7 +54,7 @@ begin
   from counted c
   join public.profiles p on p.id = c.user_id
   join public.lessons  l on l.id = c.lesson_id
-  where (p_reason is null and c.why <> 'normal') or c.why = p_reason
+  where (p_reason is null and (c.why <> 'normal' or p_muc is not null)) or c.why = p_reason   -- lọc theo mức: hiện cả nhóm bình thường
   order by case c.why when 'empty' then 95 when 'suspect' then 90 when 'low' then 70 when 'first' then 50 when 'sample' then 20 else 10 end desc,
            c.submitted_at desc
   limit greatest(1, least(p_limit, 100));
@@ -107,7 +109,7 @@ begin
   return result;
 end $$;
 
-grant execute on function public.ai_review_queue(text, integer, text, text) to authenticated;
+grant execute on function public.ai_review_queue(text, integer, text, text, text) to authenticated;
 grant execute on function public.ai_tools_summary(text, text) to authenticated;
-revoke execute on function public.ai_review_queue(text, integer, text, text) from anon;
+revoke execute on function public.ai_review_queue(text, integer, text, text, text) from anon;
 revoke execute on function public.ai_tools_summary(text, text) from anon;

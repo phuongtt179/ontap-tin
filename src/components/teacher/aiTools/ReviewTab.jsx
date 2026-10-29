@@ -159,6 +159,7 @@ function readPageSize() {
 
 export default function ReviewTab({ summary, onChanged, loc = {} }) {
   const [reason, setReason] = useState(null)
+  const [locMuc, setLocMuc] = useState(null)   // lọc theo mức AI gợi ý: null | 'T' | 'H' | 'C'
   const [items, setItems] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [bulk, setBulk] = useState(false)
@@ -219,11 +220,11 @@ export default function ReviewTab({ summary, onChanged, loc = {} }) {
   useEffect(() => {
     if (loc.lop && !loc.hsLop) return   // đang tải danh sách lớp
     setItems(null)
-    supabase.rpc('ai_review_queue', { p_reason: reason, p_limit: pageSize, p_grade: loc.grade, p_class: loc.lop }).then(({ data, error }) => {
+    supabase.rpc('ai_review_queue', { p_reason: reason, p_limit: pageSize, p_grade: loc.grade, p_class: loc.lop, p_muc: locMuc }).then(({ data, error }) => {
       if (error) { toast.error('Không tải được hàng đợi duyệt'); setItems([]) } else setItems(data || [])
       setSelected(new Set())
     })
-  }, [reason, reloadKey, pageSize, loc.grade, loc.lop, loc.hsLop])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reason, reloadKey, pageSize, loc.grade, loc.lop, loc.hsLop, locMuc])   // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleDone(item) {
     setItems(prev => prev.filter(i => i.id !== item.id))
@@ -247,6 +248,15 @@ export default function ReviewTab({ summary, onChanged, loc = {} }) {
           <button key={k} onClick={() => pickReason(k)}
             className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${reason === k ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'}`}>
             {r.label} ({(counts[k] ?? 0).toLocaleString('vi-VN')})
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-gray-600">Mức AI gợi ý:</span>
+        {[null, ...CAC_MUC].map(m => (
+          <button key={m || 'all'} onClick={() => { setLocMuc(m); setItems(null) }} disabled={bulk} title={m ? MUC[m].ten : 'Mọi mức'}
+            className={`text-xs font-semibold px-3 py-1 rounded-full border ${locMuc === m ? (m ? MUC[m].nut + ' border-transparent' : 'bg-gray-800 text-white border-gray-800') : 'bg-white text-gray-600 border-gray-300'}`}>
+            {m ? `${m} · ${MUC[m].ten}` : 'Tất cả'}
           </button>
         ))}
       </div>
