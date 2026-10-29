@@ -9,8 +9,21 @@ import Sb3Viewer from '../../components/ui/Sb3Viewer'
 import { gradeStudent } from '../../utils/aiGrader'
 import { runPython } from '../../utils/gradePrep.js'
 import { adjustStickerCount } from '../../utils/stickerAward'
+import { MUC, CAC_MUC, mucCua, mucTuDiem, stickerTheoMuc, DIEM_DAI_DIEN } from '../../utils/muc'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+
+// Nút chọn mức T/H/C — từ 29/10/2026 giáo viên đánh giá theo mức, không nhập điểm
+function ChonMuc({ value, onChange }) {
+  return (
+    <span className="inline-flex gap-1">
+      {CAC_MUC.map(m => (
+        <button key={m} type="button" onClick={() => onChange(m)} title={MUC[m].ten}
+          className={`w-9 h-8 rounded-lg font-black text-sm border ${value === m ? MUC[m].nut + ' border-transparent' : 'bg-white text-gray-600 border-gray-300'}`}>{m}</button>
+      ))}
+    </span>
+  )
+}
 
 function parseTasks(instructions) {
   if (!instructions) return [{ instructions: '' }]
@@ -143,7 +156,7 @@ export default function LessonSubmissionsPage() {
 
   const [selected, setSelected] = useState(null) // { student, submissions }
   const [taskComments, setTaskComments] = useState({}) // subId -> string
-  const [taskScores, setTaskScores] = useState({})     // subId -> string
+  const [taskScores, setTaskScores] = useState({})     // subId -> mức 'T' | 'H' | 'C' (trước đây là điểm)
   const [taskSaving, setTaskSaving] = useState({})     // subId -> bool
   const [gradeModal, setGradeModal] = useState(null)  // { student, taskIdx } — popup chấm nhanh
   const [aiGrading, setAiGrading] = useState({ active: false, done: 0, total: 0, countdown: 0 })
@@ -229,24 +242,19 @@ export default function LessonSubmissionsPage() {
     setLoading(false)
   }
 
-  function scoreToBonus(score) {
-    if (score >= 10) return 3
-    if (score >= 8) return 2
-    if (score >= 5) return 1
-    return 0
-  }
-
   async function saveTaskComment(sub, student) {
     const theStudent = student || selected?.student
     if (!theStudent) return
+    const mucVal = CAC_MUC.includes(taskScores[sub.id]) ? taskScores[sub.id] : null
+    if (!mucVal) { toast.error('Chọn mức T, H hoặc C'); return }
     setTaskSaving(prev => ({ ...prev, [sub.id]: true }))
-    const scoreRaw = taskScores[sub.id]
-    const scoreVal = (scoreRaw !== '' && scoreRaw != null) ? parseFloat(scoreRaw) : null
-    const awardSticker = !sub.sticker_awarded && scoreVal != null && !isNaN(scoreVal)
+    const awardSticker = !sub.sticker_awarded
     const updates = {
       teacher_comment: taskComments[sub.id] ?? '',
       reviewed_at: new Date().toISOString(),
-      score: (scoreVal != null && !isNaN(scoreVal)) ? scoreVal : null,
+      muc: mucVal,
+      // giữ điểm AI nếu giáo viên giữ đúng mức gợi ý; đổi mức → điểm nội bộ theo mức (học sinh không thấy điểm)
+      score: mucTuDiem(sub.score) === mucVal ? sub.score : DIEM_DAI_DIEN[mucVal],
       graded_by: 'teacher',
       // Bài AI chấm trước khi có cột ai_score: giữ lại điểm AI gốc trước khi bị ghi đè (để đo độ khớp)
       ...(sub.graded_by === 'ai' && sub.ai_score == null && sub.score != null && { ai_score: sub.score }),
@@ -257,7 +265,7 @@ export default function LessonSubmissionsPage() {
     if (error) { toast.error('Lưu thất bại: ' + error.message); return }
 
     if (awardSticker) {
-      const bonus = scoreToBonus(scoreVal)
+      const bonus = stickerTheoMuc(mucVal)
       if (bonus > 0) {
         const { error: stickerErr } = await adjustStickerCount(theStudent.id, bonus, { affectsTotal: true })
         if (stickerErr) toast.error('Không cập nhật được sticker: ' + stickerErr.message)
@@ -316,7 +324,7 @@ export default function LessonSubmissionsPage() {
         ...prev,
         [student.id]: (prev[student.id] || []).map(s => s.id === sub.id ? { ...s, ...updates } : s),
       }))
-      setTaskScores(prev => ({ ...prev, [sub.id]: String(score) }))
+      setTaskScores(prev => ({ ...prev, [sub.id]: mucTuDiem(score) || '' }))
       setTaskComments(prev => ({ ...prev, [sub.id]: comment }))
     }
   }
@@ -356,15 +364,16 @@ export default function LessonSubmissionsPage() {
   }
 
   async function approveAiGrade(sub, student) {
-    const awardSticker = !sub.sticker_awarded && sub.score != null
-    const updates = { reviewed_at: new Date().toISOString(), ...(awardSticker && { sticker_awarded: true }) }
+    const muc = mucCua(sub)
+    const awardSticker = !sub.sticker_awarded && muc != null
+    const updates = { reviewed_at: new Date().toISOString(), muc, ...(awardSticker && { sticker_awarded: true }) }
     await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
     setSubmissionMap(prev => ({
       ...prev,
       [student.id]: (prev[student.id] || []).map(s => s.id === sub.id ? { ...s, ...updates } : s),
     }))
     if (awardSticker) {
-      const bonus = scoreToBonus(sub.score)
+      const bonus = stickerTheoMuc(muc)
       if (bonus > 0) {
         const { error: stickerErr } = await adjustStickerCount(student.id, bonus, { affectsTotal: true })
         if (stickerErr) toast.error('Không cập nhật được sticker: ' + stickerErr.message)
@@ -383,13 +392,13 @@ export default function LessonSubmissionsPage() {
     if (toApprove.length === 0) { toast('Không có bài AI nào chưa duyệt'); return }
     setApprovingAll(true)
     await Promise.all(toApprove.map(({ sub }) => {
-      const upd = { reviewed_at: now, ...(!sub.sticker_awarded && sub.score != null && { sticker_awarded: true }) }
+      const upd = { reviewed_at: now, muc: mucCua(sub), ...(!sub.sticker_awarded && sub.score != null && { sticker_awarded: true }) }
       return supabase.from('lesson_submissions').update(upd).eq('id', sub.id)
     }))
     setSubmissionMap(prev => {
       const next = { ...prev }
       toApprove.forEach(({ sub, student }) => {
-        const upd = { reviewed_at: now, ...(!sub.sticker_awarded && sub.score != null && { sticker_awarded: true }) }
+        const upd = { reviewed_at: now, muc: mucCua(sub), ...(!sub.sticker_awarded && sub.score != null && { sticker_awarded: true }) }
         next[student.id] = (next[student.id] || []).map(s => s.id === sub.id ? { ...s, ...upd } : s)
       })
       return next
@@ -398,7 +407,7 @@ export default function LessonSubmissionsPage() {
     const studentBonusMap = {}
     toApprove.forEach(({ sub, student }) => {
       if (!sub.sticker_awarded && sub.score != null) {
-        const bonus = scoreToBonus(sub.score)
+        const bonus = stickerTheoMuc(mucCua(sub))
         if (bonus > 0) {
           if (!studentBonusMap[student.id]) studentBonusMap[student.id] = { student, bonus: 0 }
           studentBonusMap[student.id].bonus += bonus
@@ -421,7 +430,7 @@ export default function LessonSubmissionsPage() {
     if (!sub) return // chưa nộp, không mở
     setGradeModal({ student, taskIdx })
     setTaskComments(prev => ({ ...prev, [sub.id]: sub.teacher_comment || '' }))
-    setTaskScores(prev => ({ ...prev, [sub.id]: sub.score != null ? String(sub.score) : '' }))
+    setTaskScores(prev => ({ ...prev, [sub.id]: mucCua(sub) || '' }))
   }
 
   if (loading) {
@@ -677,18 +686,13 @@ export default function LessonSubmissionsPage() {
                     return (
                       <div className="border-t border-gray-100 pt-3">
                         <p className="text-xs font-semibold text-indigo-600 mb-2 flex items-center gap-1.5">
-                          <MessageSquare size={12} /> Nhận xét & điểm — Bài {i + 1}
+                          <MessageSquare size={12} /> Nhận xét & mức — Bài {i + 1}
                         </p>
                         <div className="flex items-center gap-2 mb-2">
-                          <label className="text-xs text-gray-500 shrink-0">Điểm:</label>
-                          <input type="number" min={0} max={10} step={0.5}
-                            value={taskScores[subItem.id] ?? ''}
-                            onChange={e => setTaskScores(prev => ({ ...prev, [subItem.id]: e.target.value }))}
-                            placeholder="0–10"
-                            className="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                          {subItem.score != null && (
-                            <span className="text-xs text-gray-400">Hiện tại: <b className="text-indigo-600">{subItem.score}</b></span>
+                          <label className="text-xs text-gray-500 shrink-0">Mức:</label>
+                          <ChonMuc value={taskScores[subItem.id]} onChange={m => setTaskScores(prev => ({ ...prev, [subItem.id]: m }))} />
+                          {mucCua(subItem) && (
+                            <span className="text-xs text-gray-400">{subItem.reviewed_at ? 'Đã chốt' : 'AI gợi ý'}: <b className="text-indigo-600">{MUC[mucCua(subItem)].ten}</b></span>
                           )}
                         </div>
                         <textarea
@@ -787,7 +791,7 @@ export default function LessonSubmissionsPage() {
                                 if (!hasPractice) return
                                 setSelected({ student, submissions: subs })
                                 const comments = {}; const scores = {}
-                                subs.forEach(s => { comments[s.id] = s.teacher_comment || ''; scores[s.id] = s.score != null ? String(s.score) : '' })
+                                subs.forEach(s => { comments[s.id] = s.teacher_comment || ''; scores[s.id] = mucCua(s) || '' })
                                 setTaskComments(comments); setTaskScores(scores)
                               }}
                               className={`font-medium text-gray-800 text-left leading-tight truncate block max-w-[160px] ${hasPractice ? 'hover:text-indigo-600 cursor-pointer' : 'cursor-default'}`}
@@ -841,8 +845,8 @@ export default function LessonSubmissionsPage() {
                               >
                                 {sub.ai_suspect && <span title="Nghi ngờ dùng AI">🚩</span>}
                                 {waiting ? <><RefreshCw size={10} /> chờ</>
-                                  : aiGraded ? <>🤖 {sub.score != null ? `${sub.score}đ` : '?'}</>
-                                  : reviewed ? (sub.score != null ? `${sub.score}đ` : '✓ chấm')
+                                  : aiGraded ? <>🤖 {mucCua(sub) || '?'}</>
+                                  : reviewed ? (mucCua(sub) || '✓ chấm')
                                   : '✓ nộp'}
                               </button>
                             ) : (
@@ -921,8 +925,8 @@ export default function LessonSubmissionsPage() {
                             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-orange-100 text-orange-700 text-xs font-bold">{taskIdx + 1}</span>
                           </td>
                           <td className="px-3 py-3 text-center">
-                            <span className={`text-sm font-bold ${sub.score >= 8 ? 'text-green-600' : sub.score >= 5 ? 'text-amber-600' : 'text-red-500'}`}>
-                              {sub.score != null ? `${sub.score}đ` : '?'}
+                            <span className={`text-sm font-bold ${mucCua(sub) === 'T' ? 'text-green-600' : mucCua(sub) === 'H' ? 'text-blue-600' : 'text-orange-500'}`} title={MUC[mucCua(sub)]?.ten}>
+                              {mucCua(sub) || '?'}
                             </span>
                           </td>
                           <td className="px-3 py-3 text-xs text-gray-600 max-w-xs">
@@ -965,7 +969,7 @@ export default function LessonSubmissionsPage() {
                                   setTimeout(() => {
                                     setGradeModal({ student, taskIdx })
                                     setTaskComments(prev => ({ ...prev, [sub.id]: sub.teacher_comment || '' }))
-                                    setTaskScores(prev => ({ ...prev, [sub.id]: sub.score != null ? String(sub.score) : '' }))
+                                    setTaskScores(prev => ({ ...prev, [sub.id]: mucCua(sub) || '' }))
                                   }, 100)
                                 }}
                                 className="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-semibold px-2.5 py-1 rounded-lg transition"
@@ -1088,7 +1092,7 @@ export default function LessonSubmissionsPage() {
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-bold text-indigo-600 flex items-center gap-1.5">
                       <MessageSquare size={12} />
-                      {sub.graded_by === 'ai' ? '🤖 AI đã chấm — kiểm tra & lưu' : 'Nhận xét & điểm'}
+                      {sub.graded_by === 'ai' ? '🤖 AI đã chấm nháp — chọn mức & lưu' : 'Nhận xét & mức'}
                     </p>
                     {!sub.reviewed_at && (
                       <button
@@ -1119,7 +1123,7 @@ export default function LessonSubmissionsPage() {
                   )}
                   {sub.ai_breakdown?.length > 0 && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                      <p className="text-[11px] font-bold text-amber-700 mb-1.5">🤖 Bảng điểm chi tiết của AI</p>
+                      <p className="text-[11px] font-bold text-amber-700 mb-1.5">🤖 Tiêu chí AI đã kiểm tra</p>
                       <table className="w-full text-xs border-collapse">
                         <tbody>
                           {sub.ai_breakdown.map((row, ri) => (
@@ -1127,7 +1131,7 @@ export default function LessonSubmissionsPage() {
                               <td className="py-1 pr-2 text-gray-700 leading-snug align-top">{row.criterion}</td>
                               <td className="py-1 text-right whitespace-nowrap font-semibold align-top">
                                 <span className={row.earned >= row.max ? 'text-green-600' : 'text-red-500'}>
-                                  {row.earned}/{row.max}đ
+                                  {row.earned >= row.max ? '✓ đạt' : '⚠ chưa đủ'}
                                 </span>
                               </td>
                               {row.note && (
@@ -1140,14 +1144,10 @@ export default function LessonSubmissionsPage() {
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-500 shrink-0">Điểm:</label>
-                    <input type="number" min={0} max={10} step={0.5}
-                      value={taskScores[sub.id] ?? ''}
-                      onChange={e => setTaskScores(prev => ({ ...prev, [sub.id]: e.target.value }))}
-                      placeholder="0–10"
-                      className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    {sub.score != null && (
-                      <span className="text-xs text-gray-400">Hiện tại: <b className="text-indigo-600">{sub.score}</b></span>
+                    <label className="text-xs text-gray-500 shrink-0">Mức:</label>
+                    <ChonMuc value={taskScores[sub.id]} onChange={m => setTaskScores(prev => ({ ...prev, [sub.id]: m }))} />
+                    {mucCua(sub) && (
+                      <span className="text-xs text-gray-400">{sub.reviewed_at ? 'Đã chốt' : 'AI gợi ý'}: <b className="text-indigo-600">{MUC[mucCua(sub)].ten}</b></span>
                     )}
                   </div>
                   <textarea

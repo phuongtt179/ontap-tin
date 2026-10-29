@@ -5,7 +5,7 @@ import { useEnrollments } from '../../hooks/useEnrollments'
 import { useSelectedGradeContext } from '../../context/SelectedGradeContext'
 import { useHeaderStats } from '../../context/HeaderStatsContext'
 import { useExamGuard } from '../../context/ExamGuardContext'
-import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle, Sparkles, Check, ChevronDown, CheckCircle, Trophy, KeyRound } from 'lucide-react'
+import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle, Sparkles, Check, ChevronDown, CheckCircle, Trophy, KeyRound, ClipboardCheck } from 'lucide-react'
 import ChangePasswordModal from './ChangePasswordModal'
 
 export default function Layout({ children }) {
@@ -39,6 +39,7 @@ export default function Layout({ children }) {
         { to: '/teacher/ai-tools', icon: <Sparkles size={18} />, label: 'Trung tâm AI' },
         { to: '/teacher/impact', icon: <BarChart2 size={18} />, label: 'Báo cáo tác động' },
         { to: '/teacher/lessons', icon: <BookMarked size={18} />, label: 'Bài học' },
+        { to: '/teacher/grading', icon: <ClipboardCheck size={18} />, label: 'Chấm bài' },
         null,
         { to: '/teacher/grades', icon: <GraduationCap size={18} />, label: 'Khoá học' },
         { to: '/teacher/classes', icon: <School size={18} />, label: 'Lớp' },

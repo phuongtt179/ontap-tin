@@ -42,6 +42,7 @@ import { lazy, Suspense } from 'react'
 // Bài giảng web: tải khi mở (trình soạn + chế độ dạy khá nặng)
 const SlideEditorPage = lazy(() => import('./pages/teacher/SlideEditorPage'))
 const TeachPage = lazy(() => import('./pages/teacher/TeachPage'))
+const GradingPage = lazy(() => import('./pages/teacher/GradingPage'))
 const DangTai = <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
 
 function RootRedirect() {
@@ -114,6 +115,11 @@ export default function App() {
           <Route path="/teacher/lessons" element={
             <ProtectedRoute role="teacher">
               <Layout><LessonsPage /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/teacher/grading" element={
+            <ProtectedRoute role="teacher">
+              <Layout><Suspense fallback={DangTai}><GradingPage /></Suspense></Layout>
             </ProtectedRoute>
           } />
           <Route path="/teacher/lessons/:id/slides" element={

@@ -21,6 +21,8 @@ import { gradeStudent } from '../../utils/aiGrader'
 import PDFViewer from '../../components/ui/PDFViewer'
 import AskTutorModal from '../../components/student/AskTutorModal'
 import PyTestStatus from '../../components/student/PyTestStatus'
+import RaSoatLoi from '../../components/student/RaSoatLoi'
+import { MUC, mucCua } from '../../utils/muc'
 import { topicKeyOf } from '../../utils/lessonSteps'
 // Bài giảng web (trình chiếu) – tải khi bài có bài giảng web
 const LessonSlidesViewer = lazy(() => import('../../components/slides/LessonSlidesViewer.jsx'))
@@ -1132,6 +1134,7 @@ export default function LessonPage() {
           allow_resubmit: false,
           reviewed_at: null,
           score: null,
+          muc: null,
           teacher_comment: null,
           graded_by: null,
           ai_graded_at: null,
@@ -1549,7 +1552,7 @@ export default function LessonPage() {
                                           ? hasScore ? 'bg-indigo-600 text-white' : 'bg-green-500 text-white'
                                           : 'bg-orange-500 text-white'}`}
                                         style={!sub ? { animation: 'indicator-bounce 1.4s ease-in-out infinite' } : {}}>
-                                        {sub ? (hasScore ? `⭐ ${sub.score} điểm` : '✅ Đã nộp') : task?.optional ? '📖 Đọc thêm' : '▶ Làm bài!'}
+                                        {sub ? (hasScore && mucCua(sub) ? `⭐ Mức ${mucCua(sub)}` : '✅ Đã nộp') : task?.optional ? '📖 Đọc thêm' : '▶ Làm bài!'}
                                       </div>
                                       {/* Circle */}
                                       <button onClick={() => setActiveTaskIdx(i)}
@@ -1625,10 +1628,10 @@ export default function LessonPage() {
                               {sub ? `✅ Đã nộp · ${new Date(sub.submitted_at).toLocaleDateString('vi-VN')}` : task?.optional ? '📖 Bài đọc thêm — không cần nộp' : '📤 Chưa nộp'}
                             </p>
                           </div>
-                          {feedbackVisible(sub) && sub?.score != null && (
-                            <div className="text-center bg-white/70 rounded-xl px-3 py-1.5 shrink-0">
-                              <div className="text-2xl font-black" style={{ color: p.from }}>{sub.score}</div>
-                              <div className="text-[10px] text-gray-500 font-semibold">ĐIỂM</div>
+                          {feedbackVisible(sub) && mucCua(sub) && (
+                            <div className="text-center bg-white/70 rounded-xl px-3 py-1.5 shrink-0" title={MUC[mucCua(sub)].ten}>
+                              <div className="text-2xl font-black" style={{ color: p.from }}>{mucCua(sub)}</div>
+                              <div className="text-[10px] text-gray-500 font-semibold">MỨC</div>
                             </div>
                           )}
                           <button onClick={closeModal}
@@ -1697,6 +1700,9 @@ export default function LessonPage() {
                                     </div>
                                   )}
                                   {!feedbackVisible(sub) && <PyTestStatus fileUrl={sub.file_url} task={task} />}
+                                  {!sub.reviewed_at && !task?.optional && (
+                                    <RaSoatLoi sub={sub} task={task} onCapNhat={moi => setTaskSubmissions(prev => prev.map(x => (x && x.id === moi.id ? moi : x)))} />
+                                  )}
                                   {aiGradingTask === i ? (
                                     <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2.5 border border-amber-200">
                                       <Loader2 size={13} className="animate-spin" /> AI đang chấm bài… có thể mất tới 1 phút, em đừng đóng trang nhé
@@ -1707,16 +1713,16 @@ export default function LessonPage() {
                                         <div className={`text-xs font-bold ${sub.graded_by === 'ai' ? 'text-amber-700' : 'text-indigo-700'}`}>
                                           {sub.graded_by !== 'ai' ? '💬 Nhận xét của giáo viên' : sub.reviewed_at ? '💬 Nhận xét (thầy cô đã duyệt)' : '🤖 AI nhận xét'}
                                         </div>
-                                        <span className={`text-lg font-black ${sub.graded_by === 'ai' ? 'text-amber-600' : 'text-indigo-600'}`}>
-                                          {sub.score}/10
-                                        </span>
+                                        {mucCua(sub) && <span className={`text-xs font-black px-2 py-1 rounded-lg border ${MUC[mucCua(sub)].cls}`}>
+                                          {mucCua(sub)} · {MUC[mucCua(sub)].ten}
+                                        </span>}
                                       </div>
                                       {sub.teacher_comment && (
                                         <p className="text-sm text-gray-800 leading-relaxed">{sub.teacher_comment}</p>
                                       )}
                                       {sub.ai_breakdown?.length > 0 && (
                                         <div className="mt-3 border-t border-amber-200 pt-3">
-                                          <p className="text-[11px] font-bold text-amber-700 mb-1.5">Bảng điểm chi tiết</p>
+                                          <p className="text-[11px] font-bold text-amber-700 mb-1.5">Các tiêu chí</p>
                                           <table className="w-full text-xs border-collapse">
                                             <tbody>
                                               {sub.ai_breakdown.map((row, ri) => (
@@ -1724,7 +1730,7 @@ export default function LessonPage() {
                                                   <td className="py-1 pr-2 text-gray-700 leading-snug">{row.criterion}</td>
                                                   <td className="py-1 text-right shrink-0 whitespace-nowrap font-semibold">
                                                     <span className={row.earned >= row.max ? 'text-green-600' : 'text-red-500'}>
-                                                      {row.earned}/{row.max}đ
+                                                      {row.earned >= row.max ? '✓ đạt' : '⚠ chưa đủ'}
                                                     </span>
                                                   </td>
                                                   {row.note && (
