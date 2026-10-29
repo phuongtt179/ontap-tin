@@ -2,6 +2,7 @@ import { getGeminiKeys, callGeminiRotate, isDailyLimit } from './_gemini.js'
 import { requireUser, STAFF } from './_auth.js'
 import { buildSystemPrompt } from './tutor.js'
 import { slideScriptPrompt, slideBuildPrompt } from './_slidePrompts.js'
+import { hoiDapPrompt } from './_hoiDapPrompt.js'
 
 // Các công cụ AI cho giáo viên (Trung tâm AI). Gộp chung 1 file để không tăng số serverless
 // function trên Vercel. action:
@@ -9,6 +10,7 @@ import { slideScriptPrompt, slideBuildPrompt } from './_slidePrompts.js'
 //   - 'insights'    : tổng hợp các câu học sinh hỏi gia sư AI → chủ đề hay bối rối + gắn cờ an toàn
 //   - 'slide_script': AI viết kịch bản bài giảng web từ nội dung bài học (giáo viên duyệt)
 //   - 'slide_build' : AI dựng slide JSON từ kịch bản đã duyệt
+//   - 'faq'         : AI soạn hỏi đáp mẫu của 1 bài (giáo viên duyệt trước khi học sinh thấy)
 export const config = { maxDuration: 60 }
 
 const MODEL = 'gemini-3.1-flash-lite'
@@ -282,6 +284,15 @@ export default async function handler(req, res) {
     model = 'gemini-2.5-flash'
     prompt = slideScriptPrompt({ lessonTitle, grade, topic, sourceText, questions: Array.isArray(questions) ? questions.map(q => String(q).slice(0, 400)) : [], extra })
     generationConfig = { temperature: 0.7, maxOutputTokens: 8000, thinkingConfig: { thinkingBudget: 0 } }
+  } else if (action === 'faq') {
+    const { lessonTitle, grade, sourceText, questions, daCo } = req.body
+    if (!String(lessonTitle || '').trim()) return res.status(400).json({ error: 'no_title' })
+    const soCau = Math.max(3, Math.min(Number(req.body.soCau) || 12, 20))
+    model = 'gemini-2.5-flash'
+    prompt = hoiDapPrompt({ lessonTitle, grade, sourceText, soCau,
+      questions: Array.isArray(questions) ? questions.map(q => String(q).slice(0, 300)) : [],
+      daCo: Array.isArray(daCo) ? daCo.map(q => String(q).slice(0, 200)) : [] })
+    generationConfig = { temperature: 0.6, maxOutputTokens: 8000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
   } else if (action === 'slide_build') {
     const { kichBan } = req.body
     if (!String(kichBan || '').trim()) return res.status(400).json({ error: 'no_script' })
@@ -313,6 +324,15 @@ export default async function handler(req, res) {
 
   if (action === 'lesson_notes') return res.status(200).json({ notes: text })
   if (action === 'slide_script') return res.status(200).json({ text: text.replace(/^```[a-z]*\n|\n```$/g, '').trim() })
+  if (action === 'faq') {
+    try {
+      const parsed = JSON.parse(text.replace(/```json\s*|\s*```/g, ''))
+      const ds = (Array.isArray(parsed) ? parsed : parsed.items || []).filter(x => x && String(x.hoi || '').trim() && String(x.dap || '').trim())
+      return res.status(200).json({ items: ds.map(x => ({ hoi: String(x.hoi).trim().slice(0, 500), dap: String(x.dap).trim().slice(0, 3000) })) })
+    } catch {
+      return res.status(500).json({ error: 'parse_error' })
+    }
+  }
   if (action === 'slide_build') {
     try {
       const parsed = JSON.parse(text.replace(/```json\s*|\s*```/g, ''))
