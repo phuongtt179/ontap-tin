@@ -78,8 +78,8 @@ async function buildSnapshot(grade, className) {
   let progress = [], submissions = []
   if (userIds.length && lessonIds.length) {
     const [{ data: pData }, { data: sData }] = await Promise.all([
-      supabase.from('lesson_progress').select('*').in('user_id', userIds).in('lesson_id', lessonIds),
-      supabase.from('lesson_submissions').select('*').in('user_id', userIds).in('lesson_id', lessonIds),
+      supabase.from('lesson_progress').select('user_id, lesson_id, completed, quiz_passed, practice_submitted, updated_at').in('user_id', userIds).in('lesson_id', lessonIds),
+      supabase.from('lesson_submissions').select('user_id, reviewed_at').in('user_id', userIds).in('lesson_id', lessonIds),
     ])
     progress = pData || []
     submissions = sData || []

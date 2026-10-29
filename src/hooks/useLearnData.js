@@ -40,7 +40,9 @@ export function useLearnData(user, selectedGrade, className) {
       { data: topicUnlockRows }, { data: lessonUnlockRows },
     ] = await Promise.all([
       supabase.from('topics').select('*').in('grade', [selectedGrade, 'all']),
-      supabase.from('lessons').select('*').eq('is_published', true).eq('grade', selectedGrade)
+      // Chỉ cột cần vẽ con đường — KHÔNG tải đề thực hành / ghi chú AI (vài trăm KB mỗi lần mở trang)
+      supabase.from('lessons').select('id, title, unit_id, topic, "order", created_at, restricted_audience, is_published, grade')
+        .eq('is_published', true).eq('grade', selectedGrade)
         .order('order', { ascending: true }).order('created_at', { ascending: true }),
       supabase.from('lessons').select('id, title, unit_id, topic, "order", created_at, restricted_audience')
         .eq('is_published', false).eq('grade', selectedGrade)
