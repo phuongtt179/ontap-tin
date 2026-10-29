@@ -47,7 +47,7 @@ const DangTai = <div className="min-h-screen flex items-center justify-center"><
 
 function RootRedirect() {
   const { profile, loading } = useAuth()
-  if (loading) return null
+  if (loading) return DangTai
   if (!profile) return <Navigate to="/login" replace />
   if (profile.role === 'teacher' || profile.role === 'assistant') return <Navigate to="/teacher" replace />
   return <Navigate to="/student/learn" replace />
