@@ -112,6 +112,7 @@ export default function GradingPage() {
   const [hss, setHss] = useState([]), [hsId, setHsId] = useState('')
   const [subs, setSubs] = useState(null), [lessonMap, setLessonMap] = useState({})
   const [chuaDuyet, setChuaDuyet] = useState(true)
+  const [locMuc, setLocMuc] = useState('')   // '' | 'T' | 'H' | 'C' | 'none' (chưa có gợi ý) — theo mức AI gợi ý
   const [ban, setBan] = useState('')
 
   useEffect(() => { if (!grade && grades.length) setGrade(grades[0]) }, [grades, grade])
@@ -157,9 +158,10 @@ export default function GradingPage() {
   const tenHs = useMemo(() => Object.fromEntries(hss.map(h => [h.id, h.ten])), [hss])
   const hien = useMemo(() => {
     let ds = (subs || []).filter(s => !chuaDuyet || !s.reviewed_at)
+    if (locMuc) ds = ds.filter(s => { const g = s.graded_by === 'ai' || s.ai_score != null ? mucTuDiem(s.ai_score ?? s.score) : null; return locMuc === 'none' ? !g : g === locMuc })
     if (cach === 'bai') ds = ds.sort((a, b) => (tenHs[a.user_id] || '').split(' ').pop().localeCompare((tenHs[b.user_id] || '').split(' ').pop(), 'vi') || taskIdx(a) - taskIdx(b))
     return ds
-  }, [subs, chuaDuyet, cach, tenHs])
+  }, [subs, chuaDuyet, cach, tenHs, locMuc])
   const taskDefCua = sub => parseTasks(lessonMap[sub.lesson_id]?.practice_instructions)[taskIdx(sub)] || {}
   const doi = moi => setSubs(prev => prev.map(s => (s.id === moi.id ? moi : s)))
   const canGoiY = hien.filter(s => !s.reviewed_at && !(s.graded_by === 'ai' || s.ai_breakdown?.length))
@@ -208,6 +210,11 @@ export default function GradingPage() {
               <option value="">— Chọn bài học —</option>{baiHocs.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}</select>
           : <select className={SEL + ' min-w-[220px]'} value={hsId} onChange={e => setHsId(e.target.value)}>
               <option value="">— Chọn học sinh ({hss.length}) —</option>{hss.map(h => <option key={h.id} value={h.id}>{h.ten}{!lop && h.lop ? ` (${h.lop})` : ''}</option>)}</select>}
+        <select className={SEL} value={locMuc} onChange={e => setLocMuc(e.target.value)} title="Lọc theo mức AI gợi ý">
+          <option value="">Mọi mức AI gợi ý</option>
+          {CAC_MUC.map(m => <option key={m} value={m}>AI gợi ý {m} · {MUC[m].ten}</option>)}
+          <option value="none">Chưa có gợi ý</option>
+        </select>
         <label className="flex items-center gap-1.5 text-sm text-gray-600 ml-auto cursor-pointer">
           <input type="checkbox" checked={chuaDuyet} onChange={e => setChuaDuyet(e.target.checked)} className="w-4 h-4 accent-indigo-600" />Chỉ bài chưa duyệt</label>
       </div>
