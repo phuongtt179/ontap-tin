@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { useGrades } from '../../hooks/useGrades'
 import { ShieldCheck, RefreshCw, BookOpenText, MessagesSquare, Lightbulb, MessageCircleQuestion } from 'lucide-react'
 import QuestionsTab from '../../components/teacher/aiTools/QuestionsTab'
 import HintsTab from '../../components/teacher/aiTools/HintsTab'
@@ -22,10 +23,28 @@ export default function AiToolsPage() {
   const [params, setParams] = useSearchParams()
   const tab = TABS.some(t => t.key === params.get('tab')) ? params.get('tab') : 'review'
   const [summary, setSummary] = useState(null)
+  // Lọc theo khoá / lớp (áp cho Chấm bài mới, Duyệt bài AI chấm, Câu hỏi học sinh); nhớ lựa chọn trên máy
+  const { grades } = useGrades()
+  const [grade, setGrade] = useState(() => { try { return localStorage.getItem('aiLocKhoa') || '' } catch { return '' } })
+  const [lop, setLop] = useState(() => { try { return localStorage.getItem('aiLocLop') || '' } catch { return '' } })
+  const [lops, setLops] = useState([])
+  const [hsLop, setHsLop] = useState(null)   // id học sinh của lớp đang lọc (null = không lọc lớp)
+  useEffect(() => { try { localStorage.setItem('aiLocKhoa', grade); localStorage.setItem('aiLocLop', lop) } catch { /* bỏ qua */ } }, [grade, lop])
+  useEffect(() => {
+    if (!grade) { setLops([]); return }
+    supabase.from('classes').select('name').eq('grade', grade).order('name').then(({ data }) => setLops((data || []).map(c => c.name)))
+  }, [grade])
+  useEffect(() => {
+    if (!lop) { setHsLop(null); return }
+    let q = supabase.from('student_enrollments').select('user_id').eq('class_name', lop).eq('is_approved', true)
+    if (grade) q = q.eq('grade', grade)
+    q.then(({ data }) => setHsLop((data || []).map(e => e.user_id)))
+  }, [grade, lop])
+  const loc = { grade: grade || null, lop: lop || null, hsLop }
 
   const loadSummary = useCallback(() => {
-    supabase.rpc('ai_tools_summary').then(({ data }) => setSummary(data || null))
-  }, [])
+    supabase.rpc('ai_tools_summary', { p_grade: grade || null, p_class: lop || null }).then(({ data }) => setSummary(data || null))
+  }, [grade, lop])
   useEffect(() => { loadSummary() }, [loadSummary])
 
   const badge = key => {
@@ -40,6 +59,16 @@ export default function AiToolsPage() {
         <h1 className="text-xl font-black text-gray-800">Trung tâm AI</h1>
         <p className="text-sm text-gray-500">Học sinh không tương tác trực tiếp với AI: AI chấm nháp và soạn nháp trả lời, thầy/cô duyệt rồi học sinh mới nhận được.</p>
       </div>
+      <div className="flex flex-wrap items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
+        <span className="text-sm font-semibold text-gray-600">Lọc:</span>
+        <select value={grade} onChange={e => { setGrade(e.target.value); setLop('') }} className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
+          <option value="">Tất cả khoá</option>{grades.map(g => <option key={g} value={g}>{g}</option>)}
+        </select>
+        <select value={lop} onChange={e => setLop(e.target.value)} disabled={!grade} className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white disabled:opacity-50">
+          <option value="">{grade ? 'Tất cả lớp' : 'Chọn khoá trước'}</option>{lops.map(l => <option key={l} value={l}>{l}</option>)}
+        </select>
+        <span className="text-xs text-gray-400">Áp dụng cho Chấm bài mới · Duyệt bài AI chấm · Câu hỏi học sinh (bài nộp 30 ngày gần đây)</span>
+      </div>
       <div className="flex gap-1 overflow-x-auto border-b border-gray-200">
         {TABS.map(t => (
           <button key={t.key} onClick={() => setParams({ tab: t.key })}
@@ -48,9 +77,9 @@ export default function AiToolsPage() {
           </button>
         ))}
       </div>
-      {tab === 'review' && <ReviewTab summary={summary} onChanged={loadSummary} />}
-      {tab === 'backfill' && <BackfillTab onChanged={loadSummary} />}
-      {tab === 'questions' && <QuestionsTab onChanged={loadSummary} />}
+      {tab === 'review' && <ReviewTab summary={summary} onChanged={loadSummary} loc={loc} />}
+      {tab === 'backfill' && <BackfillTab onChanged={loadSummary} loc={loc} />}
+      {tab === 'questions' && <QuestionsTab onChanged={loadSummary} loc={loc} />}
       {tab === 'notes' && <TutorNotesTab />}
       {tab === 'insights' && <InsightsTab />}
       {tab === 'hints' && <HintsTab />}

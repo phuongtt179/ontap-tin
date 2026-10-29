@@ -157,7 +157,7 @@ function readPageSize() {
   try { const n = Number(localStorage.getItem('aiReviewPageSize')); return PAGE_SIZES.includes(n) ? n : 20 } catch { return 20 }
 }
 
-export default function ReviewTab({ summary, onChanged }) {
+export default function ReviewTab({ summary, onChanged, loc = {} }) {
   const [reason, setReason] = useState(null)
   const [items, setItems] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
@@ -217,11 +217,13 @@ export default function ReviewTab({ summary, onChanged }) {
   }
 
   useEffect(() => {
-    supabase.rpc('ai_review_queue', { p_reason: reason, p_limit: pageSize }).then(({ data, error }) => {
+    if (loc.lop && !loc.hsLop) return   // đang tải danh sách lớp
+    setItems(null)
+    supabase.rpc('ai_review_queue', { p_reason: reason, p_limit: pageSize, p_grade: loc.grade, p_class: loc.lop }).then(({ data, error }) => {
       if (error) { toast.error('Không tải được hàng đợi duyệt'); setItems([]) } else setItems(data || [])
       setSelected(new Set())
     })
-  }, [reason, reloadKey, pageSize])
+  }, [reason, reloadKey, pageSize, loc.grade, loc.lop, loc.hsLop])   // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleDone(item) {
     setItems(prev => prev.filter(i => i.id !== item.id))
