@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import { gradeStudent } from '../../../utils/aiGrader'
 import toast from 'react-hot-toast'
@@ -30,6 +31,8 @@ export default function BackfillTab({ onChanged, loc = {} }) {
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState('')
   const [log, setLog] = useState([])
+  const [ds, setDs] = useState(null)   // danh sách bài chưa có điểm (tối đa 200 bài mới nhất)
+  const [lamMoi, setLamMoi] = useState(0)
   const stopRef = useRef(false)
 
   function baseQuery(q) {
@@ -45,7 +48,18 @@ export default function BackfillTab({ onChanged, loc = {} }) {
     setCount(null)
     baseQuery(supabase.from('lesson_submissions').select('id, lessons!inner(grade)', { count: 'exact', head: true }))
       .then(({ count }) => setCount(count ?? 0))
-  }, [since, loc.grade, loc.lop, loc.hsLop]) // eslint-disable-line react-hooks/exhaustive-deps
+    setDs(null)
+    baseQuery(supabase.from('lesson_submissions').select('id, user_id, lesson_id, submitted_at, content_json, lessons!inner(title, grade)'))
+      .order('submitted_at', { ascending: false }).limit(200)
+      .then(async ({ data }) => {
+        const rows = data || []
+        const { data: profs } = rows.length
+          ? await supabase.from('profiles').select('id, full_name').in('id', [...new Set(rows.map(s => s.user_id))])
+          : { data: [] }
+        const hs = Object.fromEntries((profs || []).map(p => [p.id, p]))
+        setDs(rows.map(s => ({ ...s, hs: hs[s.user_id] })))
+      })
+  }, [since, loc.grade, loc.lop, loc.hsLop, lamMoi]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const addLog = (entry) => setLog(prev => [entry, ...prev].slice(0, 200))
   const sleep = ms => new Promise(r => setTimeout(r, ms))
@@ -101,7 +115,7 @@ export default function BackfillTab({ onChanged, loc = {} }) {
     }
     setStatus(''); setRunning(false)
     toast.success(`AI đã chấm nháp ${ok} bài — vào thẻ Duyệt bài để duyệt`)
-    setCount(c => (c == null ? c : Math.max(0, c - ok)))
+    setLamMoi(n => n + 1)
     onChanged?.()
   }
 
@@ -148,6 +162,31 @@ export default function BackfillTab({ onChanged, loc = {} }) {
             </li>
           ))}
         </ul>
+      )}
+      {ds === null ? <div className="flex justify-center py-6"><Loader2 className="animate-spin text-indigo-400" /></div>
+        : ds.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="px-3 py-2 text-sm font-semibold text-gray-700 border-b border-gray-100">
+            Bài chưa có điểm {count > ds.length && <span className="font-normal text-gray-400">— hiện {ds.length} bài mới nhất</span>}
+          </div>
+          <div className="max-h-[32rem] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-500 text-xs sticky top-0">
+                <tr><th className="text-left px-3 py-1.5">Học sinh</th><th className="text-left px-3 py-1.5">Bài học</th><th className="text-left px-3 py-1.5">Nộp lúc</th><th /></tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {ds.map(s => (
+                  <tr key={s.id} className="hover:bg-gray-50">
+                    <td className="px-3 py-1.5">{s.hs?.full_name || '?'}</td>
+                    <td className="px-3 py-1.5 text-gray-600">{s.lessons?.title}{s.content_json?.task_index > 0 && <span className="text-gray-400"> · bài {s.content_json.task_index + 1}</span>}</td>
+                    <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">{new Date(s.submitted_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                    <td className="px-3 py-1.5 text-right"><Link to={`/teacher/lessons/${s.lesson_id}/submissions`} className="text-indigo-600 hover:underline text-xs font-semibold">Chấm</Link></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   )
