@@ -55,9 +55,13 @@ export default function BackfillTab({ onChanged, loc = {} }) {
     setRunning(true); setLog([])
     const { data: pool, error } = await baseQuery(
       supabase.from('lesson_submissions')
-        .select('id, user_id, lesson_id, file_url, file_name, text_content, content_json, submitted_at, profiles(full_name), lessons!inner(title, grade, practice_instructions)')
+        .select('id, user_id, lesson_id, file_url, file_name, text_content, content_json, submitted_at, lessons!inner(title, grade, practice_instructions)')
     ).order('submitted_at', { ascending: false }).limit(Math.min(batch * 5, 500))
     if (error) { toast.error('Không tải được danh sách bài'); setRunning(false); return }
+    // lesson_submissions không có khoá ngoại sang profiles → lấy tên học sinh riêng
+    const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', [...new Set(pool.map(s => s.user_id))])
+    const tenHs = Object.fromEntries((profs || []).map(p => [p.id, p.full_name]))
+    pool.forEach(s => { s.profiles = { full_name: tenHs[s.user_id] } })
 
     // Lấy dư rồi lọc: bài thuộc bài học không có đề thực hành sẽ luôn chưa có điểm — nếu không lọc,
     // chúng chiếm chỗ đầu danh sách mãi và các lượt chấm sau không tiến lên được.
