@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import BanMoi from './components/ui/BanMoi'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { SelectedGradeProvider } from './context/SelectedGradeContext'
 import { HeaderStatsProvider } from './context/HeaderStatsContext'
@@ -61,6 +62,7 @@ export default function App() {
         <HeaderStatsProvider>
         <ExamGuardProvider>
         <Toaster position="top-right" />
+        <BanMoi />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
