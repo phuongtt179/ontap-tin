@@ -2,8 +2,8 @@
 // Dùng cho trang Chấm bài (theo bài / theo học sinh).
 import { supabase } from '../lib/supabase'
 import { gradeStudent } from './aiGrader'
-import { adjustStickerCount } from './stickerAward'
-import { mucTuDiem, stickerTheoMuc, DIEM_DAI_DIEN } from './muc'
+import { thuongStickerTheoMuc } from './stickerAward'
+import { mucTuDiem, DIEM_DAI_DIEN } from './muc'
 
 export function parseTasks(instructions) {
   if (!instructions) return [{ instructions: '' }]
@@ -26,7 +26,7 @@ export async function aiChamNhap(sub, taskDef) {
 }
 
 /**
- * Giáo viên chốt đánh giá: mức T/H/C + nhận xét → học sinh thấy. Cộng sticker theo mức (T 3 · H 1 · C 0) một lần.
+ * Giáo viên chốt đánh giá: mức T/H/C + nhận xét → học sinh thấy. Cộng sticker theo mức (T 3 · H 1 · C 0); nộp lại mà mức tăng thì cộng phần chênh.
  * Trả về bản ghi mới (null nếu lỗi).
  */
 export async function luuDanhGia(sub, { muc, comment, choNopLai = false }) {
@@ -48,9 +48,6 @@ export async function luuDanhGia(sub, { muc, comment, choNopLai = false }) {
   }
   const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
   if (error) return { loi: error.message }
-  if (awardSticker) {
-    const bonus = stickerTheoMuc(muc)
-    if (bonus > 0) await adjustStickerCount(sub.user_id, bonus, { affectsTotal: true })
-  }
+  await thuongStickerTheoMuc(sub.id, sub.user_id, muc)
   return { moi: { ...sub, ...updates } }
 }

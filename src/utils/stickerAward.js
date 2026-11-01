@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { stickerTheoMuc } from './muc'
 
 // Cộng/trừ sticker theo kiểu "đọc rồi ghi có khoá" (compare-and-swap): đọc
 // sticker_count hiện tại, ghi lại CHỈ KHI nó vẫn đúng bằng giá trị vừa đọc —
@@ -35,6 +36,22 @@ export async function adjustStickerCount(userId, delta, { affectsTotal = false, 
     // 0 dòng khớp -> giá trị vừa bị đổi xen giữa, đọc lại và thử ghi lại
   }
   return { data: null, error: new Error('Không cập nhật được sticker sau nhiều lần thử, thử lại nhé'), insufficient: false }
+}
+
+// Thưởng sticker khi giáo viên duyệt: cộng phần còn thiếu so với số bài này đã được thưởng (cột sticker_thuong).
+// Lần đầu cộng đủ theo mức; nộp lại mà mức tăng thì cộng phần chênh (C → T: +3); giữ nguyên hoặc giảm thì không cộng, không trừ.
+// Đọc lại từ DB và chỉ ghi khi số cũ chưa đổi, nên duyệt trùng / 2 tab cũng không cộng 2 lần.
+export async function thuongStickerTheoMuc(subId, userId, muc) {
+  const moi = stickerTheoMuc(muc)
+  const { data, error } = await supabase.from('lesson_submissions').select('sticker_thuong').eq('id', subId).single()
+  if (error) return { them: 0, error }
+  const cu = data?.sticker_thuong ?? 0
+  if (moi <= cu) return { them: 0, error: null }
+  const { data: ghi, error: loiGhi } = await supabase.from('lesson_submissions')
+    .update({ sticker_thuong: moi }).eq('id', subId).eq('sticker_thuong', cu).select('id')
+  if (loiGhi || !ghi?.length) return { them: 0, error: loiGhi }
+  const { error: loiCong } = await adjustStickerCount(userId, moi - cu, { affectsTotal: true })
+  return { them: loiCong ? 0 : moi - cu, error: loiCong }
 }
 
 // Số sticker thưởng theo điểm bài thực hành (giống LessonSubmissionsPage)
