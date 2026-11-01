@@ -11,7 +11,7 @@ export const config = { maxDuration: 60 }
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
 const MODEL = 'gemini-3.1-flash-lite'
-const MAX_LAN = 3
+const MAX_LAN = 5
 
 function parseTasks(instructions) {
   try { const a = JSON.parse(instructions); if (Array.isArray(a) && a.length) return a } catch { /* chuỗi thường */ }

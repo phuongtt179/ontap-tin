@@ -1,15 +1,15 @@
 // 🔍 "Rà soát lỗi" — học sinh bấm để AI PHÂN LOẠI bài nộp đạt / chưa đạt theo từng tiêu chí giáo viên viết.
 // Học sinh chỉ thấy câu tiêu chí của giáo viên kèm ✅ / ⚠️ (AI không viết chữ nào), tự sửa rồi nộp lại.
-// Đánh giá mức T/H/C vẫn do giáo viên. Mỗi bản nộp rà soát tối đa 3 lần (máy chủ kiểm tra).
+// Đánh giá mức T/H/C vẫn do giáo viên. Mỗi bản nộp rà soát tối đa 5 lần (máy chủ kiểm tra).
 import { useState } from 'react'
 import { Loader2, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiFetch } from '../../lib/apiFetch'
 import { prepareTasks } from '../../utils/gradePrep.js'
 
-const MAX_LAN = 3
+const MAX_LAN = 5
 const LOI = {
-  het_luot: 'Em đã rà soát đủ 3 lần cho bản nộp này. Sửa bài rồi nộp lại để rà soát tiếp nhé!',
+  het_luot: 'Em đã rà soát đủ 5 lần cho bản nộp này. Sửa bài rồi nộp lại để rà soát tiếp nhé!',
   da_danh_gia: 'Thầy cô đã đánh giá bài này rồi.',
   quota_rpd: 'Hôm nay máy rà soát đã hết lượt, em thử lại ngày mai nhé.',
   quota_rpm: 'Nhiều bạn đang rà soát cùng lúc, em chờ 1 phút rồi thử lại nhé.',

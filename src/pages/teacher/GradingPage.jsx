@@ -15,6 +15,12 @@ const lsGet = k => { try { return localStorage.getItem(k) || '' } catch { return
 const lsSet = (k, v) => { try { localStorage.setItem(k, v) } catch { /* trình duyệt chặn */ } }
 const SEL = 'border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300'
 const taskIdx = sub => Number(sub.content_json?.task_index ?? 0)
+const boDau = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd')
+// Học sinh nộp lại: điểm + nhận xét đã xoá nhưng ai_score / ai_breakdown còn của BẢN CŨ → không dùng làm gợi ý cho bản mới
+const nhapCu = sub => !sub.reviewed_at && sub.score == null
+const goiYCua = sub => (!nhapCu(sub) && (sub.graded_by === 'ai' || sub.ai_score != null) ? mucTuDiem(sub.ai_score ?? sub.score) : null)
+const coNhapCua = sub => !nhapCu(sub) && (sub.graded_by === 'ai' || sub.ai_breakdown?.length > 0)
+const mucBanDau = sub => (nhapCu(sub) ? '' : sub.muc || mucCua(sub) || '')
 
 function ChonMuc({ value, onChange, goiY }) {
   return (
@@ -31,12 +37,12 @@ function ChonMuc({ value, onChange, goiY }) {
 
 /** 1 dòng bài nộp: thông tin bài · gợi ý AI theo tiêu chí · chọn mức + nhận xét · Duyệt */
 function DongBai({ sub, tieuDe, taskDef, onDoi, dangBan }) {
-  const goiY = sub.graded_by === 'ai' || sub.ai_score != null ? mucTuDiem(sub.ai_score ?? sub.score) : null
-  const [muc, setMuc] = useState(sub.muc || mucCua(sub) || '')
+  const goiY = goiYCua(sub)
+  const [muc, setMuc] = useState(mucBanDau(sub))
   const [nx, setNx] = useState(sub.teacher_comment || '')
   const [dang, setDang] = useState('')
-  useEffect(() => { setMuc(sub.muc || mucCua(sub) || ''); setNx(sub.teacher_comment || '') }, [sub.id, sub.muc, sub.score, sub.teacher_comment])   // eslint-disable-line react-hooks/exhaustive-deps
-  const coNhap = sub.graded_by === 'ai' || sub.ai_breakdown?.length > 0
+  useEffect(() => { setMuc(mucBanDau(sub)); setNx(sub.teacher_comment || '') }, [sub.id, sub.muc, sub.score, sub.teacher_comment, sub.submitted_at])   // eslint-disable-line react-hooks/exhaustive-deps
+  const coNhap = coNhapCua(sub)
 
   async function goiYAI() {
     setDang('ai')
@@ -74,8 +80,8 @@ function DongBai({ sub, tieuDe, taskDef, onDoi, dangBan }) {
         {!sub.file_url && !sub.text_content && <span className="text-red-600 font-semibold">Bài trống</span>}
       </div>
 
-      {sub.ai_suspect && <p className="text-xs text-rose-700 bg-rose-50 rounded px-2 py-1">🚩 AI nghi dùng AI viết hộ: {sub.ai_suspect_reason}</p>}
-      {sub.ai_breakdown?.length > 0 && (
+      {sub.ai_suspect && !nhapCu(sub) && <p className="text-xs text-rose-700 bg-rose-50 rounded px-2 py-1">🚩 AI nghi dùng AI viết hộ: {sub.ai_suspect_reason}</p>}
+      {!nhapCu(sub) && sub.ai_breakdown?.length > 0 && (
         <ul className="text-xs grid sm:grid-cols-2 gap-x-4 gap-y-0.5 bg-gray-50 rounded-lg p-2">
           {sub.ai_breakdown.map((b, i) => (
             <li key={i} className="flex gap-1.5"><span>{Number(b.earned) >= Number(b.max) ? '✅' : '⚠️'}</span>
@@ -114,7 +120,11 @@ export default function GradingPage() {
   const [chuaDuyet, setChuaDuyet] = useState(true)
   const [locMuc, setLocMuc] = useState('')   // '' | 'T' | 'H' | 'C' | 'none' (chưa có gợi ý) — theo mức AI gợi ý
   const [ban, setBan] = useState('')
+  const [timTen, setTimTen] = useState('')   // Theo bài: tìm học sinh theo tên
+  const [locBai, setLocBai] = useState('')   // Theo học sinh: chỉ xem 1 bài của em đó
 
+  useEffect(() => { setTimTen('') }, [cach, baiId])
+  useEffect(() => { setLocBai('') }, [cach, hsId])
   useEffect(() => { if (!grade && grades.length) setGrade(grades[0]) }, [grades, grade])
   useEffect(() => { lsSet('chamCach', cach) }, [cach])
   useEffect(() => {
@@ -156,15 +166,23 @@ export default function GradingPage() {
   }, [cach, baiId, hsId, hss])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const tenHs = useMemo(() => Object.fromEntries(hss.map(h => [h.id, h.ten])), [hss])
+  // Các bài em đã nộp (mỗi bài học 1 dòng, theo thứ tự bài học) cho ô chọn bài ở chế độ Theo học sinh
+  const baiCuaHs = useMemo(() => {
+    if (cach !== 'hs' || !subs) return []
+    return [...new Set(subs.map(s => s.lesson_id))].map(id => lessonMap[id]).filter(Boolean)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  }, [cach, subs, lessonMap])
   const hien = useMemo(() => {
     let ds = (subs || []).filter(s => !chuaDuyet || !s.reviewed_at)
-    if (locMuc) ds = ds.filter(s => { const g = s.graded_by === 'ai' || s.ai_score != null ? mucTuDiem(s.ai_score ?? s.score) : null; return locMuc === 'none' ? !g : g === locMuc })
+    if (locMuc) ds = ds.filter(s => { const g = goiYCua(s); return locMuc === 'none' ? !g : g === locMuc })
+    if (cach === 'bai' && timTen.trim()) ds = ds.filter(s => boDau(tenHs[s.user_id]).includes(boDau(timTen.trim())))
+    if (cach === 'hs' && locBai) ds = ds.filter(s => s.lesson_id === locBai)
     if (cach === 'bai') ds = ds.sort((a, b) => (tenHs[a.user_id] || '').split(' ').pop().localeCompare((tenHs[b.user_id] || '').split(' ').pop(), 'vi') || taskIdx(a) - taskIdx(b))
     return ds
-  }, [subs, chuaDuyet, cach, tenHs, locMuc])
+  }, [subs, chuaDuyet, cach, tenHs, locMuc, timTen, locBai])
   const taskDefCua = sub => parseTasks(lessonMap[sub.lesson_id]?.practice_instructions)[taskIdx(sub)] || {}
   const doi = moi => setSubs(prev => prev.map(s => (s.id === moi.id ? moi : s)))
-  const canGoiY = hien.filter(s => !s.reviewed_at && !(s.graded_by === 'ai' || s.ai_breakdown?.length))
+  const canGoiY = hien.filter(s => !s.reviewed_at && !coNhapCua(s))
   const coGoiY = hien.filter(s => !s.reviewed_at && s.graded_by === 'ai' && mucTuDiem(s.score))
   const chuaNop = cach === 'bai' && subs ? hss.filter(h => !subs.some(s => s.user_id === h.id)).length : 0
 
@@ -210,6 +228,13 @@ export default function GradingPage() {
               <option value="">— Chọn bài học —</option>{baiHocs.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}</select>
           : <select className={SEL + ' min-w-[220px]'} value={hsId} onChange={e => setHsId(e.target.value)}>
               <option value="">— Chọn học sinh ({hss.length}) —</option>{hss.map(h => <option key={h.id} value={h.id}>{h.ten}{!lop && h.lop ? ` (${h.lop})` : ''}</option>)}</select>}
+        {cach === 'bai' && baiId && (
+          <input className={SEL + ' w-44'} value={timTen} onChange={e => setTimTen(e.target.value)} placeholder="Tìm theo tên học sinh" />
+        )}
+        {cach === 'hs' && hsId && (
+          <select className={SEL + ' min-w-[200px]'} value={locBai} onChange={e => setLocBai(e.target.value)}>
+            <option value="">Tất cả bài của em ({baiCuaHs.length})</option>{baiCuaHs.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}</select>
+        )}
         <select className={SEL} value={locMuc} onChange={e => setLocMuc(e.target.value)} title="Lọc theo mức AI gợi ý">
           <option value="">Mọi mức AI gợi ý</option>
           {CAC_MUC.map(m => <option key={m} value={m}>AI gợi ý {m} · {MUC[m].ten}</option>)}
@@ -232,7 +257,7 @@ export default function GradingPage() {
 
       {subs === null
         ? <p className="text-center text-gray-400 py-12">{cach === 'bai' ? 'Chọn bài học để xem các bài học sinh đã nộp.' : 'Chọn học sinh để xem các bài em đã nộp.'}</p>
-        : hien.length === 0 ? <p className="text-center text-gray-400 py-12">{chuaDuyet ? 'Không còn bài nào chờ duyệt 🎉' : 'Chưa có bài nộp.'}</p>
+        : hien.length === 0 ? <p className="text-center text-gray-400 py-12">{timTen.trim() || locBai || locMuc ? 'Không có bài nào khớp bộ lọc.' : chuaDuyet ? 'Không còn bài nào chờ duyệt 🎉' : 'Chưa có bài nộp.'}</p>
           : <div className="space-y-2">{hien.map(s => (
             <DongBai key={s.id} sub={s} taskDef={taskDefCua(s)} onDoi={doi} dangBan={!!ban}
               tieuDe={cach === 'bai' ? (tenHs[s.user_id] || 'Học sinh') : (lessonMap[s.lesson_id]?.title || 'Bài học')} />))}</div>}

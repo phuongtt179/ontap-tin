@@ -40,6 +40,8 @@ export async function luuDanhGia(sub, { muc, comment, choNopLai = false }) {
     // điểm nội bộ: giữ điểm AI nếu giữ đúng mức gợi ý; đổi mức → điểm đại diện của mức (học sinh không thấy điểm)
     ...(goiY !== muc && { score: DIEM_DAI_DIEN[muc] }),
     ...(sub.graded_by === 'ai' && sub.ai_score == null && sub.score != null && { ai_score: sub.score }),
+    // Bài nộp lại chưa được AI chấm lại: bỏ điểm + tiêu chí AI của bản cũ để học sinh không thấy, số liệu độ khớp không sai
+    ...(sub.score == null && { ai_score: null, ai_breakdown: null, ai_suspect: false, ai_suspect_reason: null }),
     ...((goiY !== muc || doiNhanXet || sub.graded_by !== 'ai') && { graded_by: 'teacher' }),
     ...(awardSticker && { sticker_awarded: true }),
     ...(choNopLai && { allow_resubmit: true }),
