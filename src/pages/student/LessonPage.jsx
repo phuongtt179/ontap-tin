@@ -1145,6 +1145,10 @@ export default function LessonPage() {
           teacher_comment: null,
           graded_by: null,
           ai_graded_at: null,
+          // Bảng tiêu chí / cờ nghi của AI thuộc bản nộp cũ (ai_score học sinh không ghi được, trang Chấm bài tự bỏ qua)
+          ai_breakdown: null,
+          ai_suspect: false,
+          ai_suspect_reason: null,
         })
         .eq('id', existingSub.id)
         .select().single()

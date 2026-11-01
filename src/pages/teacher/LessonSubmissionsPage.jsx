@@ -946,7 +946,7 @@ export default function LessonSubmissionsPage() {
                           </td>
                           <td className="px-3 py-3 text-xs text-gray-600 max-w-xs">
                             <span className="line-clamp-2">{sub.teacher_comment || <span className="text-gray-300 italic">Không có nhận xét</span>}</span>
-                            {sub.ai_breakdown?.length > 0 && (
+                            {sub.score != null && sub.ai_breakdown?.length > 0 && (
                               <table className="mt-1.5 w-full border-collapse">
                                 <tbody>
                                   {sub.ai_breakdown.map((row, ri) => (
@@ -1136,7 +1136,7 @@ export default function LessonSubmissionsPage() {
                       </div>
                     </div>
                   )}
-                  {sub.ai_breakdown?.length > 0 && (
+                  {sub.score != null && sub.ai_breakdown?.length > 0 && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                       <p className="text-[11px] font-bold text-amber-700 mb-1.5">🤖 Tiêu chí AI đã kiểm tra</p>
                       <table className="w-full text-xs border-collapse">
