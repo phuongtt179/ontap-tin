@@ -8,8 +8,8 @@ import MarkdownContent from '../../components/ui/MarkdownContent'
 import Sb3Viewer from '../../components/ui/Sb3Viewer'
 import { gradeStudent } from '../../utils/aiGrader'
 import { runPython } from '../../utils/gradePrep.js'
-import { adjustStickerCount } from '../../utils/stickerAward'
-import { MUC, CAC_MUC, mucCua, mucTuDiem, stickerTheoMuc, DIEM_DAI_DIEN } from '../../utils/muc'
+import { thuongStickerTheoMuc } from '../../utils/stickerAward'
+import { MUC, CAC_MUC, mucCua, mucTuDiem, DIEM_DAI_DIEN } from '../../utils/muc'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
@@ -279,14 +279,9 @@ export default function LessonSubmissionsPage() {
     setTaskSaving(prev => ({ ...prev, [sub.id]: false }))
     if (error) { toast.error('Lưu thất bại: ' + error.message); return }
 
-    if (awardSticker) {
-      const bonus = stickerTheoMuc(mucVal)
-      if (bonus > 0) {
-        const { error: stickerErr } = await adjustStickerCount(theStudent.id, bonus, { affectsTotal: true })
-        if (stickerErr) toast.error('Không cập nhật được sticker: ' + stickerErr.message)
-        else toast.success(`Đã cộng +${bonus} ⭐ cho ${theStudent.full_name}`)
-      }
-    }
+    const { them, error: stickerErr } = await thuongStickerTheoMuc(sub.id, theStudent.id, mucVal)
+    if (stickerErr) toast.error('Không cập nhật được sticker: ' + stickerErr.message)
+    else if (them > 0) toast.success(`Đã cộng +${them} ⭐ cho ${theStudent.full_name}`)
 
     const taskIdx = sub.content_json?.task_index ?? 0
     toast.success(`Đã lưu nhận xét bài ${taskIdx + 1}`)
@@ -387,13 +382,10 @@ export default function LessonSubmissionsPage() {
       ...prev,
       [student.id]: (prev[student.id] || []).map(s => s.id === sub.id ? { ...s, ...updates } : s),
     }))
-    if (awardSticker) {
-      const bonus = stickerTheoMuc(muc)
-      if (bonus > 0) {
-        const { error: stickerErr } = await adjustStickerCount(student.id, bonus, { affectsTotal: true })
-        if (stickerErr) toast.error('Không cập nhật được sticker: ' + stickerErr.message)
-        else toast.success(`Đã cộng +${bonus} ⭐ cho ${student.full_name}`)
-      }
+    if (muc) {
+      const { them, error: stickerErr } = await thuongStickerTheoMuc(sub.id, student.id, muc)
+      if (stickerErr) toast.error('Không cập nhật được sticker: ' + stickerErr.message)
+      else if (them > 0) toast.success(`Đã cộng +${them} ⭐ cho ${student.full_name}`)
     }
   }
 
@@ -418,21 +410,10 @@ export default function LessonSubmissionsPage() {
       })
       return next
     })
-    // Cộng sticker — chỉ những bài chưa từng được cộng
-    const studentBonusMap = {}
-    toApprove.forEach(({ sub, student }) => {
-      if (!sub.sticker_awarded && sub.score != null) {
-        const bonus = stickerTheoMuc(mucCua(sub))
-        if (bonus > 0) {
-          if (!studentBonusMap[student.id]) studentBonusMap[student.id] = { student, bonus: 0 }
-          studentBonusMap[student.id].bonus += bonus
-        }
-      }
-    })
-    await Promise.all(Object.values(studentBonusMap).map(async ({ student, bonus }) => {
-      if (bonus <= 0) return
-      await adjustStickerCount(student.id, bonus, { affectsTotal: true })
-    }))
+    // Cộng sticker lần lượt từng bài (phần còn thiếu so với số bài đó đã được thưởng)
+    for (const { sub, student } of toApprove) {
+      if (sub.score != null) await thuongStickerTheoMuc(sub.id, student.id, mucCua(sub))
+    }
     setApprovingAll(false)
     toast.success(`Đã duyệt ${toApprove.length} bài AI!`)
     setShowAiReview(false)

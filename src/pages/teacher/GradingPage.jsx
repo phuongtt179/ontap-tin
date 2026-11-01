@@ -216,7 +216,7 @@ export default function GradingPage() {
           <button onClick={() => setCach('bai')} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold ${cach === 'bai' ? 'bg-indigo-600 text-white' : 'text-gray-600'}`}><BookOpen size={14} />Theo bài</button>
           <button onClick={() => setCach('hs')} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold ${cach === 'hs' ? 'bg-indigo-600 text-white' : 'text-gray-600'}`}><User size={14} />Theo học sinh</button>
         </div>
-        <span className="text-xs text-gray-500">Mức: <b>T</b> Hoàn thành tốt · <b>H</b> Hoàn thành · <b>C</b> Chưa hoàn thành — sticker khi duyệt T 3 · H 1 · C 0</span>
+        <span className="text-xs text-gray-500">Mức: <b>T</b> Hoàn thành tốt · <b>H</b> Hoàn thành · <b>C</b> Chưa hoàn thành — sticker khi duyệt T 3 · H 1 · C 0 (nộp lại mà mức tăng: cộng phần chênh)</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 bg-white border border-gray-200 rounded-xl p-3">

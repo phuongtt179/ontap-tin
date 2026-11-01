@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
-import { adjustStickerCount } from '../../../utils/stickerAward'
-import { MUC, CAC_MUC, mucTuDiem, stickerTheoMuc, DIEM_DAI_DIEN } from '../../../utils/muc'
+import { thuongStickerTheoMuc } from '../../../utils/stickerAward'
+import { MUC, CAC_MUC, mucTuDiem, DIEM_DAI_DIEN } from '../../../utils/muc'
 import toast from 'react-hot-toast'
 import { Loader2, Check, Pencil, ExternalLink } from 'lucide-react'
 
@@ -33,17 +33,14 @@ async function saveReview(item, { edit = false, muc, comment, allowResubmit = fa
       ...(newMuc !== goiY && { score: DIEM_DAI_DIEN[newMuc] }),
     }),
     ...(awardSticker && { sticker_awarded: true }),
-    // Bài chấm tay mặc định bị khoá nộp lại → mở khoá khi thầy/cô yêu cầu học sinh làm lại
+    // Học sinh luôn nộp lại được; cờ này hiện lời nhắc "Giáo viên cho phép bạn nộp lại" để em biết nên làm lại
     ...(allowResubmit && { allow_resubmit: true }),
   }
   const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', item.id)
   if (error) { toast.error('Lưu thất bại: ' + error.message); return false }
-  if (awardSticker) {
-    const bonus = stickerTheoMuc(newMuc)
-    if (bonus > 0) {
-      const { error: e } = await adjustStickerCount(item.user_id, bonus, { affectsTotal: true })
-      if (e) toast.error('Không cộng được sticker: ' + e.message)
-    }
+  if (newMuc) {
+    const { error: e } = await thuongStickerTheoMuc(item.id, item.user_id, newMuc)
+    if (e) toast.error('Không cộng được sticker: ' + e.message)
   }
   return true
 }
@@ -282,7 +279,7 @@ export default function ReviewTab({ summary, onChanged, loc = {} }) {
           <input value={bulkComment} onChange={e => setBulkComment(e.target.value)} disabled={bulk}
             placeholder="Nhận xét gửi học sinh (để trống nếu không cần)"
             className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-2 py-1" />
-          <label className="flex items-center gap-1 text-indigo-800 cursor-pointer" title="Bài thầy/cô chấm tay mặc định bị khoá; tích ô này để học sinh vẫn nộp lại được">
+          <label className="flex items-center gap-1 text-indigo-800 cursor-pointer" title="Học sinh luôn nộp lại được; tích ô này để hiện lời nhắc cho em biết nên làm lại">
             <input type="checkbox" checked={bulkResubmit} onChange={e => setBulkResubmit(e.target.checked)} disabled={bulk} className="w-4 h-4 accent-indigo-600" />
             Cho phép nộp lại
           </label>

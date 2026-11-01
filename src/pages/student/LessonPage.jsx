@@ -1757,15 +1757,13 @@ export default function LessonPage() {
                                   ) : (
                                     <p className="text-xs text-gray-400 italic text-center py-2">⏳ Thầy cô sẽ xem bài và nhận xét – em quay lại sau nhé (nhận xét tự hiện ở đây)</p>
                                   )}
-                                  {/* Bài AI chấm (kể cả đã được thầy/cô duyệt) luôn nộp lại được; bài thầy/cô chấm tay chỉ nộp lại khi được cho phép */}
-                                  {(!sub.reviewed_at || sub.graded_by === 'ai' || sub.allow_resubmit) && (
-                                    <button onClick={() => {
-                                      const nn = [...taskNotes]; nn[i] = sub.text_content || ''; setTaskNotes(nn)
-                                      setResubmitTask(i)
-                                    }} className="w-full py-2.5 rounded-xl border-2 border-orange-300 text-orange-600 font-bold text-sm hover:bg-orange-50 transition">
-                                      🔄 Nộp lại bài này
-                                    </button>
-                                  )}
+                                  {/* Luôn nộp lại được, kể cả bài đã duyệt — nộp lại thì bài quay về chờ thầy/cô duyệt */}
+                                  <button onClick={() => {
+                                    const nn = [...taskNotes]; nn[i] = sub.text_content || ''; setTaskNotes(nn)
+                                    setResubmitTask(i)
+                                  }} className="w-full py-2.5 rounded-xl border-2 border-orange-300 text-orange-600 font-bold text-sm hover:bg-orange-50 transition">
+                                    🔄 Nộp lại bài này
+                                  </button>
                                 </div>
                               ) : (
                                 /* Upload form */
