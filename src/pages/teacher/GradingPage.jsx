@@ -41,7 +41,9 @@ function DongBai({ sub, tieuDe, taskDef, onDoi, dangBan }) {
   const [muc, setMuc] = useState(mucBanDau(sub))
   const [nx, setNx] = useState(sub.teacher_comment || '')
   const [dang, setDang] = useState('')
-  useEffect(() => { setMuc(mucBanDau(sub)); setNx(sub.teacher_comment || '') }, [sub.id, sub.muc, sub.score, sub.teacher_comment, sub.submitted_at])   // eslint-disable-line react-hooks/exhaustive-deps
+  const [bd, setBd] = useState(sub.ai_breakdown || [])   // bảng tiêu chí AI, giáo viên sửa được trước khi lưu
+  const [suaGhiChu, setSuaGhiChu] = useState(null)       // dòng tiêu chí đang sửa ghi chú
+  useEffect(() => { setMuc(mucBanDau(sub)); setNx(sub.teacher_comment || ''); setBd(sub.ai_breakdown || []); setSuaGhiChu(null) }, [sub.id, sub.muc, sub.score, sub.teacher_comment, sub.submitted_at, sub.ai_breakdown])   // eslint-disable-line react-hooks/exhaustive-deps
   const coNhap = coNhapCua(sub)
 
   async function goiYAI() {
@@ -49,10 +51,17 @@ function DongBai({ sub, tieuDe, taskDef, onDoi, dangBan }) {
     try { onDoi(await aiChamNhap(sub, taskDef)) } catch (e) { toast.error(e.quotaType === 'quota_rpd' ? 'AI đã hết lượt hôm nay' : 'AI lỗi: ' + e.message) }
     setDang('')
   }
+  // Đổi đạt ↔ chưa đạt: sang đạt thì bỏ ghi chú; về chưa đạt thì lấy lại ghi chú của AI và mở ô sửa
+  function doiDat(i) {
+    const dangDat = Number(bd[i].earned) >= Number(bd[i].max)
+    setBd(ds => ds.map((b, j) => (j !== i ? b : dangDat ? { ...b, earned: 0, note: sub.ai_breakdown?.[i]?.note || '' } : { ...b, earned: b.max, note: '' })))
+    setSuaGhiChu(dangDat ? i : null)
+  }
   async function duyet() {
     if (!muc) { toast.error('Chọn mức T, H hoặc C'); return }
     setDang('luu')
-    const { moi, loi } = await luuDanhGia(sub, { muc, comment: nx })
+    const doiTieuChi = JSON.stringify(bd) !== JSON.stringify(sub.ai_breakdown || [])
+    const { moi, loi } = await luuDanhGia(sub, { muc, comment: nx, ...(doiTieuChi && { breakdown: bd }) })
     setDang('')
     if (loi) { toast.error('Lưu thất bại: ' + loi); return }
     toast.success(`Đã chốt mức ${muc}`)
@@ -81,13 +90,24 @@ function DongBai({ sub, tieuDe, taskDef, onDoi, dangBan }) {
       </div>
 
       {sub.ai_suspect && !nhapCu(sub) && <p className="text-xs text-rose-700 bg-rose-50 rounded px-2 py-1">🚩 AI nghi dùng AI viết hộ: {sub.ai_suspect_reason}</p>}
-      {!nhapCu(sub) && sub.ai_breakdown?.length > 0 && (
-        <ul className="text-xs grid sm:grid-cols-2 gap-x-4 gap-y-0.5 bg-gray-50 rounded-lg p-2">
-          {sub.ai_breakdown.map((b, i) => (
-            <li key={i} className="flex gap-1.5"><span>{Number(b.earned) >= Number(b.max) ? '✅' : '⚠️'}</span>
-              <span className="text-gray-700">{b.criterion}{b.note && <span className="text-gray-400"> — {b.note}</span>}</span></li>
-          ))}
-        </ul>
+      {!nhapCu(sub) && bd.length > 0 && (
+        <div className="bg-gray-50 rounded-lg p-2 space-y-1">
+          <ul className="text-xs grid sm:grid-cols-2 gap-x-4 gap-y-0.5">
+            {bd.map((b, i) => (
+              <li key={i} className="flex gap-1.5">
+                <button type="button" onClick={() => doiDat(i)} title="Bấm để đổi đạt / chưa đạt" className="shrink-0 self-start rounded hover:bg-gray-200">{Number(b.earned) >= Number(b.max) ? '✅' : '⚠️'}</button>
+                <span className="flex-1 min-w-0 text-gray-700">{b.criterion}
+                  {suaGhiChu === i
+                    ? <textarea autoFocus rows={2} value={b.note || ''} onBlur={() => setSuaGhiChu(null)} placeholder="Ghi chú gửi học sinh (để trống nếu không cần)"
+                        onChange={e => setBd(ds => ds.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)))}
+                        className="block w-full mt-0.5 border border-indigo-300 rounded px-1.5 py-1 text-xs" />
+                    : <button type="button" onClick={() => setSuaGhiChu(i)} title="Bấm để sửa ghi chú" className="text-left text-gray-400 hover:text-indigo-600">{b.note ? ` — ${b.note}` : ' ✏️'}</button>}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-gray-400">Bấm ✅/⚠️ để đổi đạt / chưa đạt, bấm ghi chú để sửa. Bấm {sub.reviewed_at ? 'Lưu lại' : 'Duyệt'} để lưu, học sinh sẽ thấy bản đã sửa.</p>
+        </div>
       )}
 
       <div className="flex flex-wrap items-start gap-2">

@@ -29,7 +29,7 @@ export async function aiChamNhap(sub, taskDef) {
  * Giáo viên chốt đánh giá: mức T/H/C + nhận xét → học sinh thấy. Cộng sticker theo mức (T 3 · H 1 · C 0); nộp lại mà mức tăng thì cộng phần chênh.
  * Trả về bản ghi mới (null nếu lỗi).
  */
-export async function luuDanhGia(sub, { muc, comment, choNopLai = false }) {
+export async function luuDanhGia(sub, { muc, comment, choNopLai = false, breakdown = null }) {
   const goiY = mucTuDiem(sub.score)
   const doiNhanXet = comment != null && comment !== (sub.teacher_comment || '')
   const awardSticker = !sub.sticker_awarded
@@ -42,7 +42,9 @@ export async function luuDanhGia(sub, { muc, comment, choNopLai = false }) {
     ...(sub.graded_by === 'ai' && sub.ai_score == null && sub.score != null && { ai_score: sub.score }),
     // Bài nộp lại chưa được AI chấm lại: bỏ điểm + tiêu chí AI của bản cũ để học sinh không thấy, số liệu độ khớp không sai
     ...(sub.score == null && { ai_score: null, ai_breakdown: null, ai_suspect: false, ai_suspect_reason: null }),
-    ...((goiY !== muc || doiNhanXet || sub.graded_by !== 'ai') && { graded_by: 'teacher' }),
+    ...((goiY !== muc || doiNhanXet || breakdown || sub.graded_by !== 'ai') && { graded_by: 'teacher' }),
+    // Giáo viên sửa bảng tiêu chí AI (đạt / chưa đạt, ghi chú) → học sinh thấy bản đã sửa
+    ...(breakdown && { ai_breakdown: breakdown }),
     ...(awardSticker && { sticker_awarded: true }),
     ...(choNopLai && { allow_resubmit: true }),
   }
