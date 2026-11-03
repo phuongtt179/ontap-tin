@@ -95,7 +95,7 @@ function DongBai({ sub, tieuDe, taskDef, onDoi, dangBan }) {
           <ul className="text-xs grid sm:grid-cols-2 gap-x-4 gap-y-0.5">
             {bd.map((b, i) => (
               <li key={i} className="flex gap-1.5">
-                <button type="button" onClick={() => doiDat(i)} title="Bấm để đổi đạt / chưa đạt" className="shrink-0 self-start rounded hover:bg-gray-200">{Number(b.earned) >= Number(b.max) ? '✅' : '⚠️'}</button>
+                <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => doiDat(i)} title="Bấm để đổi đạt / chưa đạt" className="shrink-0 self-start rounded px-0.5 hover:bg-gray-200">{Number(b.earned) >= Number(b.max) ? '✅' : '⚠️'}</button>
                 <span className="flex-1 min-w-0 text-gray-700">{b.criterion}
                   {suaGhiChu === i
                     ? <textarea autoFocus rows={2} value={b.note || ''} onBlur={() => setSuaGhiChu(null)} placeholder="Ghi chú gửi học sinh (để trống nếu không cần)"
