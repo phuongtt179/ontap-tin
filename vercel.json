@@ -1,3 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/((?!api/|assets/|version.json).*)",
+      "has": [{ "type": "host", "value": "ontap-tin.vercel.app" }],
+      "destination": "https://laptrinhsangtao.vercel.app/$1",
+      "permanent": false
+    }
+  ],
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
 }
