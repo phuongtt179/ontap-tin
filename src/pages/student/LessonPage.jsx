@@ -876,8 +876,8 @@ export default function LessonPage() {
 
     setLesson(lessonData)
 
-    const { data: profGrade } = await supabase.from('profiles').select('grade').eq('id', user.id).single()
-    const grade = profGrade?.grade || null
+    // Khoá của bài đang học (profiles không còn cột grade từ khi chuyển sang ghi danh theo lớp)
+    const grade = lessonData.grade || null
     setStudentGrade(grade)
     if (grade) {
       const { data: cfgData } = await supabase.from('reward_configs').select('sticker_threshold').eq('grade', grade).maybeSingle()
@@ -921,11 +921,14 @@ export default function LessonPage() {
 
     // Hồ sơ lỗi hay gặp của chính em (từ bảng điểm AI các bài gần đây) → gia sư gợi ý đúng chỗ em hay vướng.
     // Lỗi truy vấn không ảnh hưởng gì tới trang học: chỉ đơn giản là không có hồ sơ.
-    supabase.from('lesson_submissions').select('ai_breakdown, lessons(title)')
-      .eq('user_id', user.id).not('ai_breakdown', 'is', null)
-      .order('submitted_at', { ascending: false }).limit(15)
-      .then(({ data }) => setWeaknessProfile(buildWeaknessProfile(data)))
-      .catch(() => {})
+    // Chỉ gia sư AI trực tiếp mới dùng — đang tắt thì không tải (tốn ~10% thời gian SQL phía học sinh).
+    if (STUDENT_AI_DIRECT) {
+      supabase.from('lesson_submissions').select('ai_breakdown, lessons(title)')
+        .eq('user_id', user.id).not('ai_breakdown', 'is', null)
+        .order('submitted_at', { ascending: false }).limit(15)
+        .then(({ data }) => setWeaknessProfile(buildWeaknessProfile(data)))
+        .catch(() => {})
+    }
 
     // 2. Fetch questions if any
     if (lessonData.question_ids?.length > 0) {

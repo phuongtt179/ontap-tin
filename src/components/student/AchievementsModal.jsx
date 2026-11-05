@@ -52,7 +52,7 @@ export default function AchievementsModal({ open, onClose, userId, userName }) {
       supabase.rpc('get_class_leaderboard'),
       supabase.from('profiles').select('sticker_total, streak_days, streak_max, sticker_count').eq('id', userId).single(),
       supabase.from('lesson_progress').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('completed', true),
-      supabase.from('reward_requests').select('*, reward_items(name, emoji)').eq('student_id', userId).order('created_at', { ascending: false }),
+      supabase.from('reward_requests').select('*, reward_items(name, emoji)').eq('student_id', userId).order('requested_at', { ascending: false }),
     ])
     setLeaderboard(lb || [])
     setProfile(prof || { sticker_total: 0, streak_max: 0 })
@@ -201,7 +201,7 @@ function RewardsTab({ rewards }) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-bold text-gray-700 truncate">{r.reward_items?.name || 'Phần thưởng'}</div>
-              <div className="text-[11px] text-gray-400">⭐ {r.sticker_cost} · {new Date(r.created_at).toLocaleDateString('vi-VN')}</div>
+              <div className="text-[11px] text-gray-400">⭐ {r.sticker_cost} · {new Date(r.requested_at).toLocaleDateString('vi-VN')}</div>
             </div>
             <span className={`text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${st.cls}`}>{st.label}</span>
           </div>
