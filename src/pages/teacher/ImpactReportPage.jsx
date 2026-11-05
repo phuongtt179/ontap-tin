@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
-import { Loader2, Download, Users, School, BookOpenCheck, FileCheck2, Bot, MessageCircleQuestion, ShieldCheck, Timer } from 'lucide-react'
+import { Loader2, Download, RefreshCw, Users, School, BookOpenCheck, FileCheck2, Bot, MessageCircleQuestion, ShieldCheck, Timer } from 'lucide-react'
 
 const nf = n => (n ?? 0).toLocaleString('vi-VN')
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0)
@@ -41,20 +41,38 @@ function Bars({ rows, valueKey, labelKey, color = 'bg-indigo-500', format = nf }
   )
 }
 
+// impact_stats quét toàn bộ bài nộp + tin nhắn (có lần 6,7 giây, giới hạn 8 giây): số liệu đổi chậm nên giữ 30 phút trong tab
+const NHO_BAO_CAO = 'baoCaoTacDong'
+const GIU_BAO_CAO_MS = 30 * 60000
+function docBaoCao() {
+  try {
+    const o = JSON.parse(sessionStorage.getItem(NHO_BAO_CAO))
+    return o && Date.now() - o.luc < GIU_BAO_CAO_MS ? o.data : null
+  } catch { return null }
+}
+
 export default function ImpactReportPage() {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [nho] = useState(docBaoCao)
+  const [data, setData] = useState(nho)
+  const [loading, setLoading] = useState(!nho)
+  const [dangTai, setDangTai] = useState(false)
   const [minutes, setMinutes] = useState(2) // số phút giáo viên ước tính để chấm tay 1 bài
 
-  useEffect(() => {
+  function taiLai() {
+    setDangTai(true)
     supabase.rpc('impact_stats').then(({ data, error }) => {
       if (error) {
         toast.error('Chưa tải được số liệu — đã chạy migration_impact_report.sql chưa?')
         console.error(error)
-      } else setData(data)
+      } else {
+        setData(data)
+        try { sessionStorage.setItem(NHO_BAO_CAO, JSON.stringify({ luc: Date.now(), data })) } catch { /* trình duyệt chặn */ }
+      }
       setLoading(false)
+      setDangTai(false)
     })
-  }, [])
+  }
+  useEffect(() => { if (!nho) taiLai() }, [])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const monthly = useMemo(() => (data?.monthly || []).map(m => ({ ...m, label: monthLabel(m.month) })), [data])
   const weekly = useMemo(() => (data?.weekly_active || []).map(w => ({ ...w, label: w.week.slice(8, 10) + '/' + w.week.slice(5, 7) })), [data])
@@ -92,7 +110,11 @@ export default function ImpactReportPage() {
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-xl font-black text-gray-800">Báo cáo tác động</h1>
+          <h1 className="text-xl font-black text-gray-800 flex items-center gap-2">Báo cáo tác động
+            <button onClick={taiLai} disabled={dangTai} title="Tải lại số liệu mới nhất"
+              className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-60">
+              <RefreshCw size={12} className={dangTai ? 'animate-spin' : ''} />Làm mới</button>
+          </h1>
           <p className="text-sm text-gray-500">Số liệu sử dụng thực tế từ {since} đến nay · cập nhật {new Date(data.generated_at).toLocaleString('vi-VN')}</p>
         </div>
         <button onClick={exportCsv}
