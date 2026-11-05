@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { Users, School, ChevronRight, Plus, Trash2, Loader2, Pencil, Check, X } from 'lucide-react'
@@ -32,8 +32,10 @@ export default function GradesPage() {
 
   useEffect(() => { fetchAll() }, [])
 
+  // Chỉ hiện vòng xoay khi đổi bộ lọc; lưu / xoá xong thì tải ngầm để giữ nguyên danh sách và vị trí đang xem
+  const daTai = useRef(false)
   async function fetchAll() {
-    setLoading(true)
+    if (!daTai.current) { daTai.current = true; setLoading(true) }
     const [gradeRes, classRes, enrollRes] = await Promise.all([
       supabase.from('grades').select('value, ai_scope').order('value'),
       supabase.from('classes').select('grade'),

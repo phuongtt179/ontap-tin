@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
@@ -638,8 +638,11 @@ export default function StudentsPage() {
     setClasses(data || [])
   }
 
+  // Chỉ hiện vòng xoay khi đổi bộ lọc; lưu / xoá xong thì tải ngầm để giữ nguyên danh sách và vị trí đang xem
+  const daTai = useRef(null)
   async function fetchStudents() {
-    setLoading(true)
+    const khoa = `${filterGrade}|${filterClass}`
+    if (daTai.current !== khoa) { daTai.current = khoa; setLoading(true) }
     const { data: profileData, error } = await supabase
       .from('profiles').select('*').eq('role', 'student').order('full_name')
     if (error) { toast.error('Lỗi tải danh sách học sinh: ' + error.message); setLoading(false); return }

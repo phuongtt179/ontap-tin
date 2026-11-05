@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
@@ -31,8 +31,10 @@ export default function ClassesPage() {
   useEffect(() => { if (gradeValues.length && !newGrade) setNewGrade(gradeValues[0]) }, [gradeValues])
   useEffect(() => { fetchClasses() }, [filterGrade])
 
+  // Chỉ hiện vòng xoay khi đổi bộ lọc; lưu / xoá xong thì tải ngầm để giữ nguyên danh sách và vị trí đang xem
+  const daTai = useRef(null)
   async function fetchClasses() {
-    setLoading(true)
+    if (daTai.current !== filterGrade) { daTai.current = filterGrade; setLoading(true) }
     let q = supabase.from('classes').select('*').order('grade').order('name')
     if (filterGrade) q = q.eq('grade', filterGrade)
     const { data, error } = await q

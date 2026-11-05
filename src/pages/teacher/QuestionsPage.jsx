@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
 import { useGrades } from '../../hooks/useGrades'
@@ -49,8 +49,10 @@ export default function QuestionsPage() {
 
   useEffect(() => { if (selectedGrade) fetchQuestions() }, [selectedGrade])
 
+  // Chỉ hiện vòng xoay khi đổi bộ lọc; lưu / xoá xong thì tải ngầm để giữ nguyên danh sách và vị trí đang xem
+  const daTai = useRef(null)
   async function fetchQuestions() {
-    setLoading(true)
+    if (daTai.current !== selectedGrade) { daTai.current = selectedGrade; setLoading(true) }
     const { data, error } = await supabase
       .from('questions')
       .select('*, units(id,name)')
