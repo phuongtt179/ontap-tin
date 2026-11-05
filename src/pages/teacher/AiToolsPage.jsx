@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
@@ -48,6 +48,13 @@ export default function AiToolsPage() {
     supabase.rpc('ai_tools_summary', { p_grade: grade || null, p_class: lop || null }).then(({ data }) => setSummary(data || null))
   }, [grade, lop])
   useEffect(() => { loadSummary() }, [loadSummary])
+  // Duyệt liên tiếp nhiều bài: chờ ngừng tay 5 giây mới đếm lại 1 lần, không đếm lại sau từng bài
+  const henDem = useRef(null)
+  useEffect(() => () => clearTimeout(henDem.current), [])
+  const demLaiSau = useCallback(() => {
+    clearTimeout(henDem.current)
+    henDem.current = setTimeout(loadSummary, 5000)
+  }, [loadSummary])
 
   const badge = key => {
     if (!summary) return null
@@ -79,9 +86,9 @@ export default function AiToolsPage() {
           </button>
         ))}
       </div>
-      {tab === 'review' && <ReviewTab summary={summary} onChanged={loadSummary} loc={loc} />}
-      {tab === 'backfill' && <BackfillTab onChanged={loadSummary} loc={loc} />}
-      {tab === 'questions' && <QuestionsTab onChanged={loadSummary} loc={loc} />}
+      {tab === 'review' && <ReviewTab summary={summary} onChanged={demLaiSau} loc={loc} />}
+      {tab === 'backfill' && <BackfillTab onChanged={demLaiSau} loc={loc} />}
+      {tab === 'questions' && <QuestionsTab onChanged={demLaiSau} loc={loc} />}
       {tab === 'faq' && <FaqTab loc={loc} />}
       {tab === 'notes' && <TutorNotesTab />}
       {tab === 'insights' && <InsightsTab />}
