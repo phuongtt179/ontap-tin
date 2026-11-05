@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
@@ -523,8 +523,10 @@ export default function ExamsPage() {
 
   useEffect(() => { fetchExams() }, [])
 
+  // Chỉ hiện vòng xoay khi đổi bộ lọc; lưu / xoá xong thì tải ngầm để giữ nguyên danh sách và vị trí đang xem
+  const daTai = useRef(false)
   async function fetchExams() {
-    setLoading(true)
+    if (!daTai.current) { daTai.current = true; setLoading(true) }
     const { data } = await supabase.from('exams').select('*').order('created_at', { ascending: false })
     setExams(data || [])
     setLoading(false)

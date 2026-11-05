@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
 import { useGrades } from '../../hooks/useGrades'
@@ -17,8 +17,10 @@ function LessonTitleManagerModal({ unit, user, canDelete, onClose }) {
 
   useEffect(() => { fetchTitles() }, [])
 
+  // Chỉ hiện vòng xoay khi đổi bộ lọc; lưu / xoá xong thì tải ngầm để giữ nguyên danh sách và vị trí đang xem
+  const daTai = useRef(false)
   async function fetchTitles() {
-    setLoading(true)
+    if (!daTai.current) { daTai.current = true; setLoading(true) }
     const { data } = await supabase
       .from('lesson_titles')
       .select('*')
@@ -156,8 +158,10 @@ function UnitManagerModal({ topic, user, canDelete, onClose }) {
 
   useEffect(() => { fetchUnits() }, [])
 
+  // Chỉ hiện vòng xoay khi đổi bộ lọc; lưu / xoá xong thì tải ngầm để giữ nguyên danh sách và vị trí đang xem
+  const daTai = useRef(false)
   async function fetchUnits() {
-    setLoading(true)
+    if (!daTai.current) { daTai.current = true; setLoading(true) }
     const { data } = await supabase
       .from('units')
       .select('*')

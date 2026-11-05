@@ -1,36 +1,66 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { Trophy, BookOpen, Users, ClipboardCheck, CheckSquare, Activity, Sparkles } from 'lucide-react'
+import { Trophy, BookOpen, Users, ClipboardCheck, CheckSquare, Activity, Sparkles, RefreshCw } from 'lucide-react'
+
+// Trang này chạy hơn 15 truy vấn, có lệnh đếm trên >10.000 bài (máy chủ nano dễ quá 8 giây khi thiếu RAM).
+// Giữ kết quả 5 phút trong tab để quay lại trang / F5 không đếm lại; muốn số mới thì bấm Làm mới.
+const GIU_MS = 5 * 60000
+const khoaNho = id => `tongQuanGV:${id}`
+function docNho(id) {
+  try {
+    const o = JSON.parse(sessionStorage.getItem(khoaNho(id)))
+    return o && Date.now() - o.luc < GIU_MS ? o : null
+  } catch { return null }
+}
 
 export default function TeacherDashboard() {
   const { profile } = useAuth()
-  const [stats, setStats] = useState({ questions: null, exams: null, students: null })
-  const [actions, setActions] = useState(null)   // { pendingStudents, pendingSubmissions, openSessions, openAttendees }
-  const [todayData, setTodayData] = useState(null) // { attended, active }
-  const [examRanking, setExamRanking] = useState(null)
-  const [practiceRanking, setPracticeRanking] = useState(null)
-  const [aiAlert, setAiAlert] = useState(null) // { ungraded, unreviewed }
+  const [nho] = useState(() => docNho(profile?.id))
+  const [stats, setStats] = useState(nho?.stats ?? { questions: null, exams: null, students: null })
+  const [actions, setActions] = useState(nho?.actions ?? null)   // { pendingStudents, pendingSubmissions, openSessions, openAttendees }
+  const [todayData, setTodayData] = useState(nho?.todayData ?? null) // { attended, active }
+  const [examRanking, setExamRanking] = useState(nho?.examRanking ?? null)
+  const [practiceRanking, setPracticeRanking] = useState(nho?.practiceRanking ?? null)
+  const [aiAlert, setAiAlert] = useState(nho?.aiAlert ?? null) // { ungraded, unreviewed, questions }
+  const [luc, setLuc] = useState(nho?.luc ?? null)   // lúc tải xong số liệu đang hiện
+  const [dangTai, setDangTai] = useState(false)
+  const coLoi = useRef(false)
 
+  useEffect(() => { if (!nho) taiLai() }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Lưu lại khi đã có đủ số liệu; lần tải bị lỗi thì không lưu để lần sau tải lại
   useEffect(() => {
-    Promise.all([
-      supabase.from('lesson_submissions').select('id', { count: 'exact', head: true })
-        .is('score', null).is('graded_by', null).is('reviewed_at', null)
-        .gte('submitted_at', new Date(Date.now() - 30 * 864e5).toISOString()),
-      supabase.from('lesson_submissions').select('id', { count: 'exact', head: true })
-        .eq('graded_by', 'ai').is('reviewed_at', null),
+    if (!luc || !profile?.id) return
+    try {
+      sessionStorage.setItem(khoaNho(profile.id), JSON.stringify({ luc, stats, actions, todayData, examRanking, practiceRanking, aiAlert }))
+    } catch { /* trình duyệt chặn */ }
+  }, [luc])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function taiLai() {
+    setDangTai(true)
+    coLoi.current = false
+    const demBai = layDemBai()
+    await Promise.all([fetchAiAlert(demBai), fetchStats(), fetchActions(demBai), fetchToday(), fetchExamRanking(), fetchPracticeRanking()])
+    setLuc(coLoi.current ? null : Date.now())
+    setDangTai(false)
+  }
+
+  // 3 số đếm bài nộp gộp trong 1 lần quét (rpc dem_bai_tong_quan)
+  async function layDemBai() {
+    const { data, error } = await supabase.rpc('dem_bai_tong_quan')
+    if (error) { coLoi.current = true; return {} }
+    return data || {}
+  }
+
+  async function fetchAiAlert(demBai) {
+    const [dem, { count }] = await Promise.all([
+      demBai,
       supabase.from('student_questions').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-    ]).then(([a, b, c]) => setAiAlert({ ungraded: a.count || 0, unreviewed: b.count || 0, questions: c.count || 0 }))
-  }, [])
-
-  useEffect(() => {
-    fetchStats()
-    fetchActions()
-    fetchToday()
-    fetchExamRanking()
-    fetchPracticeRanking()
-  }, [])
+    ])
+    setAiAlert({ ungraded: dem.chua_cham || 0, unreviewed: dem.ai_chua_duyet || 0, questions: count || 0 })
+  }
 
   async function fetchStats() {
     const [q, e, s] = await Promise.all([
@@ -41,17 +71,16 @@ export default function TeacherDashboard() {
     setStats({ questions: q.count ?? 0, exams: e.count ?? 0, students: s.count ?? 0 })
   }
 
-  async function fetchActions() {
+  async function fetchActions(demBai) {
     const [
       { data: pendingProfileUsers },
       { data: pendingEnrollUsers },
-      { count: pendingSubmissions },
+      dem,
       { data: openSessions, error: sessErr },
     ] = await Promise.all([
       supabase.from('profiles').select('id').eq('role', 'student').eq('is_approved', false),
       supabase.from('student_enrollments').select('user_id').eq('is_approved', false),
-      supabase.from('lesson_submissions').select('id', { count: 'exact', head: true })
-        .is('reviewed_at', null),
+      demBai,
       supabase.from('attendance_sessions').select('id, grade, class_name, opened_at')
         .is('closed_at', null),
     ])
@@ -71,7 +100,7 @@ export default function TeacherDashboard() {
 
     setActions({
       pendingStudents: pendingStudents ?? 0,
-      pendingSubmissions: pendingSubmissions ?? 0,
+      pendingSubmissions: dem.cho_duyet ?? 0,
       openSessions: sessErr ? [] : (openSessions || []),
       openAttendees,
     })
@@ -147,6 +176,11 @@ export default function TeacherDashboard() {
   return (
     <div className="p-4 md:p-8 space-y-6">
       <div>
+        <button onClick={taiLai} disabled={dangTai} title="Tải lại số liệu mới nhất"
+          className="float-right flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-60">
+          <RefreshCw size={13} className={dangTai ? 'animate-spin' : ''} />
+          {dangTai ? 'Đang tải…' : `Làm mới${luc ? ` · số liệu lúc ${new Date(luc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : ''}`}
+        </button>
         <h1 className="text-2xl font-bold text-gray-800 mb-1">Xin chào, {profile?.full_name}!</h1>
         <p className="text-gray-400 text-sm">{new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
       </div>

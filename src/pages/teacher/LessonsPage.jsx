@@ -1261,8 +1261,10 @@ export default function LessonsPage() {
 
   useEffect(() => { if (selectedGrade) fetchLessons() }, [selectedGrade])
 
+  // Chỉ hiện vòng xoay khi đổi bộ lọc; lưu / xoá xong thì tải ngầm để giữ nguyên danh sách và vị trí đang xem
+  const daTai = useRef(null)
   async function fetchLessons() {
-    setLoading(true)
+    if (daTai.current !== selectedGrade) { daTai.current = selectedGrade; setLoading(true) }
     const { data } = await supabase
       .from('lessons')
       .select('*')
