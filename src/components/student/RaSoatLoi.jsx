@@ -24,7 +24,7 @@ export default function RaSoatLoi({ sub, file, note, lessonId, taskIdx, task, on
   const [daDung, setDaDung] = useState(null)   // số lượt đã dùng hôm nay (null = đang tải)
   const [kqMoi, setKqMoi] = useState(null)     // kết quả lần rà soát gần nhất trên trang này
   // Đã nộp: chỉ hiện kết quả của bản nộp hiện tại. Chưa nộp: kết quả của file đang chọn.
-  const rs = kqMoi || (sub?.ra_soat?.phien === sub?.submitted_at ? sub.ra_soat : null)
+  const rs = kqMoi || (sub && sub.ra_soat?.phien === sub.submitted_at ? sub.ra_soat : null)
 
   useEffect(() => {
     let huy = false
