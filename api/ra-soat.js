@@ -1,7 +1,9 @@
 // "Rà soát lỗi" cho học sinh: AI chỉ PHÂN LOẠI bài nộp ĐẠT / CHƯA ĐẠT theo từng tiêu chí giáo viên viết
 // (rubric của bài) — không viết nhận xét, không cho điểm, không cho mức. Học sinh thấy nguyên văn câu tiêu chí
-// kèm ✅/⚠️ để tự sửa rồi nộp lại; đánh giá mức T/H/C vẫn do giáo viên.
-// Tiêu chí do MÁY CHỦ lấy từ bài học (học sinh không gửi lên được). Mỗi bản nộp rà soát tối đa MAX_LAN lần.
+// kèm ✅/⚠️ để tự sửa; đánh giá mức T/H/C vẫn do giáo viên.
+// Từ 08/11/2026 rà soát được cả TRƯỚC khi nộp (gửi lesson_id + task_index thay cho submission_id).
+// Tiêu chí do MÁY CHỦ lấy từ bài học (học sinh không gửi lên được). Lượt rà soát đếm ở bảng ra_soat_luot
+// (migration_ra_soat_luot.sql): mỗi ô bài tối đa 7 lần/ngày, dùng chung trước và sau khi nộp.
 import { getGeminiKeys, callGeminiRotate, isDailyLimit } from './_gemini.js'
 import { requireUser, DATA_REST } from './_auth.js'
 import { tieuChiRaSoat } from '../src/utils/tieuChi.js'
@@ -10,7 +12,7 @@ export const config = { maxDuration: 60 }
 
 const ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
 const MODEL = 'gemini-3.1-flash-lite'
-const MAX_LAN = 5
+const MAX_LAN = 7   // phải khớp hàm ra_soat_ghi
 
 function parseTasks(instructions) {
   try { const a = JSON.parse(instructions); if (Array.isArray(a) && a.length) return a } catch { /* chuỗi thường */ }
@@ -41,22 +43,36 @@ export default async function handler(req, res) {
   const user = await requireUser(req, res)
   if (!user) return
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim()
-  const { submission_id, task } = req.body || {}
-  if (!submission_id || !task || typeof task !== 'object') return res.status(400).json({ error: 'bad_request' })
+  const { submission_id, lesson_id, task_index, task } = req.body || {}
+  if ((!submission_id && !lesson_id) || !task || typeof task !== 'object') return res.status(400).json({ error: 'bad_request' })
 
   // Đọc bằng phiên của chính học sinh → RLS chỉ cho thấy bài của em
   const db = (path, init = {}) => fetch(`${DATA_REST}/${path}`, {
     ...init, headers: { apikey: ANON_KEY, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init.headers || {}) },
   })
-  const [sub] = await (await db(`lesson_submissions?select=id,user_id,lesson_id,submitted_at,content_json,reviewed_at,ra_soat&id=eq.${encodeURIComponent(submission_id)}`)).json().catch(() => [])
-  if (!sub || sub.user_id !== user.id) return res.status(403).json({ error: 'forbidden' })
-  if (sub.reviewed_at) return res.status(400).json({ error: 'da_danh_gia' })
-  const cungBan = sub.ra_soat?.phien === sub.submitted_at
-  const lan = cungBan ? Number(sub.ra_soat.lan) || 0 : 0
-  if (lan >= MAX_LAN) return res.status(429).json({ error: 'het_luot' })
+  const rpc = async (ten, args) => {
+    const r = await db(`rpc/${ten}`, { method: 'POST', body: JSON.stringify(args) })
+    const t = await r.text()
+    return { ok: r.ok, data: t ? JSON.parse(t) : null }
+  }
 
-  const [lesson] = await (await db(`lessons?select=practice_instructions&id=eq.${sub.lesson_id}`)).json().catch(() => [])
-  const taskDef = parseTasks(lesson?.practice_instructions)[Number(sub.content_json?.task_index ?? 0)] || {}
+  // Đã nộp: lấy bài, ô bài từ bản nộp (RLS chỉ cho thấy bài của em). Chưa nộp: học sinh gửi lesson_id + task_index.
+  let sub = null
+  if (submission_id) {
+    ;[sub] = await (await db(`lesson_submissions?select=id,user_id,lesson_id,submitted_at,content_json,reviewed_at&id=eq.${encodeURIComponent(submission_id)}`)).json().catch(() => [])
+    if (!sub || sub.user_id !== user.id) return res.status(403).json({ error: 'forbidden' })
+    if (sub.reviewed_at) return res.status(400).json({ error: 'da_danh_gia' })
+  }
+  const lessonId = sub ? sub.lesson_id : String(lesson_id)
+  const taskIdx = sub ? Number(sub.content_json?.task_index ?? 0) : Number(task_index) || 0
+
+  const dem = await rpc('ra_soat_dem', { p_lesson: lessonId, p_task: taskIdx })
+  if (!dem.ok) return res.status(500).json({ error: 'db_error' })
+  if (Number(dem.data) >= MAX_LAN) return res.status(429).json({ error: 'het_luot' })
+
+  const [lesson] = await (await db(`lessons?select=practice_instructions&id=eq.${encodeURIComponent(lessonId)}`)).json().catch(() => [])
+  if (!lesson) return res.status(404).json({ error: 'khong_thay_bai' })
+  const taskDef = parseTasks(lesson.practice_instructions)[taskIdx] || {}
   const tieuChi = tieuChiRaSoat(taskDef)
 
   const keys = getGeminiKeys()
@@ -76,7 +92,10 @@ export default async function handler(req, res) {
   if (mang.length !== tieuChi.length) return res.status(500).json({ error: 'parse_error' })
 
   // Chỉ lưu câu tiêu chí của giáo viên + đạt/chưa đạt — không có chữ nào do AI viết
-  const ra_soat = { phien: sub.submitted_at, lan: lan + 1, ket_qua: tieuChi.map((t, i) => ({ tieu_chi: t, dat: mang[i] === true })), at: new Date().toISOString() }
-  await db(`lesson_submissions?id=eq.${sub.id}`, { method: 'PATCH', body: JSON.stringify({ ra_soat }) })
+  const ket_qua = tieuChi.map((t, i) => ({ tieu_chi: t, dat: mang[i] === true }))
+  const ghi = await rpc('ra_soat_ghi', { p_lesson: lessonId, p_task: taskIdx, p_ket_qua: ket_qua })
+  if (!ghi.ok) return res.status(/het_luot/.test(JSON.stringify(ghi.data)) ? 429 : 500).json({ error: /het_luot/.test(JSON.stringify(ghi.data)) ? 'het_luot' : 'db_error' })
+  const ra_soat = { phien: sub?.submitted_at ?? null, lan: Number(ghi.data), ket_qua, at: new Date().toISOString() }
+  if (sub) await db(`lesson_submissions?id=eq.${sub.id}`, { method: 'PATCH', body: JSON.stringify({ ra_soat }) })
   return res.status(200).json({ ra_soat, con_lai: MAX_LAN - ra_soat.lan })
 }

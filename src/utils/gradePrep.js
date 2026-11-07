@@ -346,7 +346,8 @@ export async function prepareTasks(submissions, taskDefs) {
     const instructions = taskDefs[i]?.instructions || ''
     const fileUrl = sub.file_url
     const textContent = sub.text_content
-    const type = getFileType(fileUrl, textContent)
+    // loai_tep: tên file gốc khi rà soát TRƯỚC khi nộp (file_url lúc đó là blob: không có đuôi file)
+    const type = getFileType(sub.loai_tep || fileUrl, textContent)
 
     let testResults = null
     if (type === 'py') {

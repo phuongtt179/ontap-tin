@@ -801,6 +801,7 @@ export default function LessonPage() {
   const [taskSubmissions, setTaskSubmissions] = useState([])   // submission|null per task
   const [taskFiles, setTaskFiles] = useState([])               // File|null per task
   const [taskNotes, setTaskNotes] = useState([])               // string per task
+  const [raSoatTruoc, setRaSoatTruoc] = useState({})            // kết quả rà soát TRƯỚC khi nộp của file đang chọn, theo ô bài
   const [taskSubmitting, setTaskSubmitting] = useState(null)   // task index being submitted
   const [resubmitTask, setResubmitTask] = useState(null)       // task index in resubmit mode
   const [aiGradingTask, setAiGradingTask] = useState(null)     // task index being AI graded
@@ -1134,13 +1135,16 @@ export default function LessonPage() {
       const oldUrl = existingSub?.file_url ?? null
       let fileUrl = oldUrl
       if (file) fileUrl = await uploadFile(file)
+      const luc = new Date().toISOString()
       const { data: updated, error } = await supabase
         .from('lesson_submissions')
         .update({
           file_url: fileUrl,
           file_name: file ? file.name : (existingSub?.file_name ?? null),
           text_content: note.trim() || null,
-          submitted_at: new Date().toISOString(),
+          submitted_at: luc,
+          // Lần rà soát trước khi nộp (nếu em đã rà soát file này) → thầy cô thấy ở trang Chấm bài
+          ra_soat: file && raSoatTruoc[taskIdx] ? { ...raSoatTruoc[taskIdx], phien: luc } : null,
           allow_resubmit: false,
           reviewed_at: null,
           score: null,
@@ -1184,6 +1188,7 @@ export default function LessonPage() {
     try {
       let fileUrl = null
       if (file) fileUrl = await uploadFile(file)
+      const luc = new Date().toISOString()
       const { data: subInserted, error } = await supabase.from('lesson_submissions').insert({
         user_id: user.id,
         lesson_id: id,
@@ -1191,7 +1196,9 @@ export default function LessonPage() {
         file_name: file ? file.name : null,
         text_content: note.trim() || null,
         content_json: { task_index: taskIdx },
-        submitted_at: new Date().toISOString(),
+        submitted_at: luc,
+        // Lần rà soát trước khi nộp (nếu có) → thầy cô thấy "em đã rà soát n lần" ở trang Chấm bài
+        ...(raSoatTruoc[taskIdx] && { ra_soat: { ...raSoatTruoc[taskIdx], phien: luc } }),
       }).select().single()
       if (error) {
         // Máy chủ chặn nộp trùng (thường do đã nộp ở tab khác) → tải lại để thấy bài đã nộp và nút "Nộp lại"
@@ -1811,6 +1818,7 @@ export default function LessonPage() {
                                       onChange={e => {
                                         if (!e.target.files?.[0]) return
                                         const next = [...taskFiles]; next[i] = e.target.files[0]; setTaskFiles(next)
+                                        setRaSoatTruoc(prev => ({ ...prev, [i]: null }))
                                       }} />
                                   </label>
                                   <textarea
@@ -1820,6 +1828,11 @@ export default function LessonPage() {
                                     placeholder="Ghi chú thêm (tuỳ chọn)..."
                                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none bg-gray-50"
                                   />
+                                  {/* Tự rà soát TRƯỚC khi nộp: chọn file → rà soát → sửa → thấy ổn mới bấm Nộp */}
+                                  {file && !task?.optional && (
+                                    <RaSoatLoi file={file} note={note} lessonId={id} taskIdx={i} task={task}
+                                      onKetQua={kq => setRaSoatTruoc(prev => ({ ...prev, [i]: kq }))} />
+                                  )}
                                   <button
                                     onClick={() => isResubmitting ? handleTaskResubmit(i) : handleTaskSubmit(i)}
                                     disabled={isSubmitting || (isResubmitting ? !file && !sub?.file_url : !file)}
