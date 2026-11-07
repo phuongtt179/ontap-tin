@@ -2,11 +2,10 @@
 // trả về đúng câu trả lời giáo viên đã duyệt. AI không viết chữ nào gửi học sinh. Không khớp → { khop: null }
 // (giao diện gửi câu hỏi cho giáo viên như cũ).
 import { getGeminiKeys, callGeminiRotate, isDailyLimit } from './_gemini.js'
-import { requireUser } from './_auth.js'
+import { requireUser, DATA_REST } from './_auth.js'
 
 export const config = { maxDuration: 60 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
 const MODEL = 'gemini-3.1-flash-lite'
 
@@ -31,7 +30,7 @@ export default async function handler(req, res) {
   const cau = String(cau_hoi || '').trim()
   if (!lesson_id || cau.length < 2) return res.status(400).json({ error: 'bad_request' })
 
-  const db = (path, init = {}) => fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const db = (path, init = {}) => fetch(`${DATA_REST}/${path}`, {
     ...init, headers: { apikey: ANON_KEY, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init.headers || {}) },
   })
   // RLS: học sinh chỉ đọc được câu đã duyệt
