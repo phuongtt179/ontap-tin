@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { maDangNhap } from '../../lib/maDangNhap'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
 import { Upload, Trash2, X, AlertCircle, CheckCircle2, Loader2, Search, UserPlus, Pencil, Clock, UserCheck, UserX, BarChart3 } from 'lucide-react'
@@ -16,7 +17,7 @@ async function adminCreateUser(email, password, metadata) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${anonKey}`,
+      'Authorization': `Bearer ${await maDangNhap()}`,
       'apikey': anonKey,
     },
     body: JSON.stringify({ email, password, metadata }),
@@ -377,7 +378,7 @@ function StudentEditModal({ student, classes, gradeValues, onClose, onDone }) {
       const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
       const res = await fetch(`${supabaseUrl}/functions/v1/update-user`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anonKey}`, 'apikey': anonKey },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${await maDangNhap()}`, 'apikey': anonKey },
         body: JSON.stringify({ userId: student.id, password: form.new_password }),
       })
       if (!res.ok) {
@@ -705,7 +706,7 @@ export default function StudentsPage() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${anonKey}`,
+        'Authorization': `Bearer ${await maDangNhap()}`,
         'apikey': anonKey,
       },
       body: JSON.stringify({ userId: student.id }),
@@ -733,7 +734,7 @@ export default function StudentsPage() {
     for (const s of targets) {
       const res = await fetch(`${supabaseUrl}/functions/v1/delete-user`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anonKey}`, 'apikey': anonKey },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${await maDangNhap()}`, 'apikey': anonKey },
         body: JSON.stringify({ userId: s.id }),
       })
       if (res.ok) ok++; else fail++
