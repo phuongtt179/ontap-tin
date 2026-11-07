@@ -3,6 +3,9 @@
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
+// Nơi đọc ghi dữ liệu: Neon nếu có VITE_NEON_DATA_URL (công tắc, xem src/lib/supabase.js), không thì Supabase.
+// Đăng nhập luôn ở Supabase; Neon nhận thẻ đăng nhập của Supabase.
+export const DATA_REST = process.env.VITE_NEON_DATA_URL ? `${process.env.VITE_NEON_DATA_URL}/rest/v1` : `${SUPABASE_URL}/rest/v1`
 
 // Chế độ học sinh tương tác TRỰC TIẾP với AI (gia sư trả lời ngay, AI chấm ngay khi nộp).
 // TẮT CỐ ĐỊNH từ 27/10/2026 — điều khoản Gemini API không cho dùng trong ứng dụng hướng tới người dưới
@@ -31,7 +34,7 @@ export async function requireUser(req, res, roles = null) {
     const u = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: ANON_KEY, Authorization: `Bearer ${token}` } })
     if (!u.ok) { res.status(401).json({ error: 'unauthorized' }); return null }
     const user = await u.json()
-    const p = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=role,is_active`,
+    const p = await fetch(`${DATA_REST}/profiles?id=eq.${user.id}&select=role,is_active`,
       { headers: { apikey: ANON_KEY, Authorization: `Bearer ${token}` } })
     const [profile] = p.ok ? await p.json() : []
     if (!profile || profile.is_active === false) { res.status(403).json({ error: 'forbidden' }); return null }

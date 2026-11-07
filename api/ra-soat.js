@@ -3,12 +3,11 @@
 // kèm ✅/⚠️ để tự sửa rồi nộp lại; đánh giá mức T/H/C vẫn do giáo viên.
 // Tiêu chí do MÁY CHỦ lấy từ bài học (học sinh không gửi lên được). Mỗi bản nộp rà soát tối đa MAX_LAN lần.
 import { getGeminiKeys, callGeminiRotate, isDailyLimit } from './_gemini.js'
-import { requireUser } from './_auth.js'
+import { requireUser, DATA_REST } from './_auth.js'
 import { tieuChiRaSoat } from '../src/utils/tieuChi.js'
 
 export const config = { maxDuration: 60 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
 const MODEL = 'gemini-3.1-flash-lite'
 const MAX_LAN = 5
@@ -46,7 +45,7 @@ export default async function handler(req, res) {
   if (!submission_id || !task || typeof task !== 'object') return res.status(400).json({ error: 'bad_request' })
 
   // Đọc bằng phiên của chính học sinh → RLS chỉ cho thấy bài của em
-  const db = (path, init = {}) => fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const db = (path, init = {}) => fetch(`${DATA_REST}/${path}`, {
     ...init, headers: { apikey: ANON_KEY, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init.headers || {}) },
   })
   const [sub] = await (await db(`lesson_submissions?select=id,user_id,lesson_id,submitted_at,content_json,reviewed_at,ra_soat&id=eq.${encodeURIComponent(submission_id)}`)).json().catch(() => [])
