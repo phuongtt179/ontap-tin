@@ -1211,7 +1211,8 @@ export default function LessonPage() {
       if (newSubs.every((s, k) => s !== null || tasksNow[k]?.optional)) {
         await upsertProgress({ practice_submitted: true })
       }
-      await awardOnce('submit', taskIdx, () => `Nộp xong bài thực hành ${taskIdx + 1}! 📝`)
+      // Từ 07/11/2026 không thưởng sticker khi nộp (học sinh nộp file bừa để lấy sticker) — chỉ thưởng khi thầy cô duyệt
+      toast.success(`Đã nộp bài thực hành ${taskIdx + 1}! 📝 Thầy cô duyệt xong em sẽ nhận sticker theo mức.`)
       recordActivity()
       triggerAiGrade(subInserted, taskIdx)
     } catch (err) {
