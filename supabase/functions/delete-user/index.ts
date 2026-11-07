@@ -4,6 +4,8 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -17,23 +19,22 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    const { userId } = await req.json()
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
-
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    // Chỉ giáo viên được xoá tài khoản (giống quyền canDelete trong app; trước 07/11/2026 khoá công khai cũng gọi được)
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')
+    const { data: { user: caller } } = await supabaseAdmin.auth.getUser(token)
+    if (!caller) return json({ error: 'Cần đăng nhập bằng tài khoản giáo viên' }, 401)
+    const { data: callerProfile } = await supabaseAdmin.from('profiles').select('role, is_active').eq('id', caller.id).single()
+    if (!callerProfile || callerProfile.is_active === false || callerProfile.role !== 'teacher') {
+      return json({ error: 'Chỉ giáo viên mới xoá được tài khoản' }, 403)
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    const { userId } = await req.json()
+    if (userId === caller.id) return json({ error: 'Không thể tự xoá tài khoản đang đăng nhập' }, 400)
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
+
+    if (error) return json({ error: error.message }, 400)
+    return json({ success: true })
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return json({ error: err.message }, 500)
   }
 })

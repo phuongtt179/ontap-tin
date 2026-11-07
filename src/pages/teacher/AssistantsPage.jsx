@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { maDangNhap } from '../../lib/maDangNhap'
 import toast from 'react-hot-toast'
 import { UserPlus, Trash2, Loader2, Eye, EyeOff, Pencil, Check, X, BookOpen, ClipboardList, Tags, FileText, ChevronLeft } from 'lucide-react'
 
@@ -10,7 +11,7 @@ async function adminCreateUser(email, password, metadata) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${anonKey}`,
+      'Authorization': `Bearer ${await maDangNhap()}`,
       'apikey': anonKey,
     },
     body: JSON.stringify({ email, password, metadata }),
@@ -27,7 +28,7 @@ async function adminDeleteUser(userId) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${anonKey}`,
+      'Authorization': `Bearer ${await maDangNhap()}`,
       'apikey': anonKey,
     },
     body: JSON.stringify({ userId }),
@@ -45,7 +46,7 @@ async function adminUpdateUser(userId, updates) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${anonKey}`,
+      'Authorization': `Bearer ${await maDangNhap()}`,
       'apikey': anonKey,
     },
     body: JSON.stringify({ userId, ...updates }),
