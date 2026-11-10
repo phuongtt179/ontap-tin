@@ -1,14 +1,16 @@
 // ✏️ SOẠN BÀI GIẢNG WEB cho 1 bài học (chuyển từ app Lớp học số): danh sách slide (thêm / chép / xoá / đổi chỗ)
 // · xem trước · biểu mẫu tự sinh theo loại slide / khối (slideModel.js) · AI soạn 2 bước (kịch bản → slide)
-// · lấy câu hỏi A–D / Đúng–Sai từ ngân hàng câu hỏi của bài. Lưu vào bảng lesson_slides.
+// · lấy câu hỏi A–D / Đúng–Sai từ ngân hàng câu hỏi của bài · nhập PPTX làm nguồn cho AI · nhập PDF (xuất từ PowerPoint)
+// thành slide ảnh giữ nguyên hình. Lưu vào bảng lesson_slides.
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Save, Sparkles, Eye, Play, Code2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Loader2, ListChecks, Upload, X } from 'lucide-react'
+import { ArrowLeft, Save, Sparkles, Eye, Play, Code2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Loader2, ListChecks, Upload, X, FileUp, FileImage } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { apiFetch } from '../../lib/apiFetch'
 import { uploadImage } from '../../lib/cloudinary'
 import { useAuth } from '../../context/AuthContext'
+import { docChuFile, pdfThanhAnh } from '../../utils/slideText'
 import SlidePlayer from '../../components/slides/SlidePlayer.jsx'
 import { TEN_ICON } from '../../components/slides/Icon.jsx'
 import { LOAI_SLIDE, LOAI_KHOI, MAU, TEN_MAU, TRUONG_SLIDE, TRUONG_KHOI, SLIDE_MOI, KHOI_MOI, kiemTraBai, lamSachBai, cauHoiThanhSlide } from '../../components/slides/slideModel.js'
@@ -117,8 +119,19 @@ function DsKhoi({ ds, onDoi }) {
 
 /** AI soạn 2 bước: ① kịch bản chữ (giáo viên sửa) → ② dựng slide */
 function AiSoan({ lesson, bai, setBai, onMoi }) {
-  const [yc, setYc] = useState(''), [dang, setDang] = useState('')
+  const [yc, setYc] = useState(''), [dang, setDang] = useState(''), [nguon, setNguon] = useState(null)   // nguon: { ten, chu, so }
   const chay = async (ten, fn) => { setDang(ten); try { await fn() } catch (e) { toast.error(e.message) } finally { setDang('') } }
+  const chonNguon = e => {
+    const f = e.target.files?.[0]; e.target.value = ''
+    if (!f) return
+    if (!/\.(pptx|pdf)$/i.test(f.name)) { toast.error('Chọn file .pptx hoặc .pdf (file .ppt cũ: mở bằng PowerPoint rồi lưu lại thành .pptx)'); return }
+    chay('doc', async () => {
+      const chu = await docChuFile(f)
+      if (!chu.trim()) throw new Error('Không đọc được chữ trong file (slide toàn ảnh?). Dùng "Nhập PDF giữ nguyên hình" thay thế.')
+      setNguon({ ten: f.name, chu, so: (chu.match(/^\[(Slide|Trang) \d+\]/gm) || []).length })
+      toast.success('Đã đọc file – bấm "AI viết kịch bản" để AI soạn bám theo slide này')
+    })
+  }
   const vietKichBan = () => chay('kb', async () => {
     if (bai.kich_ban && !confirm('Viết lại kịch bản? Kịch bản hiện tại sẽ bị thay.')) return
     let tasks = []
@@ -129,7 +142,7 @@ function AiSoan({ lesson, bai, setBai, onMoi }) {
       ? await supabase.from('questions').select('question, type, options, correct_answer').in('id', lesson.question_ids)
       : { data: [] }
     const questions = (qs || []).map(q => q.question + (q.options?.length ? ' | ' + q.options.map(o => o.key + '. ' + o.text).join(' ') : '') + ' (đáp án: ' + q.correct_answer + ')')
-    const r = await goiAI({ action: 'slide_script', lessonTitle: lesson.title, grade: lesson.grade, topic: lesson.topic, sourceText, questions, extra: yc })
+    const r = await goiAI({ action: 'slide_script', lessonTitle: lesson.title, grade: lesson.grade, topic: lesson.topic, sourceText, questions, extra: yc, slideNguon: nguon?.chu })
     setBai({ ...bai, kich_ban: r.text }); toast.success('AI đã viết kịch bản – thầy cô đọc, sửa rồi bấm bước 2')
   })
   const dungSlide = () => chay('sl', async () => {
@@ -145,7 +158,7 @@ function AiSoan({ lesson, bai, setBai, onMoi }) {
   })
   const Nut = ({ k, onClick, children, chinh }) => (
     <button className={chinh ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50' : BTN} disabled={!!dang} onClick={onClick}>
-      {dang === k ? <><Loader2 size={14} className="animate-spin" />AI đang làm… (15–50 giây)</> : children}
+      {dang === k ? <><Loader2 size={14} className="animate-spin" />{k === 'doc' ? 'Đang đọc file…' : 'AI đang làm… (15–50 giây)'}</> : children}
     </button>)
   return (
     <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 flex flex-col gap-3">
@@ -153,6 +166,15 @@ function AiSoan({ lesson, bai, setBai, onMoi }) {
         <span className="text-xs text-violet-700">AI dựa trên lý thuyết, bài thực hành và câu hỏi đã có của bài “{lesson.title}”</span></div>
       <section className="bg-white rounded-lg p-3 flex flex-col gap-2">
         <b className="text-sm text-violet-800">① Kịch bản chữ</b>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className={BTN + ' cursor-pointer' + (dang ? ' opacity-50 pointer-events-none' : '')}>
+            {dang === 'doc' ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} className="text-violet-600" />}Nhập PPTX có sẵn làm nguồn
+            <input type="file" accept=".pptx,.pdf" className="hidden" onChange={chonNguon} /></label>
+          {nguon ? <span className="inline-flex items-center gap-1.5 text-xs bg-violet-100 text-violet-800 rounded-full px-2.5 py-1">
+              AI sẽ bám theo <b>{nguon.ten}</b>{nguon.so ? ` (${nguon.so} slide có chữ)` : ''}
+              <button title="Bỏ file nguồn" className="hover:text-red-600" onClick={() => setNguon(null)}><X size={12} /></button></span>
+            : <span className="text-xs text-gray-500">Không bắt buộc. AI đọc chữ + ghi chú của slide, viết lại thành bài giảng tương tác.</span>}
+        </div>
         <input className={INP} value={yc} onChange={e => setYc(e.target.value)} placeholder="Yêu cầu thêm cho AI (không bắt buộc), vd: lớp 3 cần chậm hơn, thêm ví dụ về trò chơi…" />
         <div><Nut k="kb" onClick={vietKichBan} chinh={!bai.kich_ban}><Sparkles size={14} />{bai.kich_ban ? 'AI viết lại kịch bản' : 'AI viết kịch bản'}</Nut></div>
         <textarea className={INP + ' font-mono text-[13px]'} rows={bai.kich_ban ? 14 : 3} value={bai.kich_ban || ''} onChange={e => setBai({ ...bai, kich_ban: e.target.value })} placeholder="Kịch bản hiện ở đây – thầy cô sửa trực tiếp trước khi sang bước 2." />
@@ -162,6 +184,66 @@ function AiSoan({ lesson, bai, setBai, onMoi }) {
         <p className="text-xs text-gray-500">AI chuyển kịch bản thành slide (câu hỏi A–D, O/X, code Python chạy được…). Xong thầy cô xem thử, sửa từng slide ở dưới rồi bấm Lưu.</p>
         <div><Nut k="sl" onClick={dungSlide} chinh={!!bai.kich_ban && (bai.slides || []).length <= 1}><Sparkles size={14} />AI dựng slide</Nut></div>
       </section>
+    </div>
+  )
+}
+
+/** nhập PDF (PowerPoint → Lưu thành PDF): mỗi trang thành 1 slide ảnh, giữ nguyên hình như bản gốc */
+function NhapPdf({ coSlide, onXong, onDong }) {
+  const [file, setFile] = useState(null), [cach, setCach] = useState('them'), [tienDo, setTienDo] = useState(null)
+  const dangLam = !!tienDo
+  async function batDau() {
+    const ten = file.name.replace(/\.pdf$/i, '')
+    const moi = [], cho = []
+    let loi = 0, dangTai = 0
+    setTienDo({ xong: 0, tong: 0 })
+    try {
+      await pdfThanhAnh(file, async (p, tong, blob, tat) => {
+        if (p === 1 && tat > tong) toast(`File có ${tat} trang – chỉ nhập ${tong} trang đầu`)
+        while (dangTai >= 4) await new Promise(r => setTimeout(r, 150))   // tải lên tối đa 4 ảnh cùng lúc
+        dangTai++
+        cho.push(uploadImage(new File([blob], `${ten}-trang-${p}.jpg`, { type: 'image/jpeg' }))
+          .then(url => { moi[p - 1] = { loai: 'anh', tieu: `${ten} – trang ${p}`, anh: { url } } })
+          .catch(() => { loi++ })
+          .finally(() => { dangTai--; setTienDo(t => ({ xong: t.xong + 1, tong })) }))
+        setTienDo(t => ({ ...t, tong }))
+      })
+      await Promise.all(cho)
+    } catch (e) { toast.error('Không mở được file PDF: ' + e.message); setTienDo(null); return }
+    const ds = moi.filter(Boolean)
+    if (!ds.length) { toast.error('Tải ảnh lên thất bại, thử lại'); setTienDo(null); return }
+    if (loi) toast.error(`${loi} trang tải lên lỗi – đã bỏ qua`)
+    onXong(ds, cach)
+  }
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => !dangLam && onDong()}>
+      <div className="bg-white rounded-xl w-full max-w-lg flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-4 border-b flex items-center gap-2"><FileImage size={18} className="text-indigo-600" /><h3 className="font-semibold">Nhập slide PowerPoint (giữ nguyên hình)</h3>
+          {!dangLam && <button className="ml-auto text-gray-400 hover:text-gray-600" onClick={onDong}><X size={18} /></button>}</div>
+        <div className="p-4 flex flex-col gap-3 text-sm">
+          <p className="text-gray-600">Trong PowerPoint chọn <b>File → Save As (Lưu thành) → PDF</b>, rồi chọn file PDF đó ở đây. Mỗi trang thành 1 slide ảnh,
+            dạy được ở chế độ Dạy (vẽ, bấm chuyển trang). Hiệu ứng / video trong PowerPoint sẽ không còn; thầy cô chèn thêm slide câu hỏi, code… xen giữa.</p>
+          <label className={'flex items-center gap-3 border-2 border-dashed rounded-xl px-4 py-3 cursor-pointer hover:bg-gray-50 ' + (file ? 'border-green-300 bg-green-50' : 'border-gray-300') + (dangLam ? ' pointer-events-none opacity-60' : '')}>
+            <Upload size={18} className="text-gray-500" />
+            <span>{file ? <>Đã chọn <b>{file.name}</b></> : 'Chọn file PDF'}</span>
+            <input type="file" accept=".pdf,application/pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; if (!/\.pdf$/i.test(f.name)) { toast.error('Chọn file .pdf nhé'); return } setFile(f) }} />
+          </label>
+          {coSlide && <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-2"><input type="radio" checked={cach === 'them'} disabled={dangLam} onChange={() => setCach('them')} />Thêm vào sau slide đang chọn</label>
+            <label className="flex items-center gap-2"><input type="radio" checked={cach === 'thay'} disabled={dangLam} onChange={() => setCach('thay')} /><span>Thay <b>toàn bộ</b> slide hiện có</span></label>
+          </div>}
+          {tienDo && <div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-indigo-500 transition-all" style={{ width: (tienDo.tong ? 100 * tienDo.xong / tienDo.tong : 3) + '%' }} /></div>
+            <p className="text-xs text-gray-500 mt-1">Đang chuyển và tải lên… {tienDo.xong}/{tienDo.tong || '?'} trang</p>
+          </div>}
+        </div>
+        <div className="p-4 border-t flex justify-end gap-2">
+          <button className={BTN} disabled={dangLam} onClick={onDong}>Huỷ</button>
+          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" disabled={!file || dangLam}
+            onClick={() => { if (cach === 'thay' && coSlide && !confirm('Thay toàn bộ slide hiện có bằng các trang PDF?')) return; batDau() }}>
+            {dangLam ? <Loader2 size={14} className="animate-spin" /> : <FileImage size={14} />}Nhập</button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -202,7 +284,7 @@ export default function SlideEditorPage() {
   const { id } = useParams(), navigate = useNavigate(), { user } = useAuth()
   const [lesson, setLesson] = useState(null), [bai, setBaiRaw] = useState(null)
   const [chon, setChon] = useState(0), [doi, setDoi] = useState(false), [ai, setAi] = useState(false), [luu, setLuu] = useState(false)
-  const [chieu, setChieu] = useState(false), [json, setJson] = useState(null), [loaiMoi, setLoaiMoi] = useState('noi_dung'), [chonCau, setChonCau] = useState(false)
+  const [chieu, setChieu] = useState(false), [json, setJson] = useState(null), [loaiMoi, setLoaiMoi] = useState('noi_dung'), [chonCau, setChonCau] = useState(false), [nhapPdf, setNhapPdf] = useState(false)
 
   useEffect(() => {
     (async () => {
@@ -244,6 +326,7 @@ export default function SlideEditorPage() {
           {luu ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}{luu ? 'Đang lưu…' : doi ? 'Lưu' : 'Đã lưu'}</button>
         <button className={BTN + (ai ? ' !bg-violet-100 !border-violet-300' : '')} onClick={() => setAi(!ai)}><Sparkles size={14} className="text-violet-600" />AI soạn</button>
         <button className={BTN} onClick={() => setChonCau(true)}><ListChecks size={14} />Câu hỏi từ ngân hàng</button>
+        <button className={BTN} onClick={() => setNhapPdf(true)}><FileImage size={14} className="text-indigo-600" />Nhập PowerPoint (PDF)</button>
         <button className={BTN} onClick={() => setChieu(true)}><Eye size={14} />Xem thử</button>
         <button className={BTN} onClick={async () => { if (doi && !(await luuBai())) return; navigate(`/teacher/lessons/${id}/teach`) }}><Play size={14} className="text-green-600" />Dạy</button>
         <button className={BTN} onClick={() => setJson(json == null ? JSON.stringify(ds, null, 1) : null)}><Code2 size={14} />{json == null ? 'Sửa dạng mã' : 'Về biểu mẫu'}</button>
@@ -251,6 +334,12 @@ export default function SlideEditorPage() {
       </div>
 
       {ai && <AiSoan lesson={lesson} bai={bai} setBai={setBai} onMoi={() => setChon(0)} />}
+      {nhapPdf && <NhapPdf coSlide={ds.length > 1 || ds[0]?.loai !== 'bia' || !!ds[0]?.phu} onDong={() => setNhapPdf(false)} onXong={(moi, cach) => {
+        setNhapPdf(false)
+        if (cach === 'thay' || (ds.length === 1 && ds[0]?.loai === 'bia' && !ds[0]?.phu)) datDs(moi, 0)
+        else datDs([...ds.slice(0, chon + 1), ...moi, ...ds.slice(chon + 1)], chon + 1)
+        toast.success(`Đã nhập ${moi.length} trang – nhớ bấm Lưu`)
+      }} />}
       {chonCau && <ChonCauHoi lesson={lesson} onDong={() => setChonCau(false)} onChon={moi => { setChonCau(false); if (!moi.length) return; datDs([...ds.slice(0, chon + 1), ...moi, ...ds.slice(chon + 1)], chon + 1); toast.success(`Đã thêm ${moi.length} slide câu hỏi`) }} />}
 
       {json != null ? (

@@ -118,3 +118,7 @@
 .bgw-code .ket-qua .loi{color:#ffb4a2}
 .bgw-code .ket-qua small{display:block;font-family:var(--tay);font-size:20px;color:#9fc5b8}
 .bgw-cau-code{margin-top:16px}
+/* slide ảnh toàn trang (trang PDF xuất từ PowerPoint) */
+.bgw-anhto{position:absolute;inset:0;background:#fff;display:flex;align-items:center;justify-content:center}
+.bgw-anhto img{width:100%;height:100%;object-fit:contain;display:block}
+.bgw-anhto p{font-size:32px;color:#999}

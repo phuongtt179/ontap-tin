@@ -7,6 +7,7 @@
 //   noi_dung    { tieu, tem, mau, khoi: [khối…] }                             – slide thường, xếp các khối từ trên xuống
 //   trac_nghiem { tieu, tem, mau, cau, lua_chon: ['…'×2–4], dung: 0-3, giai_thich } – câu A–D, bấm để đóng dấu ĐÚNG
 //   dung_sai    { tieu, tem, mau, cau, dung: true|false, giai_thich }        – O / X
+//   anh         { tieu, anh: { url } }                                      – ảnh toàn trang (trang PDF nhập từ PowerPoint); tieu chỉ để nhận ra, không chiếu
 // Chung cho mọi slide: ghi_chu (ghi chú cho giáo viên, không chiếu).
 //
 // Các khối trong slide noi_dung (thêm "an": true = ẩn, bấm mới hiện; với the/buoc/danh_sach thêm "tung": true = hiện từng mục):
@@ -24,7 +25,7 @@
 //   hai_cot   { trai: [khối…], phai: [khối…], ti_le: '3fr 2fr' }
 // Chữ trong mọi trường: **đậm**, ==tô vàng==, `code`. Riêng câu hỏi (cau) còn nhận khối ```python … ```.
 
-export const LOAI_SLIDE = { bia: 'Trang bìa', noi_dung: 'Nội dung', trac_nghiem: 'Câu hỏi A–D', dung_sai: 'Đúng / Sai (O–X)' }
+export const LOAI_SLIDE = { bia: 'Trang bìa', noi_dung: 'Nội dung', trac_nghiem: 'Câu hỏi A–D', dung_sai: 'Đúng / Sai (O–X)', anh: 'Ảnh toàn trang' }
 export const LOAI_KHOI = {
   loi: 'Lời thoại', hoi_thoai: 'Hội thoại', cau: 'Câu hỏi', the: 'Thẻ kiến thức', buoc: 'Các bước', danh_sach: 'Danh sách',
   ghi_nho: 'Ghi nhớ', dap_an: 'Đáp án', code: 'Code Python', hinh: 'Hình', dong_ho: 'Đồng hồ', hai_cot: 'Hai cột',
@@ -127,6 +128,7 @@ export const TRUONG_SLIDE = {
   bia: [['nhan', 'chu', 'Nhãn nhỏ (vd: Python A · Bài 5)'], ['tieu', 'chu', 'Tên bài (chữ to)'], ['phu', 'chu', 'Dòng viết tay màu xanh'], ['khau_hieu', 'chu', 'Khẩu hiệu']],
   noi_dung: [...DAU, ['khoi', 'khoi', 'Các khối nội dung']],
   trac_nghiem: [...DAU, ['cau', 'dai', 'Câu hỏi (có thể chèn ```python … ```)'], ['lua_chon', 'ds', 'Lựa chọn (mỗi dòng 1, tối đa 4)'], ['dung', 'chon_dung', 'Đáp án đúng'], ['giai_thich', 'dai', 'Giải thích (hiện cùng đáp án)']],
+  anh: [['tieu', 'chu', 'Tên slide (chỉ để nhận ra trong danh sách, không chiếu)'], ['anh', 'anh', 'Ảnh (nên tỉ lệ 16:9)']],
   dung_sai: [...DAU, ['cau', 'dai', 'Câu nhận định (có thể chèn ```python … ```)'], ['dung', 'dung_sai', 'Đáp án'], ['giai_thich', 'dai', 'Giải thích']],
 }
 export const TRUONG_KHOI = {
@@ -147,6 +149,7 @@ export const SLIDE_MOI = {
   bia: () => ({ loai: 'bia', nhan: '', tieu: '', phu: '', khau_hieu: '' }),
   noi_dung: () => ({ loai: 'noi_dung', tieu: '', tem: '', mau: 'ngoc', khoi: [] }),
   trac_nghiem: () => ({ loai: 'trac_nghiem', tieu: 'Chọn đáp án đúng', tem: 'CÂU HỎI', mau: 'mutat', cau: '', lua_chon: ['', '', '', ''], dung: 0, giai_thich: '' }),
+  anh: () => ({ loai: 'anh', tieu: '', anh: {} }),
   dung_sai: () => ({ loai: 'dung_sai', tieu: 'Đúng hay sai? Giơ tay nào!', tem: 'O / X', mau: 'reu', cau: '', dung: true, giai_thich: '' }),
 }
 export const KHOI_MOI = {

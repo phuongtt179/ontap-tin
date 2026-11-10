@@ -279,10 +279,10 @@ export default async function handler(req, res) {
     prompt = insightsPrompt({ lessonLabel: lessonLabel || 'bài học', questions: qs })
     generationConfig = { temperature: 0.2, maxOutputTokens: 3000, responseMimeType: 'application/json' }
   } else if (action === 'slide_script') {
-    const { lessonTitle, grade, topic, sourceText, questions, extra } = req.body
+    const { lessonTitle, grade, topic, sourceText, questions, extra, slideNguon } = req.body
     if (!String(lessonTitle || '').trim()) return res.status(400).json({ error: 'no_title' })
     model = 'gemini-2.5-flash'
-    prompt = slideScriptPrompt({ lessonTitle, grade, topic, sourceText, questions: Array.isArray(questions) ? questions.map(q => String(q).slice(0, 400)) : [], extra })
+    prompt = slideScriptPrompt({ lessonTitle, grade, topic, sourceText, questions: Array.isArray(questions) ? questions.map(q => String(q).slice(0, 400)) : [], extra, slideNguon })
     generationConfig = { temperature: 0.7, maxOutputTokens: 8000, thinkingConfig: { thinkingBudget: 0 } }
   } else if (action === 'faq') {
     const { lessonTitle, grade, sourceText, questions, daCo } = req.body
