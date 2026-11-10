@@ -31,3 +31,6 @@ dist-ssr
 # Sao lưu Supabase về máy (có dữ liệu học sinh)
 SaoLuu/
 SaoLuu_*.json
+
+# SQL có mật khẩu (không đưa lên Git)
+*.local.sql

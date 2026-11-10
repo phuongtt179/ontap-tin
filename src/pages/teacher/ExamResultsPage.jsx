@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { ArrowLeft, ChevronRight, Loader2, CheckCircle, Trash2 } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Loader2, CheckCircle, Trash2, Bot, ExternalLink } from 'lucide-react'
 import WordEditor from '../../components/editor/WordEditor'
 import PPTEditor from '../../components/editor/PPTEditor'
+import Sb3Viewer from '../../components/ui/Sb3Viewer'
+import { gradeStudent } from '../../utils/aiGrader'
 import toast from 'react-hot-toast'
+
+const NHAN_THUC_HANH = { word: '📝 Word', ppt: '📊 PowerPoint', python: '🐍 Python', scratch: '🐱 Scratch' }
+const KY_TEST = { dung: '✅', sai: '❌', loi: '💥', qua_gio: '⏱️' }
 
 export default function ExamResultsPage() {
   const { id } = useParams()
@@ -20,6 +25,41 @@ export default function ExamResultsPage() {
   const [practicalScore, setPracticalScore] = useState('')
   const [practicalComment, setPracticalComment] = useState('')
   const [savingPractical, setSavingPractical] = useState(false)
+  const [nopPython, setNopPython] = useState([])   // các lần nộp chấm Python của lượt thi đang xem
+  const [aiDang, setAiDang] = useState(false)
+
+  useEffect(() => {
+    setNopPython([])
+    if (!selectedSession || exam?.practical_type !== 'python') return
+    supabase.from('exam_nop_python').select('lan, ket_qua, diem, code, created_at').eq('session_id', selectedSession.id).order('lan')
+      .then(({ data }) => setNopPython(data || []))
+  }, [selectedSession?.id, exam?.practical_type])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // AI chấm nháp bài Scratch / Word / PPT theo tiêu chí của đề — chỉ giáo viên thấy, giáo viên sửa rồi lưu
+  async function aiChamNhap() {
+    if (!selectedSession?.practical_file_url) { toast.error('Học sinh chưa nộp file'); return }
+    setAiDang(true)
+    try {
+      const { results } = await gradeStudent(
+        [{ file_url: selectedSession.practical_file_url, file_name: selectedSession.practical_file_name, content_json: { task_index: 0 } }],
+        [{ instructions: exam.practical_instructions || '', rubric: exam.practical_rubric || '' }])
+      const r = results?.[0]
+      if (!r) throw new Error('AI chưa trả về kết quả')
+      const practical_ai = { score: r.score, comment: r.comment, breakdown: r.breakdown || [], at: new Date().toISOString() }
+      const { error } = await supabase.from('exam_sessions').update({ practical_ai }).eq('id', selectedSession.id)
+      if (error) throw error
+      const updated = { ...selectedSession, practical_ai }
+      setSelectedSession(updated)
+      setSessions(prev => prev.map(x => (x.id === updated.id ? updated : x)))
+      setPracticalScore(r.score ?? '')
+      setPracticalComment(r.comment || '')
+      toast.success('AI đã chấm nháp — thầy cô xem, sửa rồi bấm Lưu')
+    } catch (e) {
+      toast.error(e.quotaType === 'quota_rpd' ? 'AI đã hết lượt hôm nay' : 'AI lỗi: ' + e.message)
+    } finally {
+      setAiDang(false)
+    }
+  }
 
   useEffect(() => { loadData() }, [id])
 
@@ -59,7 +99,11 @@ export default function ExamResultsPage() {
   // migration_exam_session_start.sql) — trả về null nếu chưa lượt nào nộp xong.
   function bestScoreOf(sessions) {
     const done = sessions.filter(s => s.submitted_at != null)
-    return done.length > 0 ? Math.max(...done.map(s => s.score)) : null
+    return done.length > 0 ? Math.max(...done.map(diemTong)) : null
+  }
+  function diemTong(s) {
+    if (!exam?.has_practical) return s.score
+    return Math.round(((s.score ?? 0) * (exam.theory_weight ?? 0) / 100 + (s.practical_score ?? 0) * (exam.practical_weight ?? 0) / 100) * 10) / 10
   }
 
   // Group by student
@@ -155,7 +199,7 @@ export default function ExamResultsPage() {
                             : 'bg-white border-gray-300 text-gray-600 hover:border-indigo-400'
                       }`}
                     >
-                      Lần {s.attempt_number}: {s.submitted_at == null ? 'Bỏ dở' : `${s.score} điểm`}
+                      Lần {s.attempt_number}: {s.submitted_at == null ? 'Bỏ dở' : `${diemTong(s)} điểm`}
                     </button>
                   ))}
               </div>
@@ -231,11 +275,49 @@ export default function ExamResultsPage() {
               )}
 
               {/* Practical section */}
-              {exam.has_practical && selectedSession.practical_content && (
+              {exam.has_practical && (selectedSession.practical_content || selectedSession.practical_file_url || nopPython.length > 0) && (
                 <div className="space-y-3 pt-2 border-t border-gray-100">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Phần thực hành {exam.practical_type === 'word' ? '📝 Word' : '📊 PowerPoint'}
+                    Phần thực hành {NHAN_THUC_HANH[exam.practical_type] || ''}
                   </p>
+                  {exam.practical_type === 'python' && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">Máy chấm tự động · {nopPython.length}/10 lần nộp · điểm lấy lần cao nhất: <b className="text-orange-600">{selectedSession.practical_score ?? 0}</b>/10</p>
+                      {nopPython.map(l => (
+                        <details key={l.lan} className="border border-gray-200 rounded-lg">
+                          <summary className="cursor-pointer px-3 py-2 text-sm flex flex-wrap items-center gap-2">
+                            <b>Lần {l.lan}</b> · {l.diem} điểm · <span className="text-xs">{(l.ket_qua || []).map(k => KY_TEST[k.trang_thai]).join(' ')}</span>
+                            <span className="text-xs text-gray-400">{new Date(l.created_at).toLocaleTimeString('vi-VN')}</span>
+                          </summary>
+                          <pre className="bg-gray-900 text-gray-100 text-xs p-3 overflow-auto max-h-72 whitespace-pre-wrap">{l.code}</pre>
+                        </details>
+                      ))}
+                    </div>
+                  )}
+                  {exam.practical_type === 'scratch' && selectedSession.practical_file_url && (
+                    <div className="space-y-2">
+                      <a href={selectedSession.practical_file_url} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-indigo-600 font-semibold hover:underline"><ExternalLink size={13} />Tải file {selectedSession.practical_file_name || ''}</a>
+                      <Sb3Viewer url={selectedSession.practical_file_url} />
+                    </div>
+                  )}
+                  {exam.practical_type !== 'python' && selectedSession.practical_file_url && (
+                    <div className="space-y-2">
+                      <button onClick={aiChamNhap} disabled={aiDang}
+                        className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border border-violet-300 text-violet-700 hover:bg-violet-50 disabled:opacity-50">
+                        {aiDang ? <Loader2 size={14} className="animate-spin" /> : <Bot size={14} />} AI chấm nháp theo tiêu chí
+                      </button>
+                      {selectedSession.practical_ai?.breakdown?.length > 0 && (
+                        <ul className="text-xs grid sm:grid-cols-2 gap-x-4 gap-y-0.5 bg-gray-50 rounded-lg p-2">
+                          {selectedSession.practical_ai.breakdown.map((b, i) => (
+                            <li key={i} className="flex gap-1.5"><span>{Number(b.earned) >= Number(b.max) ? '✅' : '⚠️'}</span>
+                              <span className="text-gray-700">{b.criterion}{b.note && <span className="text-gray-400"> — {b.note}</span>}</span></li>
+                          ))}
+                        </ul>
+                      )}
+                      {selectedSession.practical_ai && <p className="text-[11px] text-gray-500">AI gợi ý {selectedSession.practical_ai.score} điểm — chỉ thầy cô thấy; học sinh thấy điểm thầy cô lưu.</p>}
+                    </div>
+                  )}
                   {exam.practical_type === 'word' && (
                     <div className="border border-gray-200 rounded-xl overflow-hidden">
                       <WordEditor content={selectedSession.practical_content} readonly />
@@ -280,7 +362,7 @@ export default function ExamResultsPage() {
                 </div>
               )}
 
-              {exam.has_practical && !selectedSession.practical_content && (
+              {exam.has_practical && !selectedSession.practical_content && !selectedSession.practical_file_url && nopPython.length === 0 && (
                 <p className="text-sm text-gray-400 italic pt-2 border-t border-gray-100">Học sinh chưa nộp phần thực hành</p>
               )}
             </div>
@@ -312,7 +394,7 @@ export default function ExamResultsPage() {
               {students.map((st, i) => {
                 // Lượt "bỏ dở" (chưa nộp, submitted_at null) không tính vào điểm cao nhất/TB
                 // nhưng vẫn tính vào "X lần làm" (đúng mục đích: tốn 1 lượt dù không hoàn thành).
-                const scores = st.sessions.filter(s => s.submitted_at != null).map(s => s.score)
+                const scores = st.sessions.filter(s => s.submitted_at != null).map(diemTong)
                 const best = scores.length > 0 ? Math.max(...scores) : null
                 const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 10) / 10 : null
                 const colorClass = best == null ? 'text-gray-400' : best >= 8 ? 'text-green-600' : best >= 5 ? 'text-orange-500' : 'text-red-500'

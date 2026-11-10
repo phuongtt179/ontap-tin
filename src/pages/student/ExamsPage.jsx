@@ -6,6 +6,7 @@ import { useExamGuard } from '../../context/ExamGuardContext'
 import QuizSession from '../../components/student/QuizSession'
 import WordEditor from '../../components/editor/WordEditor'
 import PPTEditor from '../../components/editor/PPTEditor'
+import { ThiPython, ThiScratch } from '../../components/student/ThiThucHanh'
 import toast from 'react-hot-toast'
 import { Clock, PlayCircle, CheckCircle, Loader2, Send } from 'lucide-react'
 
@@ -70,6 +71,8 @@ function QuestionItem({ q, index, answer, onAnswer }) {
   )
 }
 
+const NHAN_THUC_HANH = { word: '📝 Word', ppt: '📊 PowerPoint', python: '🐍 Python', scratch: '🐱 Scratch' }
+
 /* ── ExamWithPractical ───────────────────────────────────────── */
 function ExamWithPractical({ exam, questions, sessionId, attemptNumber, onFinish }) {
   const { user } = useAuth()
@@ -81,7 +84,7 @@ function ExamWithPractical({ exam, questions, sessionId, attemptNumber, onFinish
   const submitted = useRef(false)
 
   useEffect(() => {
-    if (!timeLeft) return
+    if (timeLeft == null) return
     if (timeLeft <= 0) { handleSubmit(true); return }
     const t = setTimeout(() => setTimeLeft(tl => tl - 1), 1000)
     return () => clearTimeout(t)
@@ -144,7 +147,7 @@ function ExamWithPractical({ exam, questions, sessionId, attemptNumber, onFinish
       <div className="sticky top-0 z-20 bg-white border-b border-gray-200 py-3 mb-6 flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="font-bold text-gray-800 text-base">{exam.title}</h1>
-          <p className="text-xs text-gray-400 mt-0.5">{answeredCount}/{questions.length} câu lý thuyết đã trả lời</p>
+          {questions.length > 0 && <p className="text-xs text-gray-400 mt-0.5">{answeredCount}/{questions.length} câu lý thuyết đã trả lời</p>}
         </div>
         <div className="flex items-center gap-3">
           {timeLeft != null && <TimerBadge seconds={timeLeft} />}
@@ -188,7 +191,7 @@ function ExamWithPractical({ exam, questions, sessionId, attemptNumber, onFinish
         <div className="flex items-center gap-2 mb-4">
           <div className="w-1 h-5 bg-orange-500 rounded-full" />
           <h2 className="font-bold text-gray-800">
-            Phần 2 — Thực hành {exam.practical_type === 'word' ? '📝 Word' : '📊 PowerPoint'}
+            {questions.length > 0 ? 'Phần 2 — ' : ''}Thực hành {NHAN_THUC_HANH[exam.practical_type] || ''}
             {exam.practical_weight > 0 && <span className="text-sm font-normal text-gray-400 ml-1">({exam.practical_weight}%)</span>}
           </h2>
         </div>
@@ -206,6 +209,8 @@ function ExamWithPractical({ exam, questions, sessionId, attemptNumber, onFinish
         {exam.practical_type === 'ppt' && (
           <PPTEditor content={practicalContent} onChange={setPracticalContent} />
         )}
+        {exam.practical_type === 'python' && <ThiPython sessionId={sessionId} />}
+        {exam.practical_type === 'scratch' && <ThiScratch sessionId={sessionId} />}
       </section>
 
       {/* Bottom submit */}
@@ -351,7 +356,7 @@ export default function StudentExamsPage() {
                       )}
                       {exam.has_practical && (
                         <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
-                          {exam.practical_type === 'word' ? '📝' : '📊'} Có thực hành
+                          {(NHAN_THUC_HANH[exam.practical_type] || '').split(' ')[0]} Có thực hành
                         </span>
                       )}
                     </div>
