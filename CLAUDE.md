@@ -58,6 +58,18 @@ Câu hỏi có thể chứa code block markdown (` ```python ``` `) — render b
 - Tệp `*.local.sql` có mật khẩu — không đưa lên Git.
 - Sao lưu: `node scripts/sao-luu-neon.mjs` → `SaoLuu/neon_<ngày>/` (không lên Git, có dữ liệu học sinh).
 
+## Cấu trúc mã — hiện trạng & kế hoạch dọn (rà soát 10/11/2026)
+Theo quy tắc "Cấu trúc mã" trong CLAUDE.md toàn cục. App viết trước khi có quy tắc nên chưa đạt (đánh giá ~5,5/10):
+trang tự gọi DB ở ~279 chỗ, quy tắc chép nhiều nơi, 0 kiểm tra tự động, vài trang rất dài.
+- **Mã MỚI** bắt buộc theo chuẩn: quy tắc vào `src/domain/`, đọc ghi DB qua `src/data/`, tệp ≤ ~400 dòng.
+- **Mã CŨ** chỉ dọn khi người dùng rảnh và đồng ý, làm trên nhánh `neon` + link thử, mỗi lần 1 phần. Thứ tự:
+  1. [ ] Gom quy tắc về `src/domain/`: `parseTasks` (đang có 5 bản khác nhau: utils/danhGia.js, LessonPage, LessonsPage, LessonSubmissionsPage, aiTools/BackfillTab), điều kiện đạt quiz 2/3, quy tắc sticker.
+  2. [ ] Tạo `src/data/` cho các bảng dùng nhiều: lesson_submissions, lessons, student_enrollments, questions, profiles.
+  3. [ ] Kiểm tra tự động (vitest) cho domain + chấm Python + quyền truy cập; chạy trước khi đưa lên.
+  4. [ ] Tách trang lớn: student/LessonPage (1.887 dòng) → teacher/LessonsPage (1.648) → QuizSession (1.219) → LessonSubmissionsPage (1.188) → StudentsPage (1.121).
+  5. [ ] Vá bảo mật đợt 3 (đi cùng bước 1–2): điểm quiz/thi lý thuyết do máy chủ tính; ẩn đáp án, bài chưa xuất bản, tiêu chí chấm khỏi học sinh.
+- Đã xong 10/11: SQL vào `sql/`, tài liệu vào `docs/` (ARCHITECTURE cập nhật theo Neon), eslint hết báo nhầm ở `api/`.
+
 ## Routes
 ```
 /login · /register
