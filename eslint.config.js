@@ -26,4 +26,14 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    // mã nhúng lúc build (vite.config.js → define)
+    files: ['src/**/*.{js,jsx}'],
+    languageOptions: { globals: { __BUILD_ID__: 'readonly' } },
+  },
+  {
+    // chạy trên máy chủ (Vercel) / máy giáo viên (Node), không phải trình duyệt
+    files: ['api/**/*.js', 'scripts/**/*.{js,mjs}', 'vite.config.js'],
+    languageOptions: { globals: globals.node },
+  },
 ])

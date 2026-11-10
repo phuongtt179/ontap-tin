@@ -5,7 +5,7 @@ Repo `ontap-tin`. Thương hiệu học sinh: **"Lập Trình Sáng Tạo BNP"**
 
 ## Stack
 - **Frontend**: React 18 + Vite + Tailwind CSS
-- **Backend**: Supabase (PostgreSQL + Auth + RLS)
+- **Backend**: Neon (PostgreSQL + Data API + RLS, dữ liệu) · Supabase (chỉ Auth + Edge Functions tài khoản) · Vercel Functions `api/` (AI, chấm thi)
 - **Media**: Cloudinary (ảnh, audio, file bài tập)
 - **Deploy**: Vercel — auto-deploy khi push lên nhánh `main`
 - **Markdown/Code**: react-markdown + react-syntax-highlighter (Prism, theme oneLight)
@@ -44,7 +44,7 @@ Câu hỏi có thể chứa code block markdown (` ```python ``` `) — render b
 
 ## Quyết định thiết kế quan trọng
 - **Grade là text tự do** — quản lý qua bảng `grades` + trang `/teacher/grades`. Không dùng enum cứng.
-- **CHECK constraint cũ** — schema gốc có `check (grade in ('3','4','5'))` trên nhiều bảng (`questions`, `lessons`, `exams`, `classes`, `profiles`). Cần xóa constraint này để dùng khối tùy chỉnh (A, B, Kĩ Năng-A...). ClassesPage đã có error message nhắc việc này.
+- **CHECK constraint cũ** — schema gốc có `check (grade in ('3','4','5'))` trên nhiều bảng (`questions`, `lessons`, `exams`, `classes`, `profiles`). Đã xoá trên Neon (kiểm tra 10/11/2026).
 - **Học sinh tự đăng ký** → `is_approved=false` → giáo viên duyệt tại trang Học sinh → mới đăng nhập được.
 - **is_active=false** → tài khoản bị khóa, không đăng nhập được.
 - **Quiz pass** = đúng ≥ 2/3 số câu.
@@ -52,14 +52,11 @@ Câu hỏi có thể chứa code block markdown (` ```python ``` `) — render b
 - **Practice mode** (QuizSession) — phải xác nhận từng câu, sai hiện gợi ý, không nhảy câu tương lai.
 - **Exam mode** (QuizSession) — không xác nhận từng câu, làm tự do, nộp 1 lần.
 
-## Migrations bổ sung (chưa có trong supabase_schema.sql gốc)
-Có ~24 file `migration_*.sql` ở root. Chạy trực tiếp qua Supabase Management API (xem memory `supabase-access`). Nhóm chính:
-- **approval/enrollment**: `migration_approval`, `migration_enrollment*`, `migration_student_unenroll` — duyệt HS, ghi danh lớp
-- **nội dung**: `migration_hint`, `migration_units`, `migration_lesson_titles`, `migration_pptx`, `migration_quiz_progress`, `migration_resubmit`, `migration_notes*`
-- **gamification/tương tác**: `migration_sticker`, `migration_streak`, `migration_rewards*`, `migration_reward_cost`, `migration_messages`, `migration_ai_tutor`
-- **điểm danh/trợ giảng**: `migration_attendance`, `migration_assistant*`, `migration_created_by`
-
-⚠️ Nhớ xoá CHECK constraint `grade in ('3','4','5')` (schema gốc) trên các bảng để dùng khoá tuỳ chỉnh.
+## Cơ sở dữ liệu & thay đổi cấu trúc
+- **Từ 07/11/2026: dữ liệu ở Neon, đăng nhập ở Supabase** (xem `docs/ARCHITECTURE.md`, cách quay lại: `docs/CHUYEN_NHA_NEON.md`).
+- Mọi tệp SQL nằm trong `sql/`, tên `NGÀY_ten.sql` theo thứ tự đã chạy. Tệp mới chạy trên **Neon** (trừ tệp ghi "CHẠY TRÊN SUPABASE"). Quy tắc: `sql/README.md`.
+- Tệp `*.local.sql` có mật khẩu — không đưa lên Git.
+- Sao lưu: `node scripts/sao-luu-neon.mjs` → `SaoLuu/neon_<ngày>/` (không lên Git, có dữ liệu học sinh).
 
 ## Routes
 ```

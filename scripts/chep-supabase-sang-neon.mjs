@@ -169,7 +169,7 @@ const dem = (await nx(`select (select count(*)::int from pg_policies where schem
   (select count(*)::int from pg_indexes where schemaname='public') cm, pg_size_pretty(pg_database_size(current_database())) co`))[0]
 console.log('Neon:', JSON.stringify(dem), '| Supabase co: 95 policy, 18 ham, 6 trigger public')
 console.log('Bo qua khoa ngoai:', boQua.map(r => r.ten).join(', '))
-await chay('ham rieng Neon', readFileSync(join(GOC, 'migration_neon_tai_khoan.sql'), 'utf8'))
+await chay('ham rieng Neon', readFileSync(join(GOC, 'sql', '2026-11-07_neon_tai_khoan.sql'), 'utf8'))
 await chay('nap lai schema Data API', `notify pgrst, 'reload schema'`)
 writeFileSync(join(thuMuc, 'chep-sang-neon.json'), JSON.stringify({ log, kq, boQua }, null, 1))
 console.log('So loi:', log.length)
