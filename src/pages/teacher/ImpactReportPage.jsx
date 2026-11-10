@@ -62,7 +62,7 @@ export default function ImpactReportPage() {
     setDangTai(true)
     supabase.rpc('impact_stats').then(({ data, error }) => {
       if (error) {
-        toast.error('Chưa tải được số liệu — đã chạy migration_impact_report.sql chưa?')
+        toast.error('Chưa tải được số liệu — đã chạy sql/2026-10-06_impact_report.sql chưa?')
         console.error(error)
       } else {
         setData(data)

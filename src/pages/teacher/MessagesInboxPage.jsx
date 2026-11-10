@@ -141,10 +141,13 @@ export default function MessagesInboxPage() {
     setLoading(true)
     // Tách kênh: 'teacher' = chat thật với giáo viên (ít, tải đủ), 'ai' = log hỏi trợ giảng (hàng chục nghìn dòng,
     // ~14 MB) → ở đây chỉ lấy mốc thời gian để xếp danh sách; nội dung log AI tải riêng khi mở 1 học sinh (openThread).
-    const [{ data: teacherMsgs }, { data: aiMoc }] = await Promise.all([
-      supabase.from('messages').select('*').or('channel.eq.teacher,channel.is.null').order('created_at', { ascending: true }),
+    // Tin thầy–trò: lấy 2000 tin GẦN NHẤT (xếp mới → cũ rồi đảo lại) để dữ liệu nhiều lên vẫn nhẹ và không mất tin mới
+    const [{ data: tinMoiTruoc }, { data: aiMoc }] = await Promise.all([
+      supabase.from('messages').select('id, student_id, sender_role, content, is_read, created_at, context, channel')
+        .or('channel.eq.teacher,channel.is.null').order('created_at', { ascending: false }).limit(2000),
       supabase.from('messages').select('student_id, created_at').eq('channel', 'ai').order('created_at', { ascending: false }).limit(1000),
     ])
+    const teacherMsgs = (tinMoiTruoc || []).reverse()
     const aiMsgs = (aiMoc || []).reverse().map(m => ({ ...m, content: '🤖 Hỏi đáp AI', sender_role: 'student', _moc: true }))
     if (!teacherMsgs?.length && !aiMsgs.length) { setThreads([]); setLoading(false); return }
 

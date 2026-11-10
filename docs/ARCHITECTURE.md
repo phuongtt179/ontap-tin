@@ -1,23 +1,58 @@
 # Architecture — Chi tiết kỹ thuật
 
-Đọc file này khi cần hiểu luồng xử lý cụ thể. Không cần đọc mỗi session.
+Đọc file này khi cần hiểu luồng xử lý cụ thể. Cập nhật lần cuối: 10/11/2026.
 
-## Auth flow
+## Sơ đồ tổng thể (từ 07/11/2026)
 
 ```
-Đăng ký (/register)
-  → supabase.auth.signUp({ email: username@school.local, metadata: { is_approved: false, ... } })
-  → trigger on_auth_user_created → INSERT INTO profiles (is_approved = false)
-  → AuthContext.fetchProfile() → thấy is_approved=false → signOut() + toast "chờ duyệt"
-
-Giáo viên duyệt (StudentsPage)
-  → UPDATE profiles SET is_approved = true WHERE id = student_id
-
-Đăng nhập bình thường
-  → fetchProfile() dùng .maybeSingle() (không dùng .single() → tránh 406)
-  → kiểm tra is_active=false → khóa
-  → kiểm tra is_approved=false → chặn
+Trình duyệt (React, Vercel)
+  ├─ Đăng nhập ───────────► Supabase Auth (project waalvhrutfugmwhmbhqd) — chỉ tài khoản, không còn dữ liệu
+  ├─ Đọc/ghi dữ liệu ─────► Neon Data API (PostgREST) — thẻ đăng nhập Supabase (JWT) được Neon chấp nhận,
+  │                          RLS dùng auth.uid() như cũ. Công tắc: VITE_NEON_DATA_URL trong src/lib/supabase.js
+  ├─ Tạo/sửa/xoá tài khoản ► Supabase Edge Functions (supabase/functions/*) — kiểm tra người gọi là giáo viên
+  ├─ AI, chấm thi ────────► Vercel Functions (api/*.js) — kiểm tra người gọi bằng api/_auth.js
+  └─ Ảnh, file ───────────► Cloudinary (upload preset; xoá file qua api/deleteFile.js, chỉ giáo viên)
 ```
+Quay lại dùng Supabase cho dữ liệu: xem `docs/CHUYEN_NHA_NEON.md`.
+Thay đổi cấu trúc cơ sở dữ liệu: xem `sql/README.md`.
+
+## Tài khoản
+
+- **Học sinh không tự đăng ký được nữa** (Supabase Auth: tắt đăng ký). Giáo viên tạo tài khoản ở trang Học sinh
+  → Edge Function `create-user` → tạo tài khoản `username@school.local` + hồ sơ ở Neon (hàm trong
+  `sql/2026-11-07_neon_tai_khoan.sql`). Vai trò luôn do máy chủ đặt, không nhận từ trình duyệt.
+- Đăng nhập → `AuthContext.fetchProfile()` (dùng `.maybeSingle()`) → `is_active=false` thì khoá, `is_approved=false` thì chặn.
+- Ghi danh lớp: `student_enrollments` (cần giáo viên duyệt; học sinh không tự duyệt được — có trigger chặn).
+
+## Máy chủ (api/) — tệp bắt đầu bằng "_" là thư viện dùng chung, không thành đường dẫn
+
+| Tệp | Ai gọi | Việc |
+|---|---|---|
+| `_auth.js` | — | xác minh người gọi (requireUser), danh sách vai trò STAFF |
+| `_gemini.js` | — | gọi Gemini, xoay vòng nhiều khoá |
+| `_gradeCore.js` | — | lõi AI chấm bài thực hành |
+| `grade.js` | giáo viên | AI chấm bài thực hành |
+| `grade-pending.js` | pg_cron | máy chủ tự chấm bài sót |
+| `ra-soat.js` | học sinh | AI phân loại ĐẠT/CHƯA ĐẠT theo tiêu chí (tối đa 7 lần/ngày, đếm ở máy chủ) |
+| `hoi-dap.js` | học sinh | AI phân loại câu hỏi vào câu hỏi đáp mẫu giáo viên đã duyệt |
+| `thi-python.js` | học sinh | chấm phần thực hành Python của đề thi bằng test (Wandbox, tài khoản DB riêng `cham_thi`) |
+| `teacher-ai.js`, `teacher-assistant.js`, `generate-lesson.js`, `report-note.js` | giáo viên | AI soạn bài, slide, hỏi đáp, nhận xét |
+| `tutor.js` | (tắt với học sinh) | AI trợ giảng — học sinh dưới lớp 8 không dùng AI tạo sinh trực tiếp |
+| `deleteFile.js` | giáo viên | xoá file Cloudinary |
+
+## Bảo mật ở cơ sở dữ liệu (Neon)
+- RLS bật trên mọi bảng. Các trigger chặn học sinh tự sửa cột nhạy cảm: `protect_profile_columns` (vai trò, sticker),
+  `protect_submission_grading` (điểm, nhận xét), `bao_ve_bai_thi` (điểm thực hành, số lần nộp), `bao_ve_tin_nhan`, `ghi_danh_cho_duyet`…
+- Sticker / chuỗi ngày chỉ cộng qua hàm máy chủ (`award_sticker_once`, `record_activity`, `redeem_reward`).
+- **Chưa xong (đợt vá 3):** điểm lý thuyết đề thi và quiz còn tính ở trình duyệt; học sinh còn đọc được đáp án câu hỏi qua API.
+
+## Bài giảng web (src/components/slides/)
+`slideModel.js` (mô tả dữ liệu slide) · `SlidePlayer.jsx` (trình chiếu) · trang soạn `SlideEditorPage.jsx` · trang dạy `TeachPage.jsx`.
+Lưu ở bảng `lesson_slides`. Có thể nhập PPTX làm nguồn cho AI soạn, hoặc nhập PDF thành slide ảnh (loại `anh`).
+
+## Đề thi thực hành
+`exams.practical_type`: word · ppt · python · scratch. Python: test ở `exam_tests` (học sinh không đọc được), mỗi lần nộp ghi
+`exam_nop_python`, tối đa 10 lần, lấy điểm cao nhất. Scratch: giáo viên chấm, AI chấm nháp (`exam_sessions.practical_ai`).
 
 ## Luồng câu hỏi
 
@@ -107,9 +142,9 @@ fetch lesson_submissions per student
 → cập nhật reviewed_at
 ```
 
-## Vấn đề đã biết cần xử lý
+## Ghi chú lịch sử
 
-### CHECK constraint cứng trên nhiều bảng
+### CHECK constraint cứng trên nhiều bảng (đã xử lý)
 Schema gốc có `check (grade in ('3','4','5'))` trên:
 `profiles.grade`, `questions.grade`, `lessons.grade`, `exams.grade`, `classes.grade`
 

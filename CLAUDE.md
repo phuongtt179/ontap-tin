@@ -5,7 +5,7 @@ Repo `ontap-tin`. Thương hiệu học sinh: **"Lập Trình Sáng Tạo BNP"**
 
 ## Stack
 - **Frontend**: React 18 + Vite + Tailwind CSS
-- **Backend**: Supabase (PostgreSQL + Auth + RLS)
+- **Backend**: Neon (PostgreSQL + Data API + RLS, dữ liệu) · Supabase (chỉ Auth + Edge Functions tài khoản) · Vercel Functions `api/` (AI, chấm thi)
 - **Media**: Cloudinary (ảnh, audio, file bài tập)
 - **Deploy**: Vercel — auto-deploy khi push lên nhánh `main`
 - **Markdown/Code**: react-markdown + react-syntax-highlighter (Prism, theme oneLight)
@@ -44,7 +44,7 @@ Câu hỏi có thể chứa code block markdown (` ```python ``` `) — render b
 
 ## Quyết định thiết kế quan trọng
 - **Grade là text tự do** — quản lý qua bảng `grades` + trang `/teacher/grades`. Không dùng enum cứng.
-- **CHECK constraint cũ** — schema gốc có `check (grade in ('3','4','5'))` trên nhiều bảng (`questions`, `lessons`, `exams`, `classes`, `profiles`). Cần xóa constraint này để dùng khối tùy chỉnh (A, B, Kĩ Năng-A...). ClassesPage đã có error message nhắc việc này.
+- **CHECK constraint cũ** — schema gốc có `check (grade in ('3','4','5'))` trên nhiều bảng (`questions`, `lessons`, `exams`, `classes`, `profiles`). Đã xoá trên Neon (kiểm tra 10/11/2026).
 - **Học sinh tự đăng ký** → `is_approved=false` → giáo viên duyệt tại trang Học sinh → mới đăng nhập được.
 - **is_active=false** → tài khoản bị khóa, không đăng nhập được.
 - **Quiz pass** = đúng ≥ 2/3 số câu.
@@ -52,14 +52,23 @@ Câu hỏi có thể chứa code block markdown (` ```python ``` `) — render b
 - **Practice mode** (QuizSession) — phải xác nhận từng câu, sai hiện gợi ý, không nhảy câu tương lai.
 - **Exam mode** (QuizSession) — không xác nhận từng câu, làm tự do, nộp 1 lần.
 
-## Migrations bổ sung (chưa có trong supabase_schema.sql gốc)
-Có ~24 file `migration_*.sql` ở root. Chạy trực tiếp qua Supabase Management API (xem memory `supabase-access`). Nhóm chính:
-- **approval/enrollment**: `migration_approval`, `migration_enrollment*`, `migration_student_unenroll` — duyệt HS, ghi danh lớp
-- **nội dung**: `migration_hint`, `migration_units`, `migration_lesson_titles`, `migration_pptx`, `migration_quiz_progress`, `migration_resubmit`, `migration_notes*`
-- **gamification/tương tác**: `migration_sticker`, `migration_streak`, `migration_rewards*`, `migration_reward_cost`, `migration_messages`, `migration_ai_tutor`
-- **điểm danh/trợ giảng**: `migration_attendance`, `migration_assistant*`, `migration_created_by`
+## Cơ sở dữ liệu & thay đổi cấu trúc
+- **Từ 07/11/2026: dữ liệu ở Neon, đăng nhập ở Supabase** (xem `docs/ARCHITECTURE.md`, cách quay lại: `docs/CHUYEN_NHA_NEON.md`).
+- Mọi tệp SQL nằm trong `sql/`, tên `NGÀY_ten.sql` theo thứ tự đã chạy. Tệp mới chạy trên **Neon** (trừ tệp ghi "CHẠY TRÊN SUPABASE"). Quy tắc: `sql/README.md`.
+- Tệp `*.local.sql` có mật khẩu — không đưa lên Git.
+- Sao lưu: `node scripts/sao-luu-neon.mjs` → `SaoLuu/neon_<ngày>/` (không lên Git, có dữ liệu học sinh).
 
-⚠️ Nhớ xoá CHECK constraint `grade in ('3','4','5')` (schema gốc) trên các bảng để dùng khoá tuỳ chỉnh.
+## Cấu trúc mã — hiện trạng & kế hoạch dọn (rà soát 10/11/2026)
+Theo quy tắc "Cấu trúc mã" trong CLAUDE.md toàn cục. App viết trước khi có quy tắc nên chưa đạt (đánh giá ~5,5/10):
+trang tự gọi DB ở ~279 chỗ, quy tắc chép nhiều nơi, 0 kiểm tra tự động, vài trang rất dài.
+- **Mã MỚI** bắt buộc theo chuẩn: quy tắc vào `src/domain/`, đọc ghi DB qua `src/data/`, tệp ≤ ~400 dòng.
+- **Mã CŨ** chỉ dọn khi người dùng rảnh và đồng ý, làm trên nhánh `neon` + link thử, mỗi lần 1 phần. Thứ tự:
+  1. [ ] Gom quy tắc về `src/domain/`: `parseTasks` (đang có 5 bản khác nhau: utils/danhGia.js, LessonPage, LessonsPage, LessonSubmissionsPage, aiTools/BackfillTab), điều kiện đạt quiz 2/3, quy tắc sticker.
+  2. [ ] Tạo `src/data/` cho các bảng dùng nhiều: lesson_submissions, lessons, student_enrollments, questions, profiles.
+  3. [ ] Kiểm tra tự động (vitest) cho domain + chấm Python + quyền truy cập; chạy trước khi đưa lên.
+  4. [ ] Tách trang lớn: student/LessonPage (1.887 dòng) → teacher/LessonsPage (1.648) → QuizSession (1.219) → LessonSubmissionsPage (1.188) → StudentsPage (1.121).
+  5. [ ] Vá bảo mật đợt 3 (đi cùng bước 1–2): điểm quiz/thi lý thuyết do máy chủ tính; ẩn đáp án, bài chưa xuất bản, tiêu chí chấm khỏi học sinh.
+- Đã xong 10/11: SQL vào `sql/`, tài liệu vào `docs/` (ARCHITECTURE cập nhật theo Neon), eslint hết báo nhầm ở `api/`.
 
 ## Routes
 ```

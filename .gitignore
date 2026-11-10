@@ -34,3 +34,6 @@ SaoLuu_*.json
 
 # SQL có mật khẩu (không đưa lên Git)
 *.local.sql
+
+# Hồ sơ dự thi (không đưa lên Git trước khi có kết quả)
+HoSoDuThi_2026/
