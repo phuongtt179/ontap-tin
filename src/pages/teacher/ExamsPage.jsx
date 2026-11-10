@@ -10,6 +10,38 @@ import {
 import { useAuth } from '../../context/AuthContext'
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 const TYPE_LABELS = { multiple_choice: 'Trắc nghiệm', true_false: 'Đúng/Sai', fill_blank: 'Điền từ', matching: 'Nối đôi', ordering: 'Sắp xếp', drag_word: 'Kéo thả từ' }
+const LOAI_THUC_HANH = [
+  { value: 'word', label: '📝 Word' }, { value: 'ppt', label: '📊 PowerPoint' },
+  { value: 'python', label: '🐍 Python' }, { value: 'scratch', label: '🐱 Scratch' },
+]
+
+/** Test của đề Python: học sinh nộp code, máy chủ chạy với từng test (tối đa 2 giây/test) và so output. */
+function KhungTest({ tests, setTests }) {
+  const doi = (i, k, v) => setTests(ts => ts.map((t, j) => (j === i ? { ...t, [k]: v } : t)))
+  const tong = tests.reduce((x, t) => x + (Number(t.diem) || 0), 0)
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-gray-700">Test chấm tự động ({tests.length} test, tổng {tong} điểm → quy về thang 10)</label>
+        <button type="button" onClick={() => setTests(ts => [...ts, { input: '', expected: '', diem: 1 }])}
+          className="text-xs font-semibold text-indigo-600 hover:underline">+ Thêm test</button>
+      </div>
+      <p className="text-[11px] text-gray-500">Học sinh không xem được test. Output so từng dòng, bỏ khoảng trắng thừa cuối dòng. Mỗi test chạy tối đa 2 giây.</p>
+      {tests.map((t, i) => (
+        <div key={i} className="grid grid-cols-[auto_1fr_1fr_auto_auto] gap-2 items-start">
+          <span className="text-xs font-bold text-gray-500 pt-2">#{i + 1}</span>
+          <textarea value={t.input} onChange={e => doi(i, 'input', e.target.value)} rows={2} placeholder="Input (mỗi lần input() là 1 dòng)"
+            className="border border-gray-300 rounded-lg px-2 py-1 text-xs font-mono resize-y" />
+          <textarea value={t.expected} onChange={e => doi(i, 'expected', e.target.value)} rows={2} placeholder="Output mong đợi"
+            className="border border-gray-300 rounded-lg px-2 py-1 text-xs font-mono resize-y" />
+          <input type="number" min={0.25} step={0.25} value={t.diem} onChange={e => doi(i, 'diem', e.target.value)} title="Điểm của test"
+            className="w-14 border border-gray-300 rounded-lg px-1 py-1 text-xs text-center" />
+          <button type="button" onClick={() => setTests(ts => ts.filter((_, j) => j !== i))} className="text-red-500 pt-1" title="Xoá test"><X size={14} /></button>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 /* ── ExamFormModal ─────────────────────────────────────────── */
 function ExamFormModal({ exam, onClose, onDone }) {
@@ -32,7 +64,14 @@ function ExamFormModal({ exam, onClose, onDone }) {
     practical_instructions: exam?.practical_instructions || '',
     theory_weight: exam?.theory_weight ?? 60,
     practical_weight: exam?.practical_weight ?? 40,
+    practical_rubric: exam?.practical_rubric || '',
   })
+  const [tests, setTests] = useState([])
+  useEffect(() => {
+    if (!exam?.id) return
+    supabase.from('exam_tests').select('input, expected, diem').eq('exam_id', exam.id).order('thu_tu')
+      .then(({ data }) => setTests((data || []).map(t => ({ ...t, diem: Number(t.diem) }))))
+  }, [exam?.id])
   const [classes, setClasses] = useState([])
   const [questions, setQuestions] = useState([])
   const [topics, setTopics] = useState([])
@@ -82,7 +121,11 @@ function ExamFormModal({ exam, onClose, onDone }) {
 
   async function handleSave() {
     if (!form.title.trim()) { toast.error('Nhập tên đề thi'); return }
-    if (form.question_ids.length === 0) { toast.error('Chưa chọn câu hỏi nào'); return }
+    const chiThucHanh = form.question_ids.length === 0
+    if (chiThucHanh && !form.has_practical) { toast.error('Chưa chọn câu hỏi nào'); return }
+    const laPython = form.has_practical && form.practical_type === 'python'
+    const testHopLe = tests.filter(t => String(t.expected).trim() !== '')
+    if (laPython && !testHopLe.length) { toast.error('Đề Python cần ít nhất 1 test có output mong đợi'); return }
     setSaving(true)
     const payload = {
       title: form.title.trim(),
@@ -97,12 +140,22 @@ function ExamFormModal({ exam, onClose, onDone }) {
       has_practical: form.has_practical,
       practical_type: form.has_practical ? form.practical_type : null,
       practical_instructions: form.has_practical ? form.practical_instructions.trim() || null : null,
-      theory_weight: form.has_practical ? form.theory_weight : 100,
-      practical_weight: form.has_practical ? form.practical_weight : 0,
+      // Đề chỉ có thực hành → 100% điểm thực hành
+      theory_weight: form.has_practical ? (chiThucHanh ? 0 : form.theory_weight) : 100,
+      practical_weight: form.has_practical ? (chiThucHanh ? 100 : form.practical_weight) : 0,
+      practical_rubric: form.has_practical ? form.practical_rubric.trim() || null : null,
     }
-    const { error } = isEdit
-      ? await supabase.from('exams').update(payload).eq('id', exam.id)
-      : await supabase.from('exams').insert({ ...payload, created_by: user.id })
+    const { data: luu, error } = isEdit
+      ? await supabase.from('exams').update(payload).eq('id', exam.id).select('id').single()
+      : await supabase.from('exams').insert({ ...payload, created_by: user.id }).select('id').single()
+    if (!error && luu?.id) {
+      // Test đề Python: thay toàn bộ bằng danh sách đang sửa
+      const { error: e1 } = await supabase.from('exam_tests').delete().eq('exam_id', luu.id)
+      const { error: e2 } = laPython && !e1
+        ? await supabase.from('exam_tests').insert(testHopLe.map((t, i) => ({ exam_id: luu.id, thu_tu: i, input: t.input, expected: t.expected, diem: Number(t.diem) || 1 })))
+        : { error: null }
+      if (e1 || e2) toast.error('Đã lưu đề nhưng lưu test lỗi: ' + (e1 || e2).message)
+    }
     setSaving(false)
     if (error) toast.error('Lưu thất bại: ' + error.message)
     else { toast.success(isEdit ? 'Đã cập nhật' : 'Đã tạo đề thi'); onDone() }
@@ -250,13 +303,13 @@ function ExamFormModal({ exam, onClose, onDone }) {
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition shrink-0 ${form.has_practical ? 'bg-indigo-600' : 'bg-gray-300'}`}>
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${form.has_practical ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
-                  <span className="text-sm text-gray-700">Có phần thực hành Word/PPT trong đề thi</span>
+                  <span className="text-sm text-gray-700">Có phần thực hành (Word, PowerPoint, Python, Scratch)</span>
                 </div>
 
                 {form.has_practical && (
                   <div className="space-y-3 pl-2 border-l-2 border-indigo-200">
-                    <div className="flex gap-3">
-                      {[{ value: 'word', label: '📝 Word' }, { value: 'ppt', label: '📊 PowerPoint' }].map(opt => (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {LOAI_THUC_HANH.map(opt => (
                         <button key={opt.value} type="button"
                           onClick={() => setForm({ ...form, practical_type: opt.value })}
                           className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm transition ${form.practical_type === opt.value ? 'border-indigo-500 bg-indigo-50 font-medium' : 'border-gray-200 hover:border-indigo-300'}`}>
@@ -275,6 +328,17 @@ function ExamFormModal({ exam, onClose, onDone }) {
                         placeholder="Ví dụ: Soạn thảo đoạn văn giới thiệu về mùa xuân, có tiêu đề in đậm, ít nhất 1 hình ảnh..."
                       />
                     </div>
+
+                    {form.practical_type === 'python' && <KhungTest tests={tests} setTests={setTests} />}
+                    {form.practical_type !== 'python' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu chí chấm (cho AI chấm nháp, học sinh không thấy)</label>
+                        <textarea value={form.practical_rubric} onChange={e => setForm({ ...form, practical_rubric: e.target.value })} rows={3}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+                          placeholder={'Mỗi dòng 1 tiêu chí, ví dụ:\nCó nhân vật mèo và táo: 2đ\nTáo rơi từ trên xuống: 3đ\nMèo di chuyển bằng phím: 3đ\nĐếm điểm khi hứng được táo: 2đ'} />
+                      </div>
+                    )}
+                    <p className="text-[11px] text-gray-500">Đề chỉ có thực hành: ở bước 2 không chọn câu hỏi nào — điểm tính 100% thực hành.</p>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Tỉ lệ điểm</label>
@@ -378,7 +442,7 @@ function ExamFormModal({ exam, onClose, onDone }) {
                 Tiếp theo →
               </button>
             ) : (
-              <button onClick={handleSave} disabled={saving || form.question_ids.length === 0}
+              <button onClick={handleSave} disabled={saving || (form.question_ids.length === 0 && !form.has_practical)}
                 className="flex items-center gap-2 px-5 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 transition">
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 {isEdit ? 'Lưu thay đổi' : 'Tạo đề thi'}
