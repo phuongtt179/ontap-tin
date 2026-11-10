@@ -73,3 +73,13 @@ select
   exists (select 1 from information_schema.tables where table_name = 'exam_tests') as co_bang_test,
   exists (select 1 from information_schema.tables where table_name = 'exam_nop_python') as co_bang_nop,
   exists (select 1 from pg_trigger where tgname = 'exam_sessions_bao_ve') as co_trigger;
+
+-- Bổ sung: ràng buộc cũ chỉ cho 'word' / 'ppt' → thêm 'python', 'scratch' (không có thì không lưu được đề Python / Scratch)
+alter table public.exams drop constraint if exists exams_practical_type_check;
+alter table public.exams add constraint exams_practical_type_check
+  check (practical_type is null or practical_type in ('word', 'ppt', 'python', 'scratch'));
+
+-- Bổ sung (sau khi tạo tài khoản cham_thi): các quy tắc phân quyền sẵn có của exam_sessions gọi 2 hàm kiểm tra vai trò
+-- → tài khoản máy chấm cần quyền gọi (2 hàm chỉ trả lời "không phải giáo viên" cho tài khoản này).
+grant execute on function public.current_user_role() to cham_thi;
+grant execute on function public.is_teacher() to cham_thi;

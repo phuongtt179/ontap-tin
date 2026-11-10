@@ -110,6 +110,7 @@ export default async function handler(req, res) {
     await c.query('rollback').catch(() => {})
     // Máy chấm lỗi → trả lại lượt cho học sinh
     if (lan != null) await c.query('update public.exam_sessions set practical_lan = greatest(practical_lan - 1, 0) where id = $1', [session_id]).catch(() => {})
+    if (!e.maLoi) console.error('thi-python', e)   // hiện trong log của Vercel
     const maLoi = e.maLoi || 'loi_may_chu'
     return res.status(maLoi === 'may_cham_loi' ? 503 : 500).json({ error: maLoi })
   } finally {
