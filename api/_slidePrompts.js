@@ -12,7 +12,7 @@ const PHONG_CACH = `PHONG CÁCH SOẠN BÀI (bắt buộc theo):
 - Kết thúc: ghi nhớ + dặn dò (làm câu hỏi và nộp bài thực hành trên app Lập Trình Sáng Tạo).
 - Tiếng Việt chuẩn, câu ngắn, hợp lứa tuổi; kiến thức CHÍNH XÁC theo nội dung bài được cung cấp, KHÔNG thêm lệnh / khái niệm ngoài bài.`
 
-export function slideScriptPrompt({ lessonTitle, grade, topic, sourceText, questions, extra }) {
+export function slideScriptPrompt({ lessonTitle, grade, topic, sourceText, questions, extra, slideNguon }) {
   return `Bạn là giáo viên Tin học tiểu học Việt Nam giàu kinh nghiệm, dạy lập trình sáng tạo (Scratch, Python) và kĩ năng Tin học.
 Hãy viết KỊCH BẢN SLIDE (dạng chữ, để giáo viên duyệt) để dạy trên lớp bài: "${lessonTitle}"${grade ? ` — khoá ${grade}` : ''}${topic ? ` — chủ đề ${topic}` : ''}.
 
@@ -20,7 +20,12 @@ ${PHONG_CACH}
 
 NỘI DUNG BÀI HỌC (nguồn chính để soạn — lý thuyết, bài thực hành):
 ${String(sourceText || '(không có — soạn theo tên bài, thận trọng, chỉ kiến thức cơ bản chắc chắn đúng)').slice(0, 14000)}
-
+${slideNguon ? `
+SLIDE POWERPOINT CÓ SẴN CỦA GIÁO VIÊN (nguồn ƯU TIÊN NHẤT — mỗi [Slide n] là chữ trên slide, "Ghi chú giáo viên" là lời giảng):
+${String(slideNguon).slice(0, 14000)}
+→ Bám sát slide này: giữ đúng trình tự, kiến thức, ví dụ, code và cách giảng của giáo viên; viết lại cho sinh động theo phong cách trên,
+  gộp / tách slide khi cần, thêm câu hỏi tương tác và ý chốt. KHÔNG thêm kiến thức ngoài slide và nội dung bài học.
+` : ''}
 CÂU HỎI CÓ SẴN TRONG BÀI (nên dùng lại vài câu cho phần kiểm tra nhanh, giữ đúng đáp án):
 ${(questions || []).slice(0, 15).map((q, i) => `${i + 1}. ${q}`).join('\n') || '(không có)'}
 ${extra ? '\nYÊU CẦU THÊM CỦA GIÁO VIÊN: ' + String(extra).slice(0, 800) : ''}

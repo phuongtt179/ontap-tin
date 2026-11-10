@@ -17,7 +17,11 @@ function paragraphsOf(xml) {
 async function extractPptx(url) {
   const res = await fetch(url)
   if (!res.ok) throw new Error('Không tải được file slide')
-  const zip = await JSZip.loadAsync(await res.arrayBuffer())
+  return pptxText(await res.arrayBuffer())
+}
+
+async function pptxText(buf) {
+  const zip = await JSZip.loadAsync(buf)
   const slideFiles = Object.keys(zip.files)
     .filter(f => /^ppt\/slides\/slide\d+\.xml$/.test(f))
     .sort((a, b) => parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]))
@@ -37,12 +41,17 @@ async function extractPptx(url) {
   return out.join('\n\n')
 }
 
-async function extractPdf(url) {
+async function moPdf(src) {
   const { pdfjs } = await import('react-pdf')
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
     pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
   }
-  const doc = await pdfjs.getDocument({ url }).promise
+  return pdfjs.getDocument(src).promise
+}
+
+async function extractPdf(url) { return pdfText(await moPdf({ url })) }
+
+async function pdfText(doc) {
   const out = []
   for (let p = 1; p <= Math.min(doc.numPages, 80); p++) {
     const content = await (await doc.getPage(p)).getTextContent()
@@ -56,4 +65,33 @@ export async function extractSlideText(url) {
   const isPdf = url.split('?')[0].toLowerCase().endsWith('.pdf')
   const text = isPdf ? await extractPdf(url) : await extractPptx(url)
   return text.slice(0, MAX_CHARS)
+}
+
+// ---- File trên máy giáo viên (nhập vào trình soạn bài giảng web) ----
+
+/** Chữ + ghi chú của file .pptx / .pdf trên máy → làm nguồn cho AI soạn kịch bản */
+export async function docChuFile(file) {
+  const buf = await file.arrayBuffer()
+  const text = /\.pdf$/i.test(file.name) ? await pdfText(await moPdf({ data: buf })) : await pptxText(buf)
+  return text.slice(0, MAX_CHARS)
+}
+
+/** Vẽ từng trang PDF thành ảnh JPEG (rộng 1600px như khung slide). onTrang(i, tong, blob) gọi lần lượt từng trang. */
+export async function pdfThanhAnh(file, onTrang, toiDa = 60) {
+  const doc = await moPdf({ data: await file.arrayBuffer() })
+  const tong = Math.min(doc.numPages, toiDa)
+  for (let p = 1; p <= tong; p++) {
+    const trang = await doc.getPage(p)
+    const vp0 = trang.getViewport({ scale: 1 })
+    const vp = trang.getViewport({ scale: 1600 / vp0.width })
+    const cv = document.createElement('canvas')
+    cv.width = Math.round(vp.width); cv.height = Math.round(vp.height)
+    const ctx = cv.getContext('2d')
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height)
+    await trang.render({ canvas: cv, canvasContext: ctx, viewport: vp }).promise
+    const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.85))
+    trang.cleanup()
+    await onTrang(p, tong, blob, doc.numPages)
+  }
+  doc.destroy()
 }

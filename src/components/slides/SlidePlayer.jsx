@@ -163,6 +163,7 @@ function Slide({ s, mo, setMo, chiXem }) {
       </div>
     )
   }
+  if (s.loai === 'anh') return <div className="bgw-anhto">{s.anh?.url ? <img src={s.anh.url} alt={s.tieu || 'Slide'} /> : <p>Chưa có ảnh</p>}</div>
   if (s.loai === 'trac_nghiem') {
     const ra = mo >= 1, L = 'ABCD', MM = ['thep', 'ngoc', 'dat', 'mutat']
     return (
