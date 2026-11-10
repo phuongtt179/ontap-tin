@@ -25,7 +25,9 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
-  const dungNeon = req.headers.get('x-du-lieu') === 'neon' && !!NEON
+  // Dữ liệu (kể cả vai trò) đã ở Neon từ 07/11/2026 → luôn đọc vai trò ở Neon khi có NEON_DATA_URL, KHÔNG theo header
+  // (08/11: kẻ tự đăng ký có thể khai vai trò teacher trong hồ sơ Supabase rồi bỏ header để qua kiểm tra).
+  const dungNeon = !!NEON
   const hoSo = async (id: string, token: string) => dungNeon
     ? (await neonGoi(`profiles?id=eq.${id}&select=role,is_active`, token))?.[0]
     : (await supabase.from('profiles').select('role, is_active').eq('id', id).single()).data

@@ -30,7 +30,9 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
-    const dungNeon = req.headers.get('x-du-lieu') === 'neon' && !!NEON
+    // Dữ liệu (kể cả vai trò) đã ở Neon từ 07/11/2026 → luôn đọc vai trò ở Neon khi có NEON_DATA_URL, KHÔNG theo header
+    // (08/11: kẻ tự đăng ký có thể khai vai trò teacher trong hồ sơ Supabase rồi bỏ header để qua kiểm tra).
+    const dungNeon = !!NEON
 
     // Chỉ giáo viên được xoá tài khoản (giống quyền canDelete trong app; trước 07/11/2026 khoá công khai cũng gọi được)
     const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')
