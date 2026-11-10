@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { requireUser } from './_auth.js'
+import { requireUser, STAFF } from './_auth.js'
 
 export const config = { maxDuration: 15 }
 
@@ -20,8 +20,10 @@ function parseTarget(url) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
-  // Trước đây ai cũng gọi được (biết URL là xoá được file của người khác) → bắt buộc đã đăng nhập
-  if (!(await requireUser(req, res))) return
+  // Chỉ giáo viên / trợ giảng: máy chủ không có cách chắc chắn biết file có phải của học sinh gọi hay không
+  // (08/11/2026: học sinh đã đăng nhập xoá được file bất kỳ, kể cả bài giảng). File cũ học sinh nộp lại thì để lại
+  // trên Cloudinary (dung lượng nhỏ) — trang học sinh gọi xoá kiểu "cố được thì xoá", lỗi 403 không ảnh hưởng gì.
+  if (!(await requireUser(req, res, STAFF))) return
 
   const { url } = req.body || {}
   const target = parseTarget(url)
