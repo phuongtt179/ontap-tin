@@ -2,6 +2,7 @@
 // Xem trong khung 16:9 (bấm vào slide / nút ◀ ▶) hoặc toàn màn hình (dùng phím mũi tên).
 // Xem tới slide cuối → báo onXemHet() để đánh dấu "đã xem bài giảng".
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Maximize2, X } from 'lucide-react'
 import SlidePlayer from './SlidePlayer.jsx'
 
@@ -18,13 +19,15 @@ export default function LessonSlidesViewer({ slides, onXemHet }) {
         </button>
       </div>
       <p className="text-xs text-gray-400 mb-3">Bấm vào slide hoặc nút ▶ để xem tiếp — có câu hỏi, em tự trả lời trước rồi bấm để xem đáp án nhé!</p>
-      {toan && (
-        <div className="fixed inset-0 z-50 bg-black">
+      {/* gắn thẳng vào <body>: nằm trong cột lý thuyết thì bị cột thực hành / nút Hỏi thầy cô đè lên */}
+      {toan && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black">
           <SlidePlayer ds={slides} batDau={i} onDoi={doi} />
           <button onClick={() => setToan(false)} className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/90 text-sm font-medium">
             <X size={14} /> Thoát
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
