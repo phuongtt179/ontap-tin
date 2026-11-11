@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import { stickerTheoMuc } from './muc'
+import { stickerTheoMuc, stickerConThieu } from '../domain/sticker'
 
 // Cộng/trừ sticker theo kiểu "đọc rồi ghi có khoá" (compare-and-swap): đọc
 // sticker_count hiện tại, ghi lại CHỈ KHI nó vẫn đúng bằng giá trị vừa đọc —
@@ -46,18 +46,11 @@ export async function thuongStickerTheoMuc(subId, userId, muc) {
   const { data, error } = await supabase.from('lesson_submissions').select('sticker_thuong').eq('id', subId).single()
   if (error) return { them: 0, error }
   const cu = data?.sticker_thuong ?? 0
-  if (moi <= cu) return { them: 0, error: null }
+  const them = stickerConThieu(cu, muc)
+  if (!them) return { them: 0, error: null }
   const { data: ghi, error: loiGhi } = await supabase.from('lesson_submissions')
     .update({ sticker_thuong: moi }).eq('id', subId).eq('sticker_thuong', cu).select('id')
   if (loiGhi || !ghi?.length) return { them: 0, error: loiGhi }
-  const { error: loiCong } = await adjustStickerCount(userId, moi - cu, { affectsTotal: true })
-  return { them: loiCong ? 0 : moi - cu, error: loiCong }
-}
-
-// Số sticker thưởng theo điểm bài thực hành (giống LessonSubmissionsPage)
-export function scoreToBonus(score) {
-  if (score >= 10) return 3
-  if (score >= 8) return 2
-  if (score >= 5) return 1
-  return 0
+  const { error: loiCong } = await adjustStickerCount(userId, them, { affectsTotal: true })
+  return { them: loiCong ? 0 : them, error: loiCong }
 }

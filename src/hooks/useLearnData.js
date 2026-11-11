@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { NGUONG_DOI_QUA_MAC_DINH } from '../domain/sticker'
 import { topicKeyOf } from '../utils/lessonSteps'
 
 // Bóc loadData() + các useMemo dẫn xuất của LearnPage.jsx ra hook riêng — hành vi giữ nguyên 100%.
@@ -25,7 +26,7 @@ export function useLearnData(user, selectedGrade, className) {
   const [loading, setLoading] = useState(false)
   const [stickerCount, setStickerCount] = useState(0)
   const [streakDays, setStreakDays] = useState(0)
-  const [stickerThreshold, setStickerThreshold] = useState(50)
+  const [stickerThreshold, setStickerThreshold] = useState(NGUONG_DOI_QUA_MAC_DINH)
   const [courseScope, setCourseScope] = useState('')
 
   useEffect(() => {
@@ -78,7 +79,7 @@ export function useLearnData(user, selectedGrade, className) {
     setProgressMap(map)
     setStickerCount(profData?.sticker_count ?? 0)
     setStreakDays(profData?.streak_days ?? 0)
-    setStickerThreshold(cfgData?.sticker_threshold ?? 50)
+    setStickerThreshold(cfgData?.sticker_threshold ?? NGUONG_DOI_QUA_MAC_DINH)
     setLoading(false)
   }
 

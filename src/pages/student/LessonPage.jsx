@@ -16,7 +16,8 @@ import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { CodeBlock, CodeBlockWithBlanks } from '../../components/ui/CodeBlock'
 import StickerModal from '../../components/student/StickerModal'
 import RewardModal from '../../components/student/RewardModal'
-import { updateStreak, STREAK_MILESTONES } from '../../utils/updateStreak'
+import { updateStreak } from '../../utils/updateStreak'
+import { NGUONG_DOI_QUA_MAC_DINH } from '../../domain/sticker'
 import { gradeStudent } from '../../utils/aiGrader'
 import PDFViewer from '../../components/ui/PDFViewer'
 import AskTutorModal from '../../components/student/AskTutorModal'
@@ -799,7 +800,7 @@ export default function LessonPage() {
   const [videoMarking, setVideoMarking] = useState(false)
   const [stickerModal, setStickerModal] = useState(null) // { stickerCount, stickerTotal, threshold, reason }
   const [showReward, setShowReward] = useState(null)    // { stickerCount, threshold } | null
-  const [stickerThreshold, setStickerThreshold] = useState(50)
+  const [stickerThreshold, setStickerThreshold] = useState(NGUONG_DOI_QUA_MAC_DINH)
   const [studentGrade, setStudentGrade] = useState(null)
   const [tutor, setTutor] = useState(null)   // { mode, context } | null
   const [newAnswers, setNewAnswers] = useState(0)  // số câu thầy cô vừa trả lời mà em chưa xem (chế độ giáo viên trung gian)

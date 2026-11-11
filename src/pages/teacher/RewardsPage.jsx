@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
 import { adjustStickerCount } from '../../utils/stickerAward'
+import { NGUONG_DOI_QUA_MAC_DINH, GIA_QUA_MAC_DINH } from '../../domain/sticker'
 import toast from 'react-hot-toast'
 import { Gift, Plus, Trash2, CheckCircle, Clock, X, Loader2, ToggleLeft, ToggleRight, Package, Settings, Save, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 
@@ -39,7 +40,7 @@ export default function RewardsPage() {
   const [formName, setFormName] = useState('')
   const [formEmoji, setFormEmoji] = useState('🎁')
   const [formGrade, setFormGrade] = useState('')   // '' = tất cả, hoặc grade cụ thể
-  const [formCost, setFormCost] = useState(50)
+  const [formCost, setFormCost] = useState(GIA_QUA_MAC_DINH)
   const [saving, setSaving] = useState(false)
 
   // Requests
@@ -111,11 +112,11 @@ export default function RewardsPage() {
 
   // ── Item CRUD ──
   function openAdd() {
-    setEditItem(null); setFormName(''); setFormEmoji('🎁'); setFormGrade(''); setFormCost(50); setShowForm(true)
+    setEditItem(null); setFormName(''); setFormEmoji('🎁'); setFormGrade(''); setFormCost(GIA_QUA_MAC_DINH); setShowForm(true)
   }
   function openEdit(item) {
     setEditItem(item); setFormName(item.name); setFormEmoji(item.emoji || '🎁')
-    setFormGrade(item.grade || ''); setFormCost(item.sticker_cost ?? 50); setShowForm(true)
+    setFormGrade(item.grade || ''); setFormCost(item.sticker_cost ?? GIA_QUA_MAC_DINH); setShowForm(true)
   }
 
   async function saveItem() {
@@ -294,7 +295,7 @@ export default function RewardsPage() {
                   <span className="text-4xl mt-2">{item.emoji}</span>
                   <span className="text-sm font-bold text-gray-700 text-center leading-tight">{item.name}</span>
                   <div className="text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                    ⭐ {item.sticker_cost ?? 50}
+                    ⭐ {item.sticker_cost ?? GIA_QUA_MAC_DINH}
                   </div>
                   <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                     {item.is_active ? 'Đang hiện' : 'Đã ẩn'}
@@ -418,7 +419,7 @@ export default function RewardsPage() {
       {tab === 'config' && (
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-sm text-blue-700">
-            <strong>Ngưỡng sticker</strong>: số sticker học sinh cần tích lũy để đổi 1 phần thưởng. Mặc định 50 nếu chưa cài đặt.
+            <strong>Ngưỡng sticker</strong>: số sticker học sinh cần tích lũy để đổi 1 phần thưởng. Mặc định {NGUONG_DOI_QUA_MAC_DINH} nếu chưa cài đặt.
           </div>
 
           {grades.length === 0 ? (
@@ -428,7 +429,7 @@ export default function RewardsPage() {
           ) : (
             <div className="space-y-3">
               {grades.map(grade => {
-                const current = configs[grade] ?? 50
+                const current = configs[grade] ?? NGUONG_DOI_QUA_MAC_DINH
                 const editing = editingThreshold[grade] ?? current
                 const changed = parseInt(editing) !== current
                 return (
