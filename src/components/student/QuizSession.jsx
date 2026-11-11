@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useExamGuard } from '../../context/ExamGuardContext'
 import { CheckCircle, XCircle, Clock, ChevronRight, RotateCcw, ArrowUp, ArrowDown, Paperclip } from 'lucide-react'
-import { normalizeAnswer } from '../../utils/normalizeAnswer'
+import { dungDapAn, diemTuDong } from '../../domain/dapAn'
 import toast from 'react-hot-toast'
 import QuestionText from '../ui/QuestionText'
 import { CodeBlock, CodeBlockWithBlanks } from '../ui/CodeBlock'
@@ -213,15 +213,7 @@ export default function QuizSession({
     if (selected && !confirmed) finalAnswers[current] = selected
 
     // Essay không tính tự động — chỉ tính câu tự chấm
-    let correct = 0
-    const autoQuestions = questions.filter(q => q.type !== 'essay')
-    questions.forEach((q, i) => {
-      if (q.type === 'essay') return
-      if (normalizeAnswer(q.type, finalAnswers[i], q.correct_answer)) correct++
-    })
-    const score = autoQuestions.length > 0
-      ? Math.round((correct / autoQuestions.length) * tnMaxScore * 10) / 10
-      : 0
+    const { soDung: correct, diem: score } = diemTuDong(questions, finalAnswers, tnMaxScore)
 
     try {
       if (!preview) {
@@ -266,7 +258,7 @@ export default function QuizSession({
     )
   }
 
-  const isCorrect = q.type !== 'essay' && confirmed && normalizeAnswer(q.type, selected, q.correct_answer)
+  const isCorrect = q.type !== 'essay' && confirmed && dungDapAn(q.type, selected, q.correct_answer)
 
   function isAnsweredAt(i) {
     const a = answers[i]
@@ -296,7 +288,7 @@ export default function QuizSession({
     } else if (isDone) {
       const ans = answers[i]
       const q_i = questions[i]
-      const ok = q_i.type === 'essay' || normalizeAnswer(q_i.type, ans, q_i.correct_answer)
+      const ok = q_i.type === 'essay' || dungDapAn(q_i.type, ans, q_i.correct_answer)
       cls += ok
         ? 'bg-green-100 border-green-400 text-green-700 cursor-pointer'
         : 'bg-red-100 border-red-300 text-red-600 cursor-pointer'
@@ -1121,16 +1113,9 @@ function WordOrderQuestion({ q, value, onChange, disabled }) {
 }
 
 function QuizResult({ questions, answers, onRetry, examMode = false, showScore = true, tnMaxScore = 10 }) {
-  let correct = 0
-  const autoQs = questions.filter(q => q.type !== 'essay')
   const essayQs = questions.filter(q => q.type === 'essay')
   const hasEssay = essayQs.length > 0
-  questions.forEach((q, i) => {
-    if (q.type === 'essay') return
-    if (normalizeAnswer(q.type, answers[i], q.correct_answer)) correct++
-  })
-  const score = autoQs.length > 0 ? Math.round((correct / autoQs.length) * tnMaxScore * 10) / 10 : 0
-  const percent = autoQs.length > 0 ? Math.round((correct / autoQs.length) * 100) : 0
+  const { soDung: correct, soCau: soCauTuCham, diem: score, phanTram: percent } = diemTuDong(questions, answers, tnMaxScore)
 
   if (!showScore) {
     return (
@@ -1160,7 +1145,7 @@ function QuizResult({ questions, answers, onRetry, examMode = false, showScore =
           {hasEssay ? `điểm trắc nghiệm / ${tnMaxScore}` : 'điểm'}
         </div>
         <div className="text-lg font-semibold text-gray-800 mt-3">
-          {correct} / {autoQs.length} câu {hasEssay ? 'trắc nghiệm' : ''} đúng
+          {correct} / {soCauTuCham} câu {hasEssay ? 'trắc nghiệm' : ''} đúng
         </div>
         {hasEssay && (
           <div className="mt-2 text-sm text-amber-600 bg-amber-50 rounded-lg px-4 py-2 inline-block">
@@ -1178,7 +1163,7 @@ function QuizResult({ questions, answers, onRetry, examMode = false, showScore =
         {questions.map((q, i) => {
           const ans = answers[i]
           const isEssay = q.type === 'essay'
-          const isOk = normalizeAnswer(q.type, ans, q.correct_answer)
+          const isOk = dungDapAn(q.type, ans, q.correct_answer)
           const ansText = typeof ans === 'object' ? (ans?.text || '') : (ans || '')
           return (
             <div key={i} className={`rounded-xl border p-4 text-sm ${

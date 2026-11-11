@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { layCauHoiTheoIds } from '../../data/cauHoi'
+import { diemTuDong } from '../../domain/dapAn'
 import { useAuth } from '../../context/AuthContext'
 import { useSelectedGradeContext } from '../../context/SelectedGradeContext'
 import { useExamGuard } from '../../context/ExamGuardContext'
@@ -102,25 +103,12 @@ function ExamWithPractical({ exam, questions, sessionId, attemptNumber, onFinish
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function normalizeAnswer(type, ans, correct) {
-    if (!ans) return false
-    if (type === 'matching') {
-      const norm = s => s?.split(',').map(p => p.trim()).sort().join(',')
-      return norm(ans) === norm(correct)
-    }
-    return ans.toString().toLowerCase() === (correct || '').toString().toLowerCase()
-  }
-
   async function handleSubmit(autoSubmit = false) {
     if (submitted.current) return
     submitted.current = true
     setSubmitting(true)
 
-    let correct = 0
-    questions.forEach((q, i) => {
-      if (normalizeAnswer(q.type, answers[i], q.correct_answer)) correct++
-    })
-    const theoryScore = questions.length > 0 ? Math.round((correct / questions.length) * 10 * 10) / 10 : 0
+    const { soDung: correct, diem: theoryScore } = diemTuDong(questions, answers)
 
     try {
       // Cập nhật dòng đã ghi sẵn lúc bắt đầu làm (không insert dòng mới) — xem

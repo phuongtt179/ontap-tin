@@ -6,7 +6,8 @@ import { layCauHoiTheoIds } from '../../data/cauHoi'
 import { layLopCuaEm } from '../../data/ghiDanh'
 import { buildWeaknessProfile } from '../../utils/weakness'
 import { STUDENT_AI_DIRECT, feedbackVisible } from '../../lib/aiMode'
-import { phraseBank, sameSentence } from '../../utils/wordOrder'
+import { phraseBank } from '../../utils/wordOrder'
+import { dungDapAn } from '../../domain/dapAn'
 import MatchingLines from '../../components/ui/MatchingLines'
 import toast from 'react-hot-toast'
 import { ArrowLeft, ArrowUp, ArrowDown, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, FileImage, File, Code, Lock, Lightbulb, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
@@ -366,21 +367,8 @@ function getEmbedUrl(url) {
   return null
 }
 
-function checkAnswer(type, ans, correct) {
-  if (type === 'essay') return true // không chấm tự động
-  if (!ans || !correct) return false
-  if (type === 'matching') {
-    const norm = s => s.split(',').map(p => p.trim()).sort().join(',')
-    return norm(ans) === norm(correct)
-  }
-  if (type === 'word_order') return sameSentence(ans, correct)
-  if (type === 'drag_word' || (type === 'fill_blank' && correct.includes(','))) {
-    const a = ans.split(',').map(w => w.trim().toLowerCase())
-    const c = correct.split(',').map(w => w.trim().toLowerCase())
-    return a.length === c.length && a.every((w, i) => w === c[i])
-  }
-  return ans.trim().toLowerCase() === correct.trim().toLowerCase()
-}
+// tự luận không chấm tự động → coi như đúng để học sinh đi tiếp
+const checkAnswer = (type, ans, correct) => type === 'essay' || dungDapAn(type, ans, correct)
 
 /* ── FileIcon ──────────────────────────────────────────────── */
 function FileIcon({ url, size = 20 }) {
