@@ -9,6 +9,7 @@ import QuestionText from '../ui/QuestionText'
 import { CodeBlock, CodeBlockWithBlanks } from '../ui/CodeBlock'
 import { phraseBank } from '../../utils/wordOrder'
 import MatchingLines from '../ui/MatchingLines'
+import { xaoTron } from '../../utils/xaoTron'
 
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
@@ -24,15 +25,6 @@ function normalizeOptions(options) {
     if (keys.length >= 1 && keys[0].length === 1) return { key: keys[0], text: opt[keys[0]], image_url: opt.image_url || '' }
     return { key: fallbackKey, text: opt.text || opt.value || opt.label || '', image_url: opt.image_url || '' }
   })
-}
-
-function shuffle(arr) {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
 }
 
 // Câu tự luận — học sinh gõ bài và/hoặc nộp file
@@ -707,7 +699,7 @@ function OrderingQuestion({ q, value, onChange, disabled }) {
       const keyOrder = value.split(',')
       return keyOrder.map(k => q.options?.find(o => o.key === k)).filter(Boolean)
     }
-    return shuffle(q.options || [])
+    return xaoTron(q.options || [])
   })
   const [dragIdx, setDragIdx] = useState(null)
   const [overIdx, setOverIdx] = useState(null)
@@ -816,7 +808,7 @@ function DragWordQuestion({ q, value, onChange, disabled }) {
   const blankCount = tokens.filter(t => t.type === 'blank' || t.type === 'code-with-blanks').reduce(
     (acc, t) => acc + (t.type === 'blank' ? 1 : t.segs.length - 1), 0
   )
-  const wordBank = useMemo(() => shuffle(q.options || []), [q.id])
+  const wordBank = useMemo(() => xaoTron(q.options || []), [q.id])
 
   const [filled, setFilled] = useState(() => {
     if (value) return value.split(',').map(w => w.trim())
@@ -994,7 +986,7 @@ function WordOrderQuestion({ q, value, onChange, disabled }) {
   const resolvedOptions = useMemo(
     () => phraseBank({ ...q, options: normalizeOptions(q.options) }).map((text, i) => ({ key: String.fromCharCode(65 + i), text })),
     [q.id])
-  const wordBank = useMemo(() => shuffle(resolvedOptions), [q.id])
+  const wordBank = useMemo(() => xaoTron(resolvedOptions), [q.id])
   const [ordered, setOrdered] = useState(() => {
     if (value) return value.split(',').map(w => w.trim()).filter(Boolean)
     return []
