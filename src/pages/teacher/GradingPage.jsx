@@ -8,7 +8,8 @@ import { Loader2, Bot, Check, ExternalLink, ClipboardCheck, User, BookOpen } fro
 import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
 import { MUC, CAC_MUC, mucCua, mucTuDiem } from '../../utils/muc'
-import { parseTasks, aiChamNhap, luuDanhGia } from '../../utils/danhGia'
+import { aiChamNhap, luuDanhGia } from '../../utils/danhGia'
+import { parseTasks } from '../../domain/baiThucHanh'
 import { nhomBaiTheoChuDe } from '../../domain/thuTuBaiHoc'
 import { layBaiThucHanhTheoKhoa } from '../../data/baiHoc'
 

@@ -12,6 +12,7 @@ import { thuongStickerTheoMuc } from '../../utils/stickerAward'
 import { MUC, CAC_MUC, mucCua, mucTuDiem, DIEM_DAI_DIEN } from '../../utils/muc'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { parseTasks } from '../../domain/baiThucHanh'
 
 // Nút chọn mức T/H/C — từ 29/10/2026 giáo viên đánh giá theo mức, không nhập điểm
 function ChonMuc({ value, onChange }) {
@@ -23,15 +24,6 @@ function ChonMuc({ value, onChange }) {
       ))}
     </span>
   )
-}
-
-function parseTasks(instructions) {
-  if (!instructions) return [{ instructions: '' }]
-  try {
-    const arr = JSON.parse(instructions)
-    if (Array.isArray(arr) && arr.length > 0) return arr
-  } catch {}
-  return [{ instructions }]
 }
 
 function CodeViewer({ url, ext }) {

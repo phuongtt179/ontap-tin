@@ -20,20 +20,12 @@ import { generateSb3Text } from '../../utils/sb3Text'
 import { parsePracticeTasks } from '../../utils/practiceTaskParser'
 import { apiFetch } from '../../lib/apiFetch'
 import AiNewQuestionsPanel from '../../components/teacher/AiNewQuestionsPanel'
+import { parseTasks } from '../../domain/baiThucHanh'
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 const TYPE_LABELS = {
   multiple_choice: 'Trắc nghiệm', true_false: 'Đúng/Sai', fill_blank: 'Điền từ',
   matching: 'Nối đôi', ordering: 'Sắp xếp', drag_word: 'Kéo thả từ',
-}
-
-function parseTasks(instructions) {
-  if (!instructions) return [{ instructions: '' }]
-  try {
-    const arr = JSON.parse(instructions)
-    if (Array.isArray(arr) && arr.length > 0) return arr
-  } catch {}
-  return [{ instructions }]
 }
 
 /* ── LessonFormModal ───────────────────────────────────────── */

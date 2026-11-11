@@ -7,17 +7,13 @@
 import { getGeminiKeys, callGeminiRotate, isDailyLimit } from './_gemini.js'
 import { requireUser, DATA_REST } from './_auth.js'
 import { tieuChiRaSoat } from '../src/utils/tieuChi.js'
+import { parseTasks } from '../src/domain/baiThucHanh.js'
 
 export const config = { maxDuration: 60 }
 
 const ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
 const MODEL = 'gemini-3.1-flash-lite'
 const MAX_LAN = 7   // phải khớp hàm ra_soat_ghi
-
-function parseTasks(instructions) {
-  try { const a = JSON.parse(instructions); if (Array.isArray(a) && a.length) return a } catch { /* chuỗi thường */ }
-  return [{ instructions: instructions || '' }]
-}
 
 function prompt({ instructions, task, tieuChi }) {
   const tests = Array.isArray(task.testResults) && task.testResults.length

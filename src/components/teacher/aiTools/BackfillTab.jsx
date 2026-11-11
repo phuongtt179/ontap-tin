@@ -4,15 +4,7 @@ import { supabase } from '../../../lib/supabase'
 import { gradeStudent } from '../../../utils/aiGrader'
 import toast from 'react-hot-toast'
 import { Loader2, Play, Square } from 'lucide-react'
-
-function parseTasks(instructions) {
-  if (!instructions) return [{ instructions: '' }]
-  try {
-    const arr = JSON.parse(instructions)
-    if (Array.isArray(arr) && arr.length > 0) return arr
-  } catch { /* không phải JSON → coi cả chuỗi là 1 đề */ }
-  return [{ instructions }]
-}
+import { parseTasks } from '../../../domain/baiThucHanh'
 
 // Đề rỗng (hoặc chỉ là "[]") → AI không có gì để đối chiếu, từng cho 10 điểm cho bài gõ "1" → bỏ qua
 const isEmptyTask = t => !t || t.optional || !String(t.instructions || '').trim() || String(t.instructions).trim() === '[]'

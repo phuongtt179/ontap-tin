@@ -24,6 +24,7 @@ import PyTestStatus from '../../components/student/PyTestStatus'
 import RaSoatLoi from '../../components/student/RaSoatLoi'
 import { MUC, mucCua } from '../../utils/muc'
 import { topicKeyOf } from '../../utils/lessonSteps'
+import { parseTasks } from '../../domain/baiThucHanh'
 // Bài giảng web (trình chiếu) – tải khi bài có bài giảng web
 const LessonSlidesViewer = lazy(() => import('../../components/slides/LessonSlidesViewer.jsx'))
 
@@ -350,15 +351,6 @@ function WordOrderInput({ q, value, onChange, disabled }) {
 }
 
 /* ── Helpers ───────────────────────────────────────────────── */
-function parseTasks(instructions) {
-  if (!instructions) return [{ instructions: '' }]
-  try {
-    const arr = JSON.parse(instructions)
-    if (Array.isArray(arr) && arr.length > 0) return arr
-  } catch {}
-  return [{ instructions }]
-}
-
 function getEmbedUrl(url) {
   if (!url) return null
   const m = url.match(/(?:youtu\.be\/|[?&]v=)([a-zA-Z0-9_-]{11})/)

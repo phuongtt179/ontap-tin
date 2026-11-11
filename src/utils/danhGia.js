@@ -5,12 +5,6 @@ import { gradeStudent } from './aiGrader'
 import { thuongStickerTheoMuc } from './stickerAward'
 import { mucTuDiem, DIEM_DAI_DIEN } from './muc'
 
-export function parseTasks(instructions) {
-  if (!instructions) return [{ instructions: '' }]
-  try { const a = JSON.parse(instructions); if (Array.isArray(a) && a.length) return a } catch { /* chuỗi thường */ }
-  return [{ instructions }]
-}
-
 /** AI chấm nháp 1 bài (chạy trên máy giáo viên) → cập nhật DB, trả về bản ghi mới. Học sinh chưa thấy gì. */
 export async function aiChamNhap(sub, taskDef) {
   const { results } = await gradeStudent([sub], [taskDef])
