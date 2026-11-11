@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { locCauHoi, layCauHoiKemDapAn } from '../../data/cauHoi'
 import { layLopCuaCacHs } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
@@ -90,10 +91,7 @@ function ExamFormModal({ exam, onClose, onDone }) {
   useEffect(() => {
     if (step !== 2) return
     setLoadingQ(true)
-    let q = supabase.from('questions').select('id, question, type, difficulty, topic').eq('grade', form.grade)
-    if (filterTopic) q = q.eq('topic', filterTopic)
-    if (filterDiff) q = q.eq('difficulty', filterDiff)
-    q.order('created_at', { ascending: false }).then(({ data }) => {
+    locCauHoi(form.grade, { topic: filterTopic, difficulty: filterDiff }).then(({ data }) => {
       setQuestions(data || [])
       setLoadingQ(false)
     })
@@ -488,10 +486,8 @@ function ExamResultsModal({ exam, onClose }) {
 
   async function viewDetail(session) {
     setDetailLoading(true)
-    const { data } = await supabase.from('questions')
-      .select('id, question, correct_answer, type')
-      .in('id', exam.question_ids)
-    const ordered = exam.question_ids.map(id => data?.find(q => q.id === id)).filter(Boolean)
+    const { data } = await layCauHoiKemDapAn(exam.question_ids)
+    const ordered = data || []
     setDetail({ session, questions: ordered })
     setDetailLoading(false)
   }

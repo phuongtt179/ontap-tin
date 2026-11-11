@@ -3,7 +3,7 @@ import { parseQuestions } from '../../utils/questionParser'
 import { checkParsedQuestions } from '../../utils/questionCheck'
 import AiQuestionPanel from './AiQuestionPanel'
 import { splitPhrases } from '../../utils/wordOrder'
-import { supabase } from '../../lib/supabase'
+import { themCauHoi } from '../../data/cauHoi'
 import { uploadImage } from '../../lib/cloudinary'
 import { useAuth } from '../../context/AuthContext'
 import { useUnits } from '../../hooks/useUnits'
@@ -125,7 +125,7 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics, 
         difficulty: meta.difficulty,
         created_by: user.id,
       }))
-      const { data: inserted, error } = await supabase.from('questions').insert(rows).select('id')
+      const { data: inserted, error } = await themCauHoi(rows)
       if (error) throw error
       toast.success(`Đã lưu ${rows.length} câu hỏi`)
       onSaved(inserted?.map(q => q.id) || [])

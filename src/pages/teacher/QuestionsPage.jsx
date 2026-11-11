@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { supabase } from '../../lib/supabase'
+import { layNganHangCauHoi, xoaCauHoi } from '../../data/cauHoi'
 import { useTopics } from '../../hooks/useTopics'
 import { useGrades } from '../../hooks/useGrades'
 import { useUnitsByGrade } from '../../hooks/useUnits'
@@ -53,11 +53,7 @@ export default function QuestionsPage() {
   const daTai = useRef(null)
   async function fetchQuestions() {
     if (daTai.current !== selectedGrade) { daTai.current = selectedGrade; setLoading(true) }
-    const { data, error } = await supabase
-      .from('questions')
-      .select('*, units(id,name)')
-      .eq('grade', selectedGrade)
-      .order('created_at', { ascending: false })
+    const { data, error } = await layNganHangCauHoi(selectedGrade)
     if (error) toast.error('Lỗi tải câu hỏi')
     else setAllQuestions(data || [])
     setLoading(false)
@@ -148,7 +144,7 @@ export default function QuestionsPage() {
   }
 
   async function handleDelete(id) {
-    const { error } = await supabase.from('questions').delete().eq('id', id)
+    const { error } = await xoaCauHoi(id)
     if (error) toast.error('Xóa thất bại')
     else { toast.success('Đã xóa'); fetchQuestions() }
   }

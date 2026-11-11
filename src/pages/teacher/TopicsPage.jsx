@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { doiChuDeCuaCauHoi } from '../../data/cauHoi'
 import { useTopics } from '../../hooks/useTopics'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
@@ -563,7 +564,7 @@ export default function TopicsPage() {
       cascades.push(
         doiChuDeCuaBaiHoc(editOldGrade, editOldName, newName),
         supabase.from('units').update({ topic: newName }).eq('topic', editOldName).eq('grade', editOldGrade),
-        supabase.from('questions').update({ topic: newName }).eq('topic', editOldName).eq('grade', editOldGrade),
+        doiChuDeCuaCauHoi(editOldGrade, editOldName, newName),
       )
     }
     if (newGrade !== editOldGrade) {

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import MarkdownContent from '../../components/ui/MarkdownContent'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { locCauHoi, layCauHoiTheoIds } from '../../data/cauHoi'
 import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import { useTopics } from '../../hooks/useTopics'
@@ -292,12 +293,7 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
   useEffect(() => {
     if (step !== 2) return
     setLoadingQ(true)
-    let q = supabase.from('questions').select('id, question, type, difficulty, topic, unit_id').eq('grade', form.grade)
-    if (filterTopic) q = q.eq('topic', filterTopic)
-    if (filterUnit) q = q.eq('unit_id', filterUnit)
-    if (filterLessonTitle) q = q.eq('lesson_title_id', filterLessonTitle)
-    if (filterDiff) q = q.eq('difficulty', filterDiff)
-    q.order('created_at', { ascending: false }).then(({ data }) => {
+    locCauHoi(form.grade, { topic: filterTopic, unitId: filterUnit, lessonTitleId: filterLessonTitle, difficulty: filterDiff }).then(({ data }) => {
       setQuestions(data || [])
       setLoadingQ(false)
     })
@@ -1083,10 +1079,7 @@ function LessonPreviewModal({ lesson, onClose }) {
   useEffect(() => {
     if (!lesson.question_ids?.length) return
     setLoadingQ(true)
-    supabase
-      .from('questions')
-      .select('*')
-      .in('id', lesson.question_ids)
+    layCauHoiTheoIds(lesson.question_ids)
       .then(({ data }) => {
         const map = {}
         ;(data || []).forEach(q => { map[q.id] = q })

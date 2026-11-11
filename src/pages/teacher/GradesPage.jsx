@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { doiKhoaCuaCauHoi } from '../../data/cauHoi'
 import { layGhiDanh, doiKhoaCuaGhiDanh, xoaGhiDanhCuaKhoa } from '../../data/ghiDanh'
 import { Users, School, ChevronRight, Plus, Trash2, Loader2, Pencil, Check, X } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -79,7 +80,7 @@ export default function GradesPage() {
     await Promise.all([
       supabase.from('classes').update({ grade: val }).eq('grade', oldValue),
       doiKhoaCuaGhiDanh(oldValue, val),
-      supabase.from('questions').update({ grade: val }).eq('grade', oldValue),
+      doiKhoaCuaCauHoi(oldValue, val),
       supabase.from('exams').update({ grade: val }).eq('grade', oldValue),
       doiKhoaCuaBaiHoc(oldValue, val),
       supabase.from('topics').update({ grade: val }).eq('grade', oldValue),

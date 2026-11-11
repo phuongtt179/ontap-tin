@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { layCauHoiKemDapAn } from '../../data/cauHoi'
 import { ArrowLeft, ChevronRight, Loader2, CheckCircle, Trash2, Bot, ExternalLink } from 'lucide-react'
 import WordEditor from '../../components/editor/WordEditor'
 import PPTEditor from '../../components/editor/PPTEditor'
@@ -81,10 +82,8 @@ export default function ExamResultsPage() {
       profiles?.forEach(p => { profileMap[p.id] = p })
     }
 
-    const { data: qData } = await supabase.from('questions')
-      .select('id, question, correct_answer, type')
-      .in('id', examData.question_ids)
-    const ordered = examData.question_ids.map(qid => qData?.find(q => q.id === qid)).filter(Boolean)
+    const { data: qData } = await layCauHoiKemDapAn(examData.question_ids)
+    const ordered = qData || []
 
     const { data: classData } = await supabase.from('classes').select('name').eq('grade', examData.grade).order('name')
 

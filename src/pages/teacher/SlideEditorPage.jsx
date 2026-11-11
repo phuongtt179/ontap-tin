@@ -7,6 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { ArrowLeft, Save, Sparkles, Eye, Play, Code2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Loader2, ListChecks, Upload, X, FileUp, FileImage } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { layCauHoiTomTat } from '../../data/cauHoi'
 import { apiFetch } from '../../lib/apiFetch'
 import { uploadImage } from '../../lib/cloudinary'
 import { useAuth } from '../../context/AuthContext'
@@ -140,7 +141,7 @@ function AiSoan({ lesson, bai, setBai, onMoi }) {
     const thucHanh = tasks.filter(t => !t.optional && String(t.instructions || '').trim()).map((t, i) => `Bài thực hành ${i + 1}: ${String(t.instructions).replace(/\[test[^\n]*\]/gi, '').trim()}`).join('\n\n')
     const sourceText = [lesson.description, lesson.ai_context, lesson.ai_tutor_notes, thucHanh].filter(s => String(s || '').trim()).join('\n\n')
     const { data: qs } = lesson.question_ids?.length
-      ? await supabase.from('questions').select('question, type, options, correct_answer').in('id', lesson.question_ids)
+      ? await layCauHoiTomTat(lesson.question_ids)
       : { data: [] }
     const questions = (qs || []).map(q => q.question + (q.options?.length ? ' | ' + q.options.map(o => o.key + '. ' + o.text).join(' ') : '') + ' (đáp án: ' + q.correct_answer + ')')
     const r = await goiAI({ action: 'slide_script', lessonTitle: lesson.title, grade: lesson.grade, topic: lesson.topic, sourceText, questions, extra: yc, slideNguon: nguon?.chu })
@@ -254,7 +255,7 @@ function ChonCauHoi({ lesson, onChon, onDong }) {
   const [qs, setQs] = useState(null), [chon, setChon] = useState(new Set())
   useEffect(() => {
     if (!lesson.question_ids?.length) { setQs([]); return }
-    supabase.from('questions').select('id, question, type, options, correct_answer, hint').in('id', lesson.question_ids)
+    layCauHoiTomTat(lesson.question_ids)
       .then(({ data }) => setQs((data || []).filter(q => q.type === 'multiple_choice' || q.type === 'true_false')))
   }, [lesson.question_ids])
   return (

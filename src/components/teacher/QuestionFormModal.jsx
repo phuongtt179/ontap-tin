@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '../../lib/supabase'
+import { themCauHoi, capNhatCauHoi } from '../../data/cauHoi'
 import { useTopics } from '../../hooks/useTopics'
 import { useGrades } from '../../hooks/useGrades'
 import { useUnits } from '../../hooks/useUnits'
@@ -294,8 +294,8 @@ export default function QuestionFormModal({ onClose, onDone, defaultGrade, defau
       ...specific,
     }
     const { error } = isEdit
-      ? await supabase.from('questions').update(payload).eq('id', editQuestion.id)
-      : await supabase.from('questions').insert({ ...payload, created_by: user.id })
+      ? await capNhatCauHoi(editQuestion.id, payload)
+      : await themCauHoi({ ...payload, created_by: user.id })
     setSaving(false)
     if (error) toast.error((isEdit ? 'Cập nhật' : 'Thêm') + ' thất bại: ' + error.message)
     else { toast.success(isEdit ? 'Đã cập nhật câu hỏi' : 'Đã thêm câu hỏi'); onDone() }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { demCauHoi } from '../../data/cauHoi'
 import { layGhiDanh, layLopCuaCacHs } from '../../data/ghiDanh'
 import { Trophy, BookOpen, Users, ClipboardCheck, CheckSquare, Activity, Sparkles, RefreshCw } from 'lucide-react'
 
@@ -65,7 +66,7 @@ export default function TeacherDashboard() {
 
   async function fetchStats() {
     const [q, e, s] = await Promise.all([
-      supabase.from('questions').select('id', { count: 'exact', head: true }),
+      demCauHoi(),
       supabase.from('exams').select('id', { count: 'exact', head: true }),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student'),
     ])

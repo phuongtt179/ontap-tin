@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { layCauHoiTheoIds } from '../../data/cauHoi'
 import { useAuth } from '../../context/AuthContext'
 import { useSelectedGradeContext } from '../../context/SelectedGradeContext'
 import { useExamGuard } from '../../context/ExamGuardContext'
@@ -276,9 +277,9 @@ export default function StudentExamsPage() {
     }
     let questions = []
     if (exam.question_ids?.length) {
-      const { data, error } = await supabase.from('questions').select('*').in('id', exam.question_ids)
+      const { data, error } = await layCauHoiTheoIds(exam.question_ids)
       if (error || !data) { toast.error('Không tải được câu hỏi'); return }
-      questions = exam.question_ids.map(id => data.find(q => q.id === id)).filter(Boolean)
+      questions = data
     }
     // Ghi nhận NGAY lúc bắt đầu làm (chưa biết điểm/đáp án, cập nhật sau lúc nộp) để tính
     // đúng "đã làm mấy lần" kể cả khi học sinh đóng hẳn tab/trình duyệt giữa chừng — không

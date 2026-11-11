@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { themCauHoi } from '../../data/cauHoi'
 import { parseQuestions } from '../../utils/questionParser'
 import { checkParsedQuestions } from '../../utils/questionCheck'
 import { splitPhrases } from '../../utils/wordOrder'
@@ -76,7 +76,7 @@ export default function AiNewQuestionsPanel({ form, userId, onCreated }) {
         difficulty,
         created_by: userId,
       }))
-      const { data: inserted, error } = await supabase.from('questions').insert(rows).select('id')
+      const { data: inserted, error } = await themCauHoi(rows)
       if (error) throw error
       onCreated((inserted || []).map(q => q.id))
       toast.success(`Đã tạo và lưu ${rows.length} câu hỏi mới vào ngân hàng, đã chọn cho bài này`

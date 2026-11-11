@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { layCauHoiKemDapAn } from '../../data/cauHoi'
 import { layGhiDanh } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import { X, Loader2, Eye, ChevronRight } from 'lucide-react'
@@ -11,10 +12,8 @@ function StudentDetailModal({ student, exams, sessions, onClose }) {
 
   async function viewDetail(session, questionIds) {
     setLoadingDetail(true)
-    const { data } = await supabase.from('questions')
-      .select('id, question, correct_answer, type')
-      .in('id', questionIds)
-    const ordered = questionIds.map(id => data?.find(q => q.id === id)).filter(Boolean)
+    const { data } = await layCauHoiKemDapAn(questionIds)
+    const ordered = data || []
     setDetail({ session, questions: ordered })
     setLoadingDetail(false)
   }

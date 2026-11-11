@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { layCauHoiTheoIds } from '../../data/cauHoi'
 import { layLopCuaEm } from '../../data/ghiDanh'
 import { buildWeaknessProfile } from '../../utils/weakness'
 import { STUDENT_AI_DIRECT, feedbackVisible } from '../../lib/aiMode'
@@ -919,9 +920,8 @@ export default function LessonPage() {
 
     // 2. Fetch questions if any
     if (lessonData.question_ids?.length > 0) {
-      const { data: qData } = await supabase.from('questions').select('*').in('id', lessonData.question_ids)
-      const ordered = lessonData.question_ids.map(qid => qData?.find(q => q.id === qid)).filter(Boolean)
-      setQuestions(ordered)
+      const { data: qData } = await layCauHoiTheoIds(lessonData.question_ids)
+      setQuestions(qData || [])
     }
 
     // 3. Fetch progress

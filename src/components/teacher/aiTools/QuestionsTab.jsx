@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../../lib/supabase'
+import { layCauHoiTomTat } from '../../../data/cauHoi'
 import { apiFetch } from '../../../lib/apiFetch'
 import { useAuth } from '../../../context/AuthContext'
 import { maskNames, unmaskNames } from '../../../utils/anonymize'
@@ -43,7 +44,7 @@ export default function QuestionsTab({ onChanged, loc = {} }) {
     try {
       // Đáp án + gợi ý của câu trắc nghiệm: giáo viên tra ở đây (học sinh không lưu đáp án khi gửi câu hỏi)
       const qIds = todo.map(q => q.context?.questionId).filter(Boolean)
-      const { data: qs } = qIds.length ? await supabase.from('questions').select('id, correct_answer, hint').in('id', qIds) : { data: [] }
+      const { data: qs } = qIds.length ? await layCauHoiTomTat(qIds) : { data: [] }
       const qMap = Object.fromEntries((qs || []).map(x => [x.id, x]))
       const codeToName = {}
       const payloadItems = todo.map((q, i) => {
