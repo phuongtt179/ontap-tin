@@ -5,6 +5,7 @@ import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, Check, X, Upload, CheckCircle2, AlertCircle, Loader2, BookOpen, List, ChevronUp, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { doiChuDeCuaBaiHoc } from '../../data/baiHoc'
 
 // ─── Modal quản lý tiêu đề bài học nhỏ bên trong 1 bài (unit) ────────────────
 function LessonTitleManagerModal({ unit, user, canDelete, onClose }) {
@@ -560,7 +561,7 @@ export default function TopicsPage() {
     const cascades = []
     if (newName !== editOldName) {
       cascades.push(
-        supabase.from('lessons').update({ topic: newName }).eq('topic', editOldName).eq('grade', editOldGrade),
+        doiChuDeCuaBaiHoc(editOldGrade, editOldName, newName),
         supabase.from('units').update({ topic: newName }).eq('topic', editOldName).eq('grade', editOldGrade),
         supabase.from('questions').update({ topic: newName }).eq('topic', editOldName).eq('grade', editOldGrade),
       )

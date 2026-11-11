@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import { X, Lock, Unlock, Check } from 'lucide-react'
+import { layDanhSachBai } from '../../data/baiHoc'
 
 function byOrderThenCreated(a, b) {
   const oa = a.order ?? 0
@@ -34,8 +35,7 @@ export default function UnlockLessonsModal({ cls, onClose }) {
     // Ô tick mở bài thì vẫn chỉ hiện bài ĐÃ publish (chưa publish không có gì để mở).
     const [{ data: topicsData }, { data: allLessonsData }, { data: topicUnlockRows }, { data: lessonUnlockRows }] = await Promise.all([
       supabase.from('topics').select('name').in('grade', [cls.grade, 'all']),
-      supabase.from('lessons').select('id, title, topic, "order", created_at, is_published')
-        .eq('grade', cls.grade),
+      layDanhSachBai(cls.grade),
       supabase.from('class_topic_unlock').select('topic').eq('grade', cls.grade).eq('class_name', cls.name),
       supabase.from('class_lesson_unlock').select('lesson_id').eq('grade', cls.grade).eq('class_name', cls.name),
     ])

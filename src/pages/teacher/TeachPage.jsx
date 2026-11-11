@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase'
 import { adjustStickerCount } from '../../utils/stickerAward'
 import SlidePlayer from '../../components/slides/SlidePlayer.jsx'
 import { beep, ting, fanfare, ring3, moAmThanh } from '../../components/slides/sound.js'
+import { layTenBaiHoc } from '../../data/baiHoc'
 
 const MAU_BUT = ['#ef4444', '#2563eb', '#16a34a', '#facc15', '#111827', '#ffffff']
 const MAU_NHOM = ['#2563eb', '#16a34a', '#ea580c', '#9333ea', '#db2777', '#0891b2', '#ca8a04', '#dc2626']
@@ -149,7 +150,7 @@ export default function TeachPage() {
   useEffect(() => {
     (async () => {
       const [{ data: l }, { data: s }] = await Promise.all([
-        supabase.from('lessons').select('id, title, grade').eq('id', id).single(),
+        layTenBaiHoc(id),
         supabase.from('lesson_slides').select('slides').eq('lesson_id', id).maybeSingle(),
       ])
       if (!l) { toast.error('Không tìm thấy bài học'); return }

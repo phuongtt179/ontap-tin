@@ -29,6 +29,7 @@ import { parseTasks } from '../../domain/baiThucHanh'
 import { datQuiz, trangThaiBuoc } from '../../domain/tienDoBaiHoc'
 import { layBaiNopCuaEm, layTieuChiGanDay, layTrangThaiCham, layBaiNopTheoIds, nopBaiMoi, nopLaiBai, capNhatBaiNop } from '../../data/baiNop'
 import { capNhatTuKetQuaAi } from '../../domain/chamBai'
+import { layBaiHocTheoId, layDanhSachBai } from '../../data/baiHoc'
 // Bài giảng web (trình chiếu) – tải khi bài có bài giảng web
 const LessonSlidesViewer = lazy(() => import('../../components/slides/LessonSlidesViewer.jsx'))
 
@@ -821,7 +822,7 @@ export default function LessonPage() {
   async function loadAll() {
     setLoading(true)
     // 1. Fetch lesson + student grade + threshold
-    const { data: lessonData } = await supabase.from('lessons').select('*').eq('id', id).single()
+    const { data: lessonData } = await layBaiHocTheoId(id)
     if (!lessonData) { toast.error('Không tìm thấy bài học'); navigate(-1); return }
     if (lessonData.restricted_audience) {
       const { data: visRow } = await supabase.from('lesson_visibility')
@@ -882,7 +883,7 @@ export default function LessonPage() {
       // sinh chưa được mở (xem cùng lý do ở useLearnData.js).
       Promise.all([
         supabase.from('units').select('id, name, sort_order').eq('grade', lessonData.grade).order('sort_order'),
-        supabase.from('lessons').select('id, title, unit_id, topic, order').eq('grade', lessonData.grade).eq('is_published', true).order('order'),
+        layDanhSachBai(lessonData.grade, { xuatBan: true }),
       ]).then(([uRes, lRes]) => {
         const us = uRes.data || []
         const ls = (lRes.data || []).filter(l =>

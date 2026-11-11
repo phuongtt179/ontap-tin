@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { Users, School, ChevronRight, Plus, Trash2, Loader2, Pencil, Check, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
+import { doiKhoaCuaBaiHoc } from '../../data/baiHoc'
 
 const COLOR_SCHEMES = [
   { color: 'border-blue-200 bg-blue-50', text: 'text-blue-700', btn: 'bg-blue-600 hover:bg-blue-700' },
@@ -79,7 +80,7 @@ export default function GradesPage() {
       supabase.from('student_enrollments').update({ grade: val }).eq('grade', oldValue),
       supabase.from('questions').update({ grade: val }).eq('grade', oldValue),
       supabase.from('exams').update({ grade: val }).eq('grade', oldValue),
-      supabase.from('lessons').update({ grade: val }).eq('grade', oldValue),
+      doiKhoaCuaBaiHoc(oldValue, val),
       supabase.from('topics').update({ grade: val }).eq('grade', oldValue),
       supabase.from('units').update({ grade: val }).eq('grade', oldValue),
     ])

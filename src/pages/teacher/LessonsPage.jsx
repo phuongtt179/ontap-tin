@@ -21,6 +21,7 @@ import { parsePracticeTasks } from '../../utils/practiceTaskParser'
 import { apiFetch } from '../../lib/apiFetch'
 import AiNewQuestionsPanel from '../../components/teacher/AiNewQuestionsPanel'
 import { parseTasks } from '../../domain/baiThucHanh'
+import { layBaiHocDeSua, taoBaiHoc, luuBaiHoc, capNhatBaiHoc, xoaBaiHoc } from '../../data/baiHoc'
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
 const TYPE_LABELS = {
@@ -434,8 +435,8 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
       restricted_audience: form.restricted_audience,
     }
     const { data: savedLesson, error } = isEdit
-      ? await supabase.from('lessons').update(payload).eq('id', lesson.id).select().single()
-      : await supabase.from('lessons').insert({ ...payload, created_by: user.id }).select().single()
+      ? await luuBaiHoc(lesson.id, payload)
+      : await taoBaiHoc({ ...payload, created_by: user.id })
     if (error) { setSaving(false); toast.error('Lưu thất bại: ' + error.message); return }
 
     // Đồng bộ danh sách học sinh được xem (nếu bật giới hạn) — xoá hết rồi ghi lại cho đơn giản
@@ -1001,7 +1002,7 @@ function LessonAudienceModal({ lesson, onClose, onDone }) {
 
   async function handleSave() {
     setSaving(true)
-    const { error } = await supabase.from('lessons').update({ restricted_audience: restricted }).eq('id', lesson.id)
+    const { error } = await capNhatBaiHoc(lesson.id, { restricted_audience: restricted })
     if (error) { setSaving(false); toast.error('Lưu thất bại: ' + error.message); return }
     await supabase.from('lesson_visibility').delete().eq('lesson_id', lesson.id)
     if (restricted && selected.length > 0) {
@@ -1257,12 +1258,7 @@ export default function LessonsPage() {
   const daTai = useRef(null)
   async function fetchLessons() {
     if (daTai.current !== selectedGrade) { daTai.current = selectedGrade; setLoading(true) }
-    const { data } = await supabase
-      .from('lessons')
-      .select('*')
-      .eq('grade', selectedGrade)
-      .order('order', { ascending: true })
-      .order('created_at', { ascending: true })
+    const { data } = await layBaiHocDeSua(selectedGrade)
     setAllLessons(data || [])
     setLoading(false)
   }
@@ -1337,13 +1333,13 @@ export default function LessonsPage() {
 
   async function handleDelete(id, title) {
     if (!confirm(`Xóa bài học "${title}"?`)) return
-    const { error } = await supabase.from('lessons').delete().eq('id', id)
+    const { error } = await xoaBaiHoc(id)
     if (error) toast.error('Xóa thất bại')
     else { toast.success('Đã xóa bài học'); fetchLessons() }
   }
 
   async function handleTogglePublish(lesson) {
-    const { error } = await supabase.from('lessons').update({ is_published: !lesson.is_published }).eq('id', lesson.id)
+    const { error } = await capNhatBaiHoc(lesson.id, { is_published: !lesson.is_published })
     if (error) toast.error('Cập nhật thất bại')
     else fetchLessons()
   }

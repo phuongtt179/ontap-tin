@@ -11,8 +11,9 @@ import { MUC, CAC_MUC, mucCua, mucTuDiem } from '../../utils/muc'
 import { aiChamNhap, luuDanhGia } from '../../utils/danhGia'
 import { parseTasks } from '../../domain/baiThucHanh'
 import { nhomBaiTheoChuDe } from '../../domain/thuTuBaiHoc'
-import { layBaiThucHanhTheoKhoa } from '../../data/baiHoc'
+import { layBaiThucHanhTheoKhoa, layDeThucHanhTheoIds } from '../../data/baiHoc'
 import { layBaiNopDeChamTheoBai, layBaiNopDeChamTheoHs } from '../../data/baiNop'
+
 
 const lsGet = k => { try { return localStorage.getItem(k) || '' } catch { return '' } }
 const lsSet = (k, v) => { try { localStorage.setItem(k, v) } catch { /* trình duyệt chặn */ } }
@@ -183,7 +184,7 @@ export default function GradingPage() {
           if (error) toast.error('Không tải được bài nộp')
           const thieu = [...new Set((data || []).map(s => s.lesson_id))].filter(id => !lessonMap[id])
           if (thieu.length) {
-            const { data: ls } = await supabase.from('lessons').select('id, title, "order", practice_instructions').in('id', thieu)
+            const { data: ls } = await layDeThucHanhTheoIds(thieu)
             setLessonMap(m => ({ ...m, ...Object.fromEntries((ls || []).map(l => [l.id, l])) }))
           }
           setSubs(data || [])

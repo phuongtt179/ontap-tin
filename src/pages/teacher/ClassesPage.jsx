@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, Check, X, Users, Unlock } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import UnlockLessonsModal from './UnlockLessonsModal'
+import { layBaiDaXuatBanCuaCacKhoa } from '../../data/baiHoc'
 
 export default function ClassesPage() {
   const { canDelete } = useAuth()
@@ -48,8 +49,7 @@ export default function ClassesPage() {
       const [{ data: enrollments }, { data: lessonsData }] = await Promise.all([
         supabase.from('student_enrollments').select('class_name')
           .eq('is_approved', true).in('class_name', data.map(c => c.name)),
-        supabase.from('lessons').select('grade')
-          .eq('is_published', true).in('grade', classGrades),
+        layBaiDaXuatBanCuaCacKhoa(classGrades),
       ])
       const counts = {}
       enrollments?.forEach(e => { counts[e.class_name] = (counts[e.class_name] || 0) + 1 })

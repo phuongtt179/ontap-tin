@@ -7,6 +7,7 @@ import { Sparkles, Send, Loader2 } from 'lucide-react'
 import { anonymizeSnapshot, maskNames, unmaskNames } from '../../utils/anonymize'
 import { apiFetch } from '../../lib/apiFetch'
 import { layTrangThaiDuyet } from '../../data/baiNop'
+import { layDanhSachBai } from '../../data/baiHoc'
 
 const SUGGESTIONS = [
   'Lớp KN46 tiến độ làm bài mới nhất thế nào?',
@@ -41,11 +42,7 @@ function findMentionedGrades(text, gradeValues) {
 // Chỉ lấy danh sách bài học của cả khoá — dùng khi câu hỏi không nhắm vào 1 lớp cụ thể
 // (vd: "khoá KN-TIỂU HỌC có những bài nào").
 async function buildCourseSnapshot(grade, classesInGrade) {
-  const { data: lessonData, error } = await supabase
-    .from('lessons')
-    .select('title, "order"')
-    .eq('grade', grade).eq('is_published', true)
-    .order('order')
+  const { data: lessonData, error } = await layDanhSachBai(grade, { xuatBan: true })
   if (error) throw error
   return {
     generatedAt: new Date().toISOString(),
@@ -66,11 +63,7 @@ async function buildSnapshot(grade, className) {
   const roster = (enrollData || []).map(e => ({ id: e.user_id, name: e.profiles.full_name }))
   const userIds = roster.map(s => s.id)
 
-  const { data: lessonData, error: lessonErr } = await supabase
-    .from('lessons')
-    .select('id, title, "order"')
-    .eq('grade', grade).eq('is_published', true)
-    .order('order')
+  const { data: lessonData, error: lessonErr } = await layDanhSachBai(grade, { xuatBan: true })
   if (lessonErr) throw lessonErr
   const lessons = lessonData || []
   const lessonIds = lessons.map(l => l.id)

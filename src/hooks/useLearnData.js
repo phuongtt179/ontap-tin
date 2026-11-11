@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { NGUONG_DOI_QUA_MAC_DINH } from '../domain/sticker'
 import { topicKeyOf } from '../utils/lessonSteps'
+import { layDanhSachBai } from '../data/baiHoc'
 
 // Bóc loadData() + các useMemo dẫn xuất của LearnPage.jsx ra hook riêng — hành vi giữ nguyên 100%.
 // `className`: lớp học sinh đang thuộc (cho khoá đang chọn) — dùng để lấy đúng
@@ -42,12 +43,8 @@ export function useLearnData(user, selectedGrade, className) {
     ] = await Promise.all([
       supabase.from('topics').select('*').in('grade', [selectedGrade, 'all']),
       // Chỉ cột cần vẽ con đường — KHÔNG tải đề thực hành / ghi chú AI (vài trăm KB mỗi lần mở trang)
-      supabase.from('lessons').select('id, title, unit_id, topic, "order", created_at, restricted_audience, is_published, grade')
-        .eq('is_published', true).eq('grade', selectedGrade)
-        .order('order', { ascending: true }).order('created_at', { ascending: true }),
-      supabase.from('lessons').select('id, title, unit_id, topic, "order", created_at, restricted_audience')
-        .eq('is_published', false).eq('grade', selectedGrade)
-        .order('order', { ascending: true }).order('created_at', { ascending: true }),
+      layDanhSachBai(selectedGrade, { xuatBan: true }),
+      layDanhSachBai(selectedGrade, { xuatBan: false }),
       supabase.from('lesson_progress').select('*').eq('user_id', user.id),
       supabase.from('units').select('*').eq('grade', selectedGrade).order('sort_order').order('name'),
       supabase.from('profiles').select('sticker_count, streak_days').eq('id', user.id).single(),

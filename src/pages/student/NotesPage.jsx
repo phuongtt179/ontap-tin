@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
 import { Plus, Pin, PinOff, Pencil, Trash2, Search, X, Loader2, AlertTriangle, BookOpen } from 'lucide-react'
+import { layDanhSachBai, layBaiDaXuatBanCuaCacKhoa } from '../../data/baiHoc'
 
 const COLORS = [
   { key: 'yellow',  bg: 'bg-yellow-100',  border: 'border-yellow-300',  ring: 'ring-yellow-400',  label: 'Vàng' },
@@ -31,9 +32,7 @@ function NoteModal({ note, enrollments, topicsByGrade, onClose, onSave }) {
   // Fetch bài học theo khoá + chủ đề
   useEffect(() => {
     if (!form.grade) { setAvailableLessons([]); return }
-    let q = supabase.from('lessons').select('id, title').eq('grade', form.grade).eq('is_published', true).order('order', { ascending: true })
-    if (form.topic) q = q.eq('topic', form.topic)
-    q.then(({ data }) => setAvailableLessons(data || []))
+    layDanhSachBai(form.grade, { xuatBan: true, topic: form.topic }).then(({ data }) => setAvailableLessons(data || []))
   }, [form.grade, form.topic])
 
   function handleGradeChange(g) {
@@ -232,7 +231,7 @@ export default function NotesPage() {
 
     const [{ data: topicData }, { data: lessonData }] = await Promise.all([
       supabase.from('topics').select('name, grade').in('grade', grades),
-      supabase.from('lessons').select('id, title, grade, topic').in('grade', grades).eq('is_published', true).order('order', { ascending: true }),
+      layBaiDaXuatBanCuaCacKhoa(grades),
     ])
 
     const topicMap = {}

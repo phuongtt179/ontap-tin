@@ -15,6 +15,7 @@ import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { parseTasks } from '../../domain/baiThucHanh'
 import { layBaiNopCuaLop, layDauVetBaiNop, capNhatBaiNop } from '../../data/baiNop'
 import { capNhatTuKetQuaAi } from '../../domain/chamBai'
+import { layBaiHocTheoId } from '../../data/baiHoc'
 
 // Nút chọn mức T/H/C — từ 29/10/2026 giáo viên đánh giá theo mức, không nhập điểm
 function ChonMuc({ value, onChange }) {
@@ -206,8 +207,7 @@ export default function LessonSubmissionsPage() {
   async function loadAll() {
     setLoading(true)
 
-    const { data: lessonData } = await supabase
-      .from('lessons').select('*').eq('id', id).single()
+    const { data: lessonData } = await layBaiHocTheoId(id)
 
     if (!lessonData) { toast.error('Không tìm thấy bài học'); navigate(-1); return }
     setLesson(lessonData)

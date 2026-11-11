@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { X, Loader2, Flame, Star, GraduationCap, CheckCircle2, ClipboardList, FileText, Medal, Bot, User, CalendarCheck, Download, Sparkles } from 'lucide-react'
 import { apiFetch } from '../../lib/apiFetch'
 import { layBaiNopChoBaoCao } from '../../data/baiNop'
+import { demBaiDaXuatBan } from '../../data/baiHoc'
 
 function computeBadges({ streakMax, stickerTotal, lessonsDone, hasReward }) {
   const b = []
@@ -47,7 +48,7 @@ export default function StudentReportModal({ student, onClose }) {
       layBaiNopChoBaoCao(student.id),
       supabase.from('exam_sessions').select('score, correct, total, submitted_at, exams(title)').eq('user_id', student.id).order('submitted_at', { ascending: false }),
       supabase.from('reward_requests').select('status').eq('student_id', student.id),
-      grades.length ? supabase.from('lessons').select('id', { count: 'exact', head: true }).in('grade', grades).eq('is_published', true) : Promise.resolve({ count: 0 }),
+      grades.length ? demBaiDaXuatBan(grades) : Promise.resolve({ count: 0 }),
     ])
     setD({
       profile: prof.data || {},

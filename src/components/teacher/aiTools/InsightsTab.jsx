@@ -5,6 +5,7 @@ import { maskNames, unmaskNames } from '../../../utils/anonymize'
 import toast from 'react-hot-toast'
 import { Loader2, Sparkles, ShieldAlert, Lightbulb } from 'lucide-react'
 import { apiFetch } from '../../../lib/apiFetch'
+import { layDanhSachBai } from '../../../data/baiHoc'
 
 const PERIODS = { 30: '30 ngày', 90: '90 ngày', 0: 'Toàn bộ' }
 const MODE_LABEL = { quiz: 'Trắc nghiệm', practice: 'Thực hành', theory: 'Lý thuyết' }
@@ -25,7 +26,7 @@ export default function InsightsTab() {
 
   useEffect(() => {
     if (!grade) return
-    supabase.from('lessons').select('id, title').eq('grade', grade).eq('is_published', true).order('order')
+    layDanhSachBai(grade, { xuatBan: true })
       .then(({ data }) => setLessons(data || []))
   }, [grade])
 

@@ -6,6 +6,7 @@ import { Loader2, Sparkles, Check, Trash2, Plus, EyeOff, Save } from 'lucide-rea
 import { supabase } from '../../../lib/supabase'
 import { apiFetch } from '../../../lib/apiFetch'
 import { useAuth } from '../../../context/AuthContext'
+import { layDanhSachBai, layNguonAiCuaBai } from '../../../data/baiHoc'
 
 const SEL = 'border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm bg-white'
 const AI_LOI = { quota_rpd: 'AI đã hết lượt hôm nay', quota_rpm: 'AI đang bận, chờ 1 phút rồi thử lại', parse_error: 'AI trả về chưa đúng dạng, bấm thử lại' }
@@ -62,7 +63,7 @@ export default function FaqTab({ loc = {} }) {
   useEffect(() => {
     setBaiId(''); setDs(null)
     if (!loc.grade) { setBaiHocs([]); return }
-    supabase.from('lessons').select('id, title, "order"').eq('grade', loc.grade).order('order').then(({ data }) => setBaiHocs(data || []))
+    layDanhSachBai(loc.grade).then(({ data }) => setBaiHocs(data || []))
   }, [loc.grade])
   useEffect(() => {
     if (!baiHocs.length) { setDem({}); return }
@@ -78,7 +79,7 @@ export default function FaqTab({ loc = {} }) {
   async function aiSoan() {
     setDang('ai')
     try {
-      const { data: les } = await supabase.from('lessons').select('title, grade, description, ai_context, ai_tutor_notes, practice_instructions, question_ids').eq('id', baiId).single()
+      const { data: les } = await layNguonAiCuaBai(baiId)
       const { data: qs } = les.question_ids?.length ? await supabase.from('questions').select('question').in('id', les.question_ids) : { data: [] }
       const r = await apiFetch('/api/teacher-ai', { action: 'faq', lessonTitle: les.title, grade: les.grade, sourceText: nguonBai(les), soCau,
         questions: (qs || []).map(q => q.question), daCo: (ds || []).map(f => f.question) })

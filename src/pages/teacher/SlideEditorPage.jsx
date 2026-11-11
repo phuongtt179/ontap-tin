@@ -14,6 +14,7 @@ import { docChuFile, pdfThanhAnh } from '../../utils/slideText'
 import SlidePlayer from '../../components/slides/SlidePlayer.jsx'
 import { TEN_ICON } from '../../components/slides/Icon.jsx'
 import { LOAI_SLIDE, LOAI_KHOI, MAU, TEN_MAU, TRUONG_SLIDE, TRUONG_KHOI, SLIDE_MOI, KHOI_MOI, kiemTraBai, lamSachBai, cauHoiThanhSlide } from '../../components/slides/slideModel.js'
+import { layNguonAiCuaBai } from '../../data/baiHoc'
 
 const sao = x => JSON.parse(JSON.stringify(x))
 const doiCho = (a, i, j) => { if (j < 0 || j >= a.length) return a; const b = a.slice(); [b[i], b[j]] = [b[j], b[i]]; return b }
@@ -289,7 +290,7 @@ export default function SlideEditorPage() {
   useEffect(() => {
     (async () => {
       const [{ data: l, error }, { data: s }] = await Promise.all([
-        supabase.from('lessons').select('id, title, grade, topic, description, ai_context, ai_tutor_notes, practice_instructions, question_ids').eq('id', id).single(),
+        layNguonAiCuaBai(id),
         supabase.from('lesson_slides').select('slides, kich_ban').eq('lesson_id', id).maybeSingle(),
       ])
       if (error || !l) { toast.error('Không tìm thấy bài học'); return }
