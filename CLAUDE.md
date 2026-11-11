@@ -64,11 +64,11 @@ trang tự gọi DB ở ~279 chỗ, quy tắc chép nhiều nơi, 0 kiểm tra t
 - **Mã MỚI** bắt buộc theo chuẩn: quy tắc vào `src/domain/`, đọc ghi DB qua `src/data/`, tệp ≤ ~400 dòng.
 - **Mã CŨ** chỉ dọn khi người dùng rảnh và đồng ý, làm trên nhánh `neon` + link thử, mỗi lần 1 phần. Thứ tự:
   1. [x] (11/11) Gom quy tắc về `src/domain/`: `baiThucHanh.js` (parseTasks — 7 bản → 1, dùng chung cả `api/`), `tienDoBaiHoc.js` (đạt quiz 2/3, bước / hoàn thành bài), `sticker.js` (sticker theo mức, mốc chuỗi, ngưỡng quà), `thuTuBaiHoc.js`. Đã so trên dữ liệu thật: giống hệt bản cũ.
-  2. [ ] Tạo `src/data/` cho các bảng dùng nhiều: lesson_submissions, lessons, student_enrollments, questions, profiles.
+  2. [x] (11/11) Tạo `src/data/`: `baiNop.js` · `baiHoc.js` · `ghiDanh.js` · `cauHoi.js` · `hoSo.js` — 141 chỗ gọi thẳng 5 bảng này → 0. Bảng khác (lesson_progress, exams, exam_sessions, messages, units, topics…) vẫn gọi thẳng: chuyển dần khi sửa tới.
   3. [ ] Kiểm tra tự động (vitest) cho domain + chấm Python + quyền truy cập; chạy trước khi đưa lên.
   4. [ ] Tách trang lớn: student/LessonPage (1.887 dòng) → teacher/LessonsPage (1.648) → QuizSession (1.219) → LessonSubmissionsPage (1.188) → StudentsPage (1.121).
   5. [ ] Vá bảo mật đợt 3 (đi cùng bước 1–2): điểm quiz/thi lý thuyết do máy chủ tính; ẩn đáp án, bài chưa xuất bản, tiêu chí chấm khỏi học sinh.
-- Đã có (11/11): `src/domain/` (4 tệp, có test), `src/data/baiHoc.js`, vitest — chạy `npm test` trước khi đưa lên.
+- Đã có (11/11): `src/domain/` (5 tệp, có test), `src/data/` (5 tệp), vitest — chạy `npm test` + eslint trước khi đưa lên. Đọc ghi 5 bảng trên PHẢI qua `src/data/`, không gọi `supabase.from()` thẳng trong trang.
 - Đã xong 10/11: SQL vào `sql/`, tài liệu vào `docs/` (ARCHITECTURE cập nhật theo Neon), eslint hết báo nhầm ở `api/`.
 
 ## Routes
