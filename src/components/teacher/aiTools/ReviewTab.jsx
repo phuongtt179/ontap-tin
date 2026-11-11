@@ -4,6 +4,7 @@ import { thuongStickerTheoMuc } from '../../../utils/stickerAward'
 import { MUC, CAC_MUC, mucTuDiem, DIEM_DAI_DIEN } from '../../../utils/muc'
 import toast from 'react-hot-toast'
 import { Loader2, Check, Pencil, ExternalLink } from 'lucide-react'
+import { capNhatBaiNop } from '../../../data/baiNop'
 
 const REASONS = {
   empty: { label: 'Bài gần như trống mà AI chấm đạt', cls: 'bg-red-100 text-red-700' },
@@ -36,7 +37,7 @@ async function saveReview(item, { edit = false, muc, comment, allowResubmit = fa
     // Học sinh luôn nộp lại được; cờ này hiện lời nhắc "Giáo viên cho phép bạn nộp lại" để em biết nên làm lại
     ...(allowResubmit && { allow_resubmit: true }),
   }
-  const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', item.id)
+  const { error } = await capNhatBaiNop(item.id, updates)
   if (error) { toast.error('Lưu thất bại: ' + error.message); return false }
   if (newMuc) {
     const { error: e } = await thuongStickerTheoMuc(item.id, item.user_id, newMuc)

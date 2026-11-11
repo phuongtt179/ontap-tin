@@ -6,6 +6,7 @@ import { useGrades } from '../../hooks/useGrades'
 import { Sparkles, Send, Loader2 } from 'lucide-react'
 import { anonymizeSnapshot, maskNames, unmaskNames } from '../../utils/anonymize'
 import { apiFetch } from '../../lib/apiFetch'
+import { layTrangThaiDuyet } from '../../data/baiNop'
 
 const SUGGESTIONS = [
   'Lớp KN46 tiến độ làm bài mới nhất thế nào?',
@@ -79,7 +80,7 @@ async function buildSnapshot(grade, className) {
   if (userIds.length && lessonIds.length) {
     const [{ data: pData }, { data: sData }] = await Promise.all([
       supabase.from('lesson_progress').select('user_id, lesson_id, completed, quiz_passed, practice_submitted, updated_at').in('user_id', userIds).in('lesson_id', lessonIds),
-      supabase.from('lesson_submissions').select('user_id, reviewed_at').in('user_id', userIds).in('lesson_id', lessonIds),
+      layTrangThaiDuyet(userIds, lessonIds),
     ])
     progress = pData || []
     submissions = sData || []

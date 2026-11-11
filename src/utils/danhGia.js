@@ -1,20 +1,18 @@
 // Đánh giá bài thực hành (giáo viên): AI chấm nháp gợi ý mức + tiêu chí → giáo viên duyệt / đổi mức T/H/C.
 // Dùng cho trang Chấm bài (theo bài / theo học sinh).
-import { supabase } from '../lib/supabase'
 import { gradeStudent } from './aiGrader'
 import { thuongStickerTheoMuc } from './stickerAward'
 import { mucTuDiem, DIEM_DAI_DIEN } from './muc'
+import { capNhatBaiNop } from '../data/baiNop'
+import { capNhatTuKetQuaAi } from '../domain/chamBai'
 
 /** AI chấm nháp 1 bài (chạy trên máy giáo viên) → cập nhật DB, trả về bản ghi mới. Học sinh chưa thấy gì. */
 export async function aiChamNhap(sub, taskDef) {
   const { results } = await gradeStudent([sub], [taskDef])
   const r = results?.[0]
   if (!r) throw new Error('AI chưa trả về kết quả')
-  const updates = {
-    score: r.score, ai_score: r.score, teacher_comment: r.comment, graded_by: 'ai', ai_graded_at: new Date().toISOString(),
-    ai_breakdown: r.breakdown || null, ai_suspect: !!r.ai_suspect, ai_suspect_reason: r.ai_suspect_reason || null,
-  }
-  const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
+  const updates = capNhatTuKetQuaAi(r)
+  const { error } = await capNhatBaiNop(sub.id, updates)
   if (error) throw error
   return { ...sub, ...updates }
 }
@@ -42,7 +40,7 @@ export async function luuDanhGia(sub, { muc, comment, choNopLai = false, breakdo
     ...(awardSticker && { sticker_awarded: true }),
     ...(choNopLai && { allow_resubmit: true }),
   }
-  const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
+  const { error } = await capNhatBaiNop(sub.id, updates)
   if (error) return { loi: error.message }
   await thuongStickerTheoMuc(sub.id, sub.user_id, muc)
   return { moi: { ...sub, ...updates } }

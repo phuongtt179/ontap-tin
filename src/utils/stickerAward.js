@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { stickerTheoMuc, stickerConThieu } from '../domain/sticker'
+import { laySoStickerDaThuong, ghiStickerDaThuong } from '../data/baiNop'
 
 // Cộng/trừ sticker theo kiểu "đọc rồi ghi có khoá" (compare-and-swap): đọc
 // sticker_count hiện tại, ghi lại CHỈ KHI nó vẫn đúng bằng giá trị vừa đọc —
@@ -43,13 +44,12 @@ export async function adjustStickerCount(userId, delta, { affectsTotal = false, 
 // Đọc lại từ DB và chỉ ghi khi số cũ chưa đổi, nên duyệt trùng / 2 tab cũng không cộng 2 lần.
 export async function thuongStickerTheoMuc(subId, userId, muc) {
   const moi = stickerTheoMuc(muc)
-  const { data, error } = await supabase.from('lesson_submissions').select('sticker_thuong').eq('id', subId).single()
+  const { data, error } = await laySoStickerDaThuong(subId)
   if (error) return { them: 0, error }
   const cu = data?.sticker_thuong ?? 0
   const them = stickerConThieu(cu, muc)
   if (!them) return { them: 0, error: null }
-  const { data: ghi, error: loiGhi } = await supabase.from('lesson_submissions')
-    .update({ sticker_thuong: moi }).eq('id', subId).eq('sticker_thuong', cu).select('id')
+  const { data: ghi, error: loiGhi } = await ghiStickerDaThuong(subId, cu, moi)
   if (loiGhi || !ghi?.length) return { them: 0, error: loiGhi }
   const { error: loiCong } = await adjustStickerCount(userId, them, { affectsTotal: true })
   return { them: loiCong ? 0 : them, error: loiCong }

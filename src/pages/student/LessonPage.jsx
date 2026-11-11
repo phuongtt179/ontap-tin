@@ -27,6 +27,8 @@ import { MUC, mucCua } from '../../utils/muc'
 import { topicKeyOf } from '../../utils/lessonSteps'
 import { parseTasks } from '../../domain/baiThucHanh'
 import { datQuiz, trangThaiBuoc } from '../../domain/tienDoBaiHoc'
+import { layBaiNopCuaEm, layTieuChiGanDay, layTrangThaiCham, layBaiNopTheoIds, nopBaiMoi, nopLaiBai, capNhatBaiNop } from '../../data/baiNop'
+import { capNhatTuKetQuaAi } from '../../domain/chamBai'
 // Bài giảng web (trình chiếu) – tải khi bài có bài giảng web
 const LessonSlidesViewer = lazy(() => import('../../components/slides/LessonSlidesViewer.jsx'))
 
@@ -909,9 +911,7 @@ export default function LessonPage() {
     // Lỗi truy vấn không ảnh hưởng gì tới trang học: chỉ đơn giản là không có hồ sơ.
     // Chỉ gia sư AI trực tiếp mới dùng — đang tắt thì không tải (tốn ~10% thời gian SQL phía học sinh).
     if (STUDENT_AI_DIRECT) {
-      supabase.from('lesson_submissions').select('ai_breakdown, lessons(title)')
-        .eq('user_id', user.id).not('ai_breakdown', 'is', null)
-        .order('submitted_at', { ascending: false }).limit(15)
+      layTieuChiGanDay(user.id)
         .then(({ data }) => setWeaknessProfile(buildWeaknessProfile(data)))
         .catch(() => {})
     }
@@ -931,9 +931,7 @@ export default function LessonPage() {
 
     // 4. Fetch all task submissions
     const tasks = parseTasks(lessonData.practice_instructions)
-    const { data: subData } = await supabase.from('lesson_submissions')
-      .select('*').eq('user_id', user.id).eq('lesson_id', id)
-      .order('submitted_at', { ascending: true })
+    const { data: subData } = await layBaiNopCuaEm(user.id, id)
     const subs = Array(tasks.length).fill(null)
     ;(subData || []).forEach(s => {
       const tidx = s.content_json?.task_index ?? 0
@@ -1040,8 +1038,8 @@ export default function LessonPage() {
       const { results } = await gradeStudent([sub], [taskDef])
       const result = results[0]
       if (!result) return
-      const updates = { score: result.score, ai_score: result.score, teacher_comment: result.comment, graded_by: 'ai', ai_graded_at: new Date().toISOString(), ai_breakdown: result.breakdown || null, ai_suspect: !!result.ai_suspect, ai_suspect_reason: result.ai_suspect_reason || null }
-      await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
+      const updates = capNhatTuKetQuaAi(result)
+      await capNhatBaiNop(sub.id, updates)
       setTaskSubmissions(prev => { const next = [...prev]; next[taskIdx] = { ...sub, ...updates }; return next })
     } catch (err) {
       // Lỗi tạm thời (mạng, AI quá tải theo phút) → thử lại 1 lần sau 20 giây; hết lượt cả ngày thì thôi,
@@ -1068,11 +1066,10 @@ export default function LessonPage() {
     const t = setInterval(async () => {
       if (Date.now() - batDau > 30 * 60000) { clearInterval(t); return }
       if (document.hidden) return
-      const { data } = await supabase.from('lesson_submissions')
-        .select('id, score, teacher_comment, graded_by, reviewed_at, ai_graded_at').in('id', choIds)
+      const { data } = await layTrangThaiCham(choIds)
       const xongIds = (data || []).filter(feedbackVisible).map(r => r.id)
       if (!xongIds.length) return
-      const { data: moi } = await supabase.from('lesson_submissions').select('*').in('id', xongIds)
+      const { data: moi } = await layBaiNopTheoIds(xongIds)
       if (moi?.length) setTaskSubmissions(prev => prev.map(s => (s && moi.find(r => r.id === s.id)) || s))
     }, STUDENT_AI_DIRECT ? 20000 : 180000)
     return () => clearInterval(t)
@@ -1121,9 +1118,7 @@ export default function LessonPage() {
       let fileUrl = oldUrl
       if (file) fileUrl = await uploadFile(file)
       const luc = new Date().toISOString()
-      const { data: updated, error } = await supabase
-        .from('lesson_submissions')
-        .update({
+      const { data: updated, error } = await nopLaiBai(existingSub.id, {
           file_url: fileUrl,
           file_name: file ? file.name : (existingSub?.file_name ?? null),
           text_content: note.trim() || null,
@@ -1142,8 +1137,6 @@ export default function LessonPage() {
           ai_suspect: false,
           ai_suspect_reason: null,
         })
-        .eq('id', existingSub.id)
-        .select().single()
       if (error) throw error
       // Nộp file mới → xóa file cũ trên Cloudinary cho đỡ tốn dung lượng
       if (file && oldUrl && oldUrl !== fileUrl) deleteFile(oldUrl)
@@ -1174,7 +1167,7 @@ export default function LessonPage() {
       let fileUrl = null
       if (file) fileUrl = await uploadFile(file)
       const luc = new Date().toISOString()
-      const { data: subInserted, error } = await supabase.from('lesson_submissions').insert({
+      const { data: subInserted, error } = await nopBaiMoi({
         user_id: user.id,
         lesson_id: id,
         file_url: fileUrl,

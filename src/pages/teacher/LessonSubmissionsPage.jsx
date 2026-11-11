@@ -13,6 +13,8 @@ import { MUC, CAC_MUC, mucCua, mucTuDiem, DIEM_DAI_DIEN } from '../../utils/muc'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { parseTasks } from '../../domain/baiThucHanh'
+import { layBaiNopCuaLop, layDauVetBaiNop, capNhatBaiNop } from '../../data/baiNop'
+import { capNhatTuKetQuaAi } from '../../domain/chamBai'
 
 // Nút chọn mức T/H/C — từ 29/10/2026 giáo viên đánh giá theo mức, không nhập điểm
 function ChonMuc({ value, onChange }) {
@@ -166,7 +168,7 @@ export default function LessonSubmissionsPage() {
       const userIds = studentIdsRef.current
       const [{ data: progData }, { data: subData }] = await Promise.all([
         supabase.from('lesson_progress').select('*').eq('lesson_id', id).in('user_id', userIds),
-        supabase.from('lesson_submissions').select('*').eq('lesson_id', id).in('user_id', userIds),
+        layBaiNopCuaLop(id, userIds),
       ])
       if (!progData || !subData) return   // lỗi mạng — giữ dữ liệu cũ, lần sau thử lại
       const pm = {}; progData.forEach(p => { pm[p.user_id] = p })
@@ -187,7 +189,7 @@ export default function LessonSubmissionsPage() {
       const userIds = studentIdsRef.current
       const [{ data: p }, { data: s }] = await Promise.all([
         supabase.from('lesson_progress').select('id, updated_at').eq('lesson_id', id).in('user_id', userIds),
-        supabase.from('lesson_submissions').select('id, submitted_at, score, muc, graded_by, reviewed_at, ai_graded_at, allow_resubmit').eq('lesson_id', id).in('user_id', userIds),
+        layDauVetBaiNop(id, userIds),
       ])
       if (!p || !s) return
       const moi = JSON.stringify([p.map(x => x.id + x.updated_at).sort(), s.map(x => Object.values(x).join('|')).sort()])
@@ -237,7 +239,7 @@ export default function LessonSubmissionsPage() {
     if (userIds.length > 0) {
       const [{ data: progData }, { data: subData }] = await Promise.all([
         supabase.from('lesson_progress').select('*').eq('lesson_id', id).in('user_id', userIds),
-        supabase.from('lesson_submissions').select('*').eq('lesson_id', id).in('user_id', userIds),
+        layBaiNopCuaLop(id, userIds),
       ])
       const pm = {}; (progData || []).forEach(p => { pm[p.user_id] = p })
       const sm = {}
@@ -267,7 +269,7 @@ export default function LessonSubmissionsPage() {
       ...(sub.graded_by === 'ai' && sub.ai_score == null && sub.score != null && { ai_score: sub.score }),
       ...(awardSticker && { sticker_awarded: true }),
     }
-    const { error } = await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
+    const { error } = await capNhatBaiNop(sub.id, updates)
     setTaskSaving(prev => ({ ...prev, [sub.id]: false }))
     if (error) { toast.error('Lưu thất bại: ' + error.message); return }
 
@@ -295,9 +297,7 @@ export default function LessonSubmissionsPage() {
     const theStudent = student || selected?.student
     if (!theStudent) return
     const isAllow = !sub.allow_resubmit
-    const { error } = await supabase.from('lesson_submissions')
-      .update({ allow_resubmit: isAllow })
-      .eq('id', sub.id)
+    const { error } = await capNhatBaiNop(sub.id, { allow_resubmit: isAllow })
     if (error) { toast.error('Thất bại: ' + error.message); return }
     toast.success(isAllow ? `Đã cho phép ${theStudent.full_name} nộp lại` : 'Đã hủy cho phép nộp lại')
     const updates = { allow_resubmit: isAllow }
@@ -317,17 +317,17 @@ export default function LessonSubmissionsPage() {
     const taskSubs = taskDefs.map((_, i) => subs.find(s => (s.content_json?.task_index ?? 0) === i) || null)
     const { results } = await gradeStudent(taskSubs, taskDefs)
     const now = new Date().toISOString()
-    for (const { taskIndex, score, comment, breakdown, ai_suspect, ai_suspect_reason } of results) {
-      const sub = taskSubs[taskIndex]
+    for (const kq of results) {
+      const sub = taskSubs[kq.taskIndex]
       if (!sub) continue
-      const updates = { score, ai_score: score, teacher_comment: comment, graded_by: 'ai', ai_graded_at: now, ai_breakdown: breakdown || null, ai_suspect: !!ai_suspect, ai_suspect_reason: ai_suspect_reason || null }
-      await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
+      const updates = capNhatTuKetQuaAi(kq, now)
+      await capNhatBaiNop(sub.id, updates)
       setSubmissionMap(prev => ({
         ...prev,
         [student.id]: (prev[student.id] || []).map(s => s.id === sub.id ? { ...s, ...updates } : s),
       }))
-      setTaskScores(prev => ({ ...prev, [sub.id]: mucTuDiem(score) || '' }))
-      setTaskComments(prev => ({ ...prev, [sub.id]: comment }))
+      setTaskScores(prev => ({ ...prev, [sub.id]: mucTuDiem(kq.score) || '' }))
+      setTaskComments(prev => ({ ...prev, [sub.id]: kq.comment }))
     }
   }
 
@@ -369,7 +369,7 @@ export default function LessonSubmissionsPage() {
     const muc = mucCua(sub)
     const awardSticker = !sub.sticker_awarded && muc != null
     const updates = { reviewed_at: new Date().toISOString(), muc, ...(awardSticker && { sticker_awarded: true }) }
-    await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
+    await capNhatBaiNop(sub.id, updates)
     setSubmissionMap(prev => ({
       ...prev,
       [student.id]: (prev[student.id] || []).map(s => s.id === sub.id ? { ...s, ...updates } : s),
@@ -392,7 +392,7 @@ export default function LessonSubmissionsPage() {
     setApprovingAll(true)
     await Promise.all(toApprove.map(({ sub }) => {
       const upd = { reviewed_at: now, muc: mucCua(sub), ...(!sub.sticker_awarded && sub.score != null && { sticker_awarded: true }) }
-      return supabase.from('lesson_submissions').update(upd).eq('id', sub.id)
+      return capNhatBaiNop(sub.id, upd)
     }))
     setSubmissionMap(prev => {
       const next = { ...prev }

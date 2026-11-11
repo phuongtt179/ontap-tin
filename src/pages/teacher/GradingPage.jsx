@@ -12,8 +12,8 @@ import { aiChamNhap, luuDanhGia } from '../../utils/danhGia'
 import { parseTasks } from '../../domain/baiThucHanh'
 import { nhomBaiTheoChuDe } from '../../domain/thuTuBaiHoc'
 import { layBaiThucHanhTheoKhoa } from '../../data/baiHoc'
+import { layBaiNopDeChamTheoBai, layBaiNopDeChamTheoHs } from '../../data/baiNop'
 
-const COT = 'id,user_id,lesson_id,file_url,file_name,text_content,content_json,submitted_at,score,ai_score,muc,teacher_comment,graded_by,reviewed_at,ai_breakdown,ai_suspect,ai_suspect_reason,sticker_awarded,allow_resubmit,ra_soat'
 const lsGet = k => { try { return localStorage.getItem(k) || '' } catch { return '' } }
 const lsSet = (k, v) => { try { localStorage.setItem(k, v) } catch { /* trình duyệt chặn */ } }
 const SEL = 'border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300'
@@ -174,11 +174,11 @@ export default function GradingPage() {
     setSubs(null)
     if (cach === 'bai') {
       if (!baiId || !hss.length) { setSubs(baiId ? [] : null); return }
-      supabase.from('lesson_submissions').select(COT).eq('lesson_id', baiId).in('user_id', hss.map(h => h.id))
+      layBaiNopDeChamTheoBai(baiId, hss.map(h => h.id))
         .then(({ data, error }) => { if (error) toast.error('Không tải được bài nộp'); setSubs(data || []) })
     } else {
       if (!hsId) return
-      supabase.from('lesson_submissions').select(COT).eq('user_id', hsId).order('submitted_at', { ascending: false }).limit(100)
+      layBaiNopDeChamTheoHs(hsId)
         .then(async ({ data, error }) => {
           if (error) toast.error('Không tải được bài nộp')
           const thieu = [...new Set((data || []).map(s => s.lesson_id))].filter(id => !lessonMap[id])

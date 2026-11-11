@@ -5,6 +5,8 @@ import { gradeStudent } from '../../../utils/aiGrader'
 import toast from 'react-hot-toast'
 import { Loader2, Play, Square } from 'lucide-react'
 import { parseTasks } from '../../../domain/baiThucHanh'
+import { demBaiChuaCham, layBaiChuaCham, layBaiChuaChamDeCham, capNhatBaiNop } from '../../../data/baiNop'
+import { capNhatTuKetQuaAi } from '../../../domain/chamBai'
 
 // Đề rỗng (hoặc chỉ là "[]") → AI không có gì để đối chiếu, từng cho 10 điểm cho bài gõ "1" → bỏ qua
 const isEmptyTask = t => !t || t.optional || !String(t.instructions || '').trim() || String(t.instructions).trim() === '[]'
@@ -27,22 +29,14 @@ export default function BackfillTab({ onChanged, loc = {} }) {
   const [lamMoi, setLamMoi] = useState(0)
   const stopRef = useRef(false)
 
-  function baseQuery(q) {
-    q = q.is('score', null).is('graded_by', null).is('reviewed_at', null)
-    if (loc.grade) q = q.eq('lessons.grade', loc.grade)
-    if (loc.hsLop) q = q.in('user_id', loc.hsLop.length ? loc.hsLop : ['00000000-0000-0000-0000-000000000000'])
-    const d = SINCE[since].date()
-    return d ? q.gte('submitted_at', d) : q
-  }
+  const dieuKien = () => ({ grade: loc.grade, userIds: loc.hsLop, tuNgay: SINCE[since].date() })
 
   useEffect(() => {
     if (loc.lop && !loc.hsLop) return
     setCount(null)
-    baseQuery(supabase.from('lesson_submissions').select('id, lessons!inner(grade)', { count: 'exact', head: true }))
-      .then(({ count }) => setCount(count ?? 0))
+    demBaiChuaCham(dieuKien()).then(({ count }) => setCount(count ?? 0))
     setDs(null)
-    baseQuery(supabase.from('lesson_submissions').select('id, user_id, lesson_id, submitted_at, content_json, lessons!inner(title, grade)'))
-      .order('submitted_at', { ascending: false }).limit(200)
+    layBaiChuaCham(dieuKien())
       .then(async ({ data }) => {
         const rows = data || []
         const { data: profs } = rows.length
@@ -59,10 +53,7 @@ export default function BackfillTab({ onChanged, loc = {} }) {
   async function run() {
     stopRef.current = false
     setRunning(true); setLog([])
-    const { data: pool, error } = await baseQuery(
-      supabase.from('lesson_submissions')
-        .select('id, user_id, lesson_id, file_url, file_name, text_content, content_json, submitted_at, lessons!inner(title, grade, practice_instructions)')
-    ).order('submitted_at', { ascending: false }).limit(Math.min(batch * 5, 500))
+    const { data: pool, error } = await layBaiChuaChamDeCham(dieuKien(), Math.min(batch * 5, 500))
     if (error) { toast.error('Không tải được danh sách bài'); setRunning(false); return }
     // lesson_submissions không có khoá ngoại sang profiles → lấy tên học sinh riêng
     const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', [...new Set(pool.map(s => s.user_id))])
@@ -86,12 +77,7 @@ export default function BackfillTab({ onChanged, loc = {} }) {
         const { results } = await gradeStudent([sub], [taskDef])
         const r = results?.[0]
         if (!r) throw new Error('AI không trả kết quả')
-        const updates = {
-          score: r.score, ai_score: r.score, teacher_comment: r.comment, graded_by: 'ai',
-          ai_graded_at: new Date().toISOString(), ai_breakdown: r.breakdown || null,
-          ai_suspect: !!r.ai_suspect, ai_suspect_reason: r.ai_suspect_reason || null,
-        }
-        const { error: upErr } = await supabase.from('lesson_submissions').update(updates).eq('id', sub.id)
+        const { error: upErr } = await capNhatBaiNop(sub.id, capNhatTuKetQuaAi(r))
         if (upErr) throw upErr
         ok++
         addLog({ who, state: 'ok', msg: `${r.score} điểm` })

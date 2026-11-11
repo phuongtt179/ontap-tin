@@ -5,6 +5,7 @@
 import { gradeTasks } from './_gradeCore.js'
 import { prepareTasks } from '../src/utils/gradePrep.js'
 import { parseTasks } from '../src/domain/baiThucHanh.js'
+import { capNhatTuKetQuaAi } from '../src/domain/chamBai.js'
 
 export const config = { maxDuration: 60 }
 
@@ -68,11 +69,7 @@ export default async function handler(req, res) {
       // Chỉ ghi khi bài vẫn chưa ai chấm (giáo viên/trình duyệt có thể đã chấm trong lúc chờ)
       await db(`lesson_submissions?id=eq.${sub.id}&score=is.null&graded_by=is.null`, {
         method: 'PATCH',
-        body: JSON.stringify({
-          score: result.score, ai_score: result.score, teacher_comment: result.comment, graded_by: 'ai',
-          ai_graded_at: new Date().toISOString(), ai_breakdown: result.breakdown || null,
-          ai_suspect: !!result.ai_suspect, ai_suspect_reason: result.ai_suspect_reason || null,
-        }),
+        body: JSON.stringify(capNhatTuKetQuaAi(result)),
       })
       out.graded++
     } catch (e) {
