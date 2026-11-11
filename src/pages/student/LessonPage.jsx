@@ -5,28 +5,24 @@ import { supabase } from '../../lib/supabase'
 import { layCauHoiTheoIds } from '../../data/cauHoi'
 import { layLopCuaEm } from '../../data/ghiDanh'
 import { buildWeaknessProfile } from '../../utils/weakness'
-import { STUDENT_AI_DIRECT, feedbackVisible } from '../../lib/aiMode'
+import { STUDENT_AI_DIRECT } from '../../lib/aiMode'
 import toast from 'react-hot-toast'
-import { ArrowLeft, CheckCircle, PlayCircle, BookOpen, Upload, Loader2, Send, FileText, File, Lock, Lightbulb, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
-import { uploadFile, deleteFile } from '../../lib/cloudinary'
+import { ArrowLeft, CheckCircle, PlayCircle, BookOpen, Upload, FileText, Lock, Lightbulb, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import MarkdownContent from '../../components/ui/MarkdownContent'
 import StickerModal from '../../components/student/StickerModal'
 import RewardModal from '../../components/student/RewardModal'
 import { updateStreak } from '../../utils/updateStreak'
 import { NGUONG_DOI_QUA_MAC_DINH } from '../../domain/sticker'
-import { gradeStudent } from '../../utils/aiGrader'
 import PDFViewer from '../../components/ui/PDFViewer'
 import AskTutorModal from '../../components/student/AskTutorModal'
-import PyTestStatus from '../../components/student/PyTestStatus'
-import RaSoatLoi from '../../components/student/RaSoatLoi'
-import { MUC, mucCua } from '../../utils/muc'
 import { topicKeyOf } from '../../utils/lessonSteps'
 import { parseTasks } from '../../domain/baiThucHanh'
 import { trangThaiBuoc } from '../../domain/tienDoBaiHoc'
-import { layBaiNopCuaEm, layTieuChiGanDay, layTrangThaiCham, layBaiNopTheoIds, nopBaiMoi, nopLaiBai, capNhatBaiNop } from '../../data/baiNop'
-import { capNhatTuKetQuaAi } from '../../domain/chamBai'
+import { layTieuChiGanDay } from '../../data/baiNop'
 import { layBaiHocTheoId, layDanhSachBai } from '../../data/baiHoc'
-import { FileIcon, SubmittedFile } from '../../components/student/baiHoc/TepDaNop'
+import BanDoBaiThucHanh from '../../components/student/baiHoc/BanDoBaiThucHanh'
+import ChiTietBaiThucHanh from '../../components/student/baiHoc/ChiTietBaiThucHanh'
+import { useBaiThucHanh } from '../../hooks/useBaiThucHanh'
 import { LessonQuiz } from '../../components/student/baiHoc/LessonQuiz'
 import { DoneChip, ActionButton, SectionCard } from '../../components/student/baiHoc/KhungMuc'
 // Bài giảng web (trình chiếu) – tải khi bài có bài giảng web
@@ -42,24 +38,16 @@ function getEmbedUrl(url) {
   return null
 }
 
-// tự luận không chấm tự động → coi như đúng để học sinh đi tiếp
 /* ── LessonPage ────────────────────────────────────────────── */
 export default function LessonPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user, profile } = useAuth()
+    const { user } = useAuth()
+
 
   const [lesson, setLesson] = useState(null)
   const [questions, setQuestions] = useState([])
   const [progress, setProgress] = useState(null)
-  const [taskSubmissions, setTaskSubmissions] = useState([])   // submission|null per task
-  const [taskFiles, setTaskFiles] = useState([])               // File|null per task
-  const [taskNotes, setTaskNotes] = useState([])               // string per task
-  const [raSoatTruoc, setRaSoatTruoc] = useState({})            // kết quả rà soát TRƯỚC khi nộp của file đang chọn, theo ô bài
-  const [taskSubmitting, setTaskSubmitting] = useState(null)   // task index being submitted
-  const [resubmitTask, setResubmitTask] = useState(null)       // task index in resubmit mode
-  const [aiGradingTask, setAiGradingTask] = useState(null)     // task index being AI graded
-  const [activeTaskIdx, setActiveTaskIdx] = useState(null)     // task popup index
   const [loading, setLoading] = useState(true)
   const [quizActive, setQuizActive] = useState(false)
   const [quizInitIdx, setQuizInitIdx] = useState(0)
@@ -79,11 +67,8 @@ export default function LessonPage() {
   const [courseRoadmap, setCourseRoadmap] = useState('')   // lộ trình khóa (cho AI trả lời câu hỏi chương trình)
   const wasCompleted = useRef(false)
   const [pptxMarking, setPptxMarking] = useState(false)
-  const [webSlides, setWebSlides] = useState(null)   // bài giảng web (lesson_slides) – có thì hiện thay PPTX
+    const [webSlides, setWebSlides] = useState(null)   // bài giảng web (lesson_slides) – có thì hiện thay PPTX
 
-  useEffect(() => {
-    if (user) loadAll()
-  }, [id, user?.id])
 
   async function loadAll() {
     setLoading(true)
@@ -188,23 +173,16 @@ export default function LessonPage() {
       setQuestions(qData || [])
     }
 
-    // 3. Fetch progress
+        // 3. Fetch progress
     const { data: progData } = await supabase.from('lesson_progress')
       .select('*').eq('user_id', user.id).eq('lesson_id', id).maybeSingle()
     setProgress(progData || null)
-    wasCompleted.current = !!progData?.completed // đánh dấu để không hiện modal lại
+        wasCompleted.current = !!progData?.completed // đánh dấu để không hiện modal lại
 
-    // 4. Fetch all task submissions
-    const tasks = parseTasks(lessonData.practice_instructions)
-    const { data: subData } = await layBaiNopCuaEm(user.id, id)
-    const subs = Array(tasks.length).fill(null)
-    ;(subData || []).forEach(s => {
-      const tidx = s.content_json?.task_index ?? 0
-      if (tidx >= 0 && tidx < tasks.length) subs[tidx] = s
-    })
-    setTaskSubmissions(subs)
-    setTaskFiles(Array(tasks.length).fill(null))
-    setTaskNotes(Array(tasks.length).fill(''))
+    // 4. Bài nộp thực hành của em
+    await th.napBaiNop(lessonData)
+
+
 
     setLoading(false)
   }
@@ -285,75 +263,6 @@ export default function LessonPage() {
     setQuizActive(true)
   }
 
-  async function triggerAiGrade(sub, taskIdx, { retry = true } = {}) {
-    // Mặc định học sinh không kích hoạt AI: bài chờ giáo viên chấm (có AI hỗ trợ) và duyệt
-    if (!sub || !STUDENT_AI_DIRECT) return
-    // Cooldown: không chấm lại nếu AI vừa chấm trong 5 phút
-    if (sub.ai_graded_at) {
-      const elapsed = Date.now() - new Date(sub.ai_graded_at).getTime()
-      if (elapsed < 5 * 60 * 1000) return
-    }
-    const taskDefs = parseTasks(lesson?.practice_instructions)
-    const taskDef = taskDefs[taskIdx]
-    if (!taskDef) return
-    // Jitter ngẫu nhiên 1–4s để cả lớp không gửi cùng lúc (trước đây 2–15s: học sinh hay rời trang trước khi kịp chấm)
-    await new Promise(r => setTimeout(r, 1000 + Math.random() * 3000))
-    setAiGradingTask(taskIdx)
-    try {
-      const { results } = await gradeStudent([sub], [taskDef])
-      const result = results[0]
-      if (!result) return
-      const updates = capNhatTuKetQuaAi(result)
-      await capNhatBaiNop(sub.id, updates)
-      setTaskSubmissions(prev => { const next = [...prev]; next[taskIdx] = { ...sub, ...updates }; return next })
-    } catch (err) {
-      // Lỗi tạm thời (mạng, AI quá tải theo phút) → thử lại 1 lần sau 20 giây; hết lượt cả ngày thì thôi,
-      // lần sau học sinh mở lại bài sẽ được chấm bù (xem effect "chấm bù" bên dưới)
-      if (retry && err?.quotaType !== 'quota_rpd') {
-        setAiGradingTask(null)
-        await new Promise(r => setTimeout(r, 20000))
-        return triggerAiGrade(sub, taskIdx, { retry: false })
-      }
-    }
-    finally { setAiGradingTask(null) }
-  }
-
-  // Chấm bù: bài đã nộp mà AI chưa chấm (học sinh rời trang trước khi kịp chấm, hoặc AI lỗi lúc đó)
-  // → khi học sinh mở lại bài học thì chấm lần lượt từng bài. Mỗi lần mở trang chỉ chạy 1 lượt.
-  // Bài đã nộp mà học sinh chưa thấy nhận xét (chờ giáo viên duyệt / máy chủ chấm bù): khi trang đang mở thì
-  // định kỳ hỏi lại để nhận xét tự hiện ngay khi có, học sinh không phải tải lại trang.
-  // Chỉ hỏi các cột trạng thái (nhẹ); bài nào đã hiện được nhận xét mới tải đầy đủ. Dừng sau 30 phút
-  // (chờ giáo viên duyệt có thể mất cả ngày — hỏi mãi làm máy chủ nano quá tải).
-  useEffect(() => {
-    const choIds = taskSubmissions.filter(s => s && !feedbackVisible(s)).map(s => s.id)
-    if (!choIds.length) return
-    const batDau = Date.now()
-    const t = setInterval(async () => {
-      if (Date.now() - batDau > 30 * 60000) { clearInterval(t); return }
-      if (document.hidden) return
-      const { data } = await layTrangThaiCham(choIds)
-      const xongIds = (data || []).filter(feedbackVisible).map(r => r.id)
-      if (!xongIds.length) return
-      const { data: moi } = await layBaiNopTheoIds(xongIds)
-      if (moi?.length) setTaskSubmissions(prev => prev.map(s => (s && moi.find(r => r.id === s.id)) || s))
-    }, STUDENT_AI_DIRECT ? 20000 : 180000)
-    return () => clearInterval(t)
-  }, [taskSubmissions])
-
-  const catchupDone = useRef(false)
-  useEffect(() => {
-    if (loading || !lesson || catchupDone.current || !STUDENT_AI_DIRECT) return
-    const pending = taskSubmissions
-      .map((sub, i) => ({ sub, i }))
-      .filter(({ sub }) => sub && sub.score == null && !sub.graded_by && !sub.ai_graded_at
-        && Date.now() - new Date(sub.submitted_at).getTime() > 60 * 1000)
-    if (!pending.length) return
-    catchupDone.current = true
-    ;(async () => {
-      for (const { sub, i } of pending) await triggerAiGrade(sub, i, { retry: false })
-    })()
-  }, [loading, lesson, taskSubmissions]) // eslint-disable-line react-hooks/exhaustive-deps
-
   async function handleQuizSubmit({ correct, total, passed }) {
     // Đã đạt rồi thì giữ "đạt" (làm lại ở tab khác mà trượt cũng không mất trạng thái đạt)
     const keepPassed = passed || !!progress?.quiz_passed
@@ -367,110 +276,12 @@ export default function LessonPage() {
     }
   }
 
-  async function handleTaskResubmit(taskIdx) {
-    const file = taskFiles[taskIdx]
-    const note = taskNotes[taskIdx] || ''
-    const existingSub = taskSubmissions[taskIdx]
-    // Bắt buộc phải có file (mới chọn hoặc file cũ đã nộp) — ghi chú không thay thế được
-    // file, tránh nộp bài trống/không liên quan tới đề mà vẫn được AI chấm điểm.
-    if (!file && !existingSub?.file_url) {
-      toast.error('Vui lòng chọn file để nộp bài')
-      return
-    }
-    setTaskSubmitting(taskIdx)
-    try {
-      const oldUrl = existingSub?.file_url ?? null
-      let fileUrl = oldUrl
-      if (file) fileUrl = await uploadFile(file)
-      const luc = new Date().toISOString()
-      const { data: updated, error } = await nopLaiBai(existingSub.id, {
-          file_url: fileUrl,
-          file_name: file ? file.name : (existingSub?.file_name ?? null),
-          text_content: note.trim() || null,
-          submitted_at: luc,
-          // Lần rà soát trước khi nộp (nếu em đã rà soát file này) → thầy cô thấy ở trang Chấm bài
-          ra_soat: file && raSoatTruoc[taskIdx] ? { ...raSoatTruoc[taskIdx], phien: luc } : null,
-          allow_resubmit: false,
-          reviewed_at: null,
-          score: null,
-          muc: null,
-          teacher_comment: null,
-          graded_by: null,
-          ai_graded_at: null,
-          // Bảng tiêu chí / cờ nghi của AI thuộc bản nộp cũ (ai_score học sinh không ghi được, trang Chấm bài tự bỏ qua)
-          ai_breakdown: null,
-          ai_suspect: false,
-          ai_suspect_reason: null,
-        })
-      if (error) throw error
-      // Nộp file mới → xóa file cũ trên Cloudinary cho đỡ tốn dung lượng
-      if (file && oldUrl && oldUrl !== fileUrl) deleteFile(oldUrl)
-      const newSubs = [...taskSubmissions]; newSubs[taskIdx] = updated; setTaskSubmissions(newSubs)
-      setResubmitTask(null)
-      triggerAiGrade(updated, taskIdx)
-      const nf = [...taskFiles]; nf[taskIdx] = null; setTaskFiles(nf)
-      const nn = [...taskNotes]; nn[taskIdx] = ''; setTaskNotes(nn)
-      toast.success(`Đã cập nhật bài ${taskIdx + 1}`)
-    } catch (err) {
-      toast.error('Nộp lại thất bại: ' + err.message)
-    } finally {
-      setTaskSubmitting(null)
-    }
-  }
+  // phần thực hành: nộp / nộp lại / chờ nhận xét — src/hooks/useBaiThucHanh.js
+  const th = useBaiThucHanh({ id, user, lesson, loading, upsertProgress, recordActivity, taiLai: loadAll })
 
-  async function handleTaskSubmit(taskIdx) {
-    const file = taskFiles[taskIdx]
-    const note = taskNotes[taskIdx] || ''
-    // Bắt buộc phải có file — ghi chú chỉ là phần thêm, không thay thế được file, tránh
-    // nộp bài trống/không liên quan tới đề mà vẫn được AI chấm điểm.
-    if (!file) {
-      toast.error('Vui lòng chọn file để nộp bài')
-      return
-    }
-    setTaskSubmitting(taskIdx)
-    try {
-      let fileUrl = null
-      if (file) fileUrl = await uploadFile(file)
-      const luc = new Date().toISOString()
-      const { data: subInserted, error } = await nopBaiMoi({
-        user_id: user.id,
-        lesson_id: id,
-        file_url: fileUrl,
-        file_name: file ? file.name : null,
-        text_content: note.trim() || null,
-        content_json: { task_index: taskIdx },
-        submitted_at: luc,
-        // Lần rà soát trước khi nộp (nếu có) → thầy cô thấy "em đã rà soát n lần" ở trang Chấm bài
-        ...(raSoatTruoc[taskIdx] && { ra_soat: { ...raSoatTruoc[taskIdx], phien: luc } }),
-      }).select().single()
-      if (error) {
-        // Máy chủ chặn nộp trùng (thường do đã nộp ở tab khác) → tải lại để thấy bài đã nộp và nút "Nộp lại"
-        if (error.code === '23505' || /duplicate_submission/.test(error.message || '')) {
-          toast.error('Bài này em đã nộp rồi (có thể ở tab khác). Muốn đổi bài thì bấm "Nộp lại" nhé.')
-          if (fileUrl) deleteFile(fileUrl)
-          loadAll()
-          return
-        }
-        throw error
-      }
-      const newSubs = [...taskSubmissions]
-      newSubs[taskIdx] = subInserted
-      setTaskSubmissions(newSubs)
-      // Bài đọc thêm (optional) không cần nộp — đủ các bài bắt buộc là tính đã nộp thực hành
-      const tasksNow = parseTasks(lesson?.practice_instructions)
-      if (newSubs.every((s, k) => s !== null || tasksNow[k]?.optional)) {
-        await upsertProgress({ practice_submitted: true })
-      }
-      // Từ 07/11/2026 không thưởng sticker khi nộp (học sinh nộp file bừa để lấy sticker) — chỉ thưởng khi thầy cô duyệt
-      toast.success(`Đã nộp bài thực hành ${taskIdx + 1}! 📝 Thầy cô duyệt xong em sẽ nhận sticker theo mức.`)
-      recordActivity()
-      triggerAiGrade(subInserted, taskIdx)
-    } catch (err) {
-      toast.error('Nộp bài thất bại: ' + err.message)
-    } finally {
-      setTaskSubmitting(null)
-    }
-  }
+  useEffect(() => {
+    if (user) loadAll()
+  }, [id, user?.id])
 
   if (loading) {
     return (
@@ -508,7 +319,7 @@ export default function LessonPage() {
   const practiceTasks = parseTasks(lesson.practice_instructions)
   // Chỉ đếm bài bắt buộc (bài đọc thêm — optional — không cần nộp)
   const requiredCount = practiceTasks.filter(t => !t?.optional).length
-  const submittedCount = taskSubmissions.filter((s, k) => s && !practiceTasks[k]?.optional).length
+  const submittedCount = th.taskSubmissions.filter((s, k) => s && !practiceTasks[k]?.optional).length
 
   const { theory: theoryOk, video: videoOk, pptx: pptxOk, quiz: quizOk, practice: practiceOk } = buoc.xong
   const totalSteps = buoc.tongBuoc, doneSteps = buoc.soBuocXong
@@ -767,351 +578,26 @@ export default function LessonPage() {
               : hasPptx ? 'Xem bài giảng trước để mở khóa'
               : 'Xem video trước để mở khóa'}>
             <div className="space-y-4">
-              {/* ── Task grid ── */}
-              {(() => {
-                const palette = [
-                  { from: '#6366f1', to: '#8b5cf6' },
-                  { from: '#0ea5e9', to: '#06b6d4' },
-                  { from: '#f97316', to: '#f59e0b' },
-                  { from: '#10b981', to: '#14b8a6' },
-                  { from: '#ec4899', to: '#f43f5e' },
-                ]
-                return (
-                  <>
-                    {/* ── Node map: 3 bài/dòng trên mobile, 6 trên desktop; ẩn trên desktop khi đã chọn 1 bài ── */}
-                    <div className={activeTaskIdx !== null ? 'md:hidden' : ''}>
-                    {(() => {
-                      // Khung này thường chỉ chiếm nửa màn hình nên bớt số bài/hàng lại; khi ẩn cột
-                      // trái (khung bung full-width) thì cho nhiều bài/hàng hơn để đỡ phí chỗ.
-                      const TASKS_PER_ROW = window.innerWidth < 768 ? 3
-                        : leftPanelHidden ? 6
-                        : window.innerWidth < 1400 ? 3 : 4
-                      const nodeIcons = ['⚡','🎯','🔥','⭐','🚀']
-                      const rows = []
-                      for (let r = 0; r < practiceTasks.length; r += TASKS_PER_ROW)
-                        rows.push(practiceTasks.slice(r, r + TASKS_PER_ROW))
-                      return (
-                        <div className="py-4 px-2 space-y-6">
-                          {rows.map((row, rowIdx) => (
-                            <div key={rowIdx} className="flex items-end justify-center gap-0">
-                              {row.map((task, colIdx) => {
-                                const i = rowIdx * TASKS_PER_ROW + colIdx
-                                const sub = taskSubmissions[i]
-                                const p = palette[i % palette.length]
-                                const canSee = feedbackVisible(sub)
-                                const hasScore = canSee && sub?.score != null
-                                const hasComment = canSee && !!sub?.teacher_comment
-                                return (
-                                  <div key={i} className="flex items-center">
-                                    <div className="flex flex-col items-center gap-2" style={{ minWidth: window.innerWidth < 768 ? 70 : 88 }}>
-                                      {/* Badge */}
-                                      <div className={`text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 shadow-sm whitespace-nowrap
-                                        ${sub
-                                          ? hasScore ? 'bg-indigo-600 text-white' : 'bg-green-500 text-white'
-                                          : 'bg-orange-500 text-white'}`}
-                                        style={!sub ? { animation: 'indicator-bounce 1.4s ease-in-out infinite' } : {}}>
-                                        {sub ? (hasScore && mucCua(sub) ? `⭐ Mức ${mucCua(sub)}` : '✅ Đã nộp') : task?.optional ? '📖 Đọc thêm' : '▶ Làm bài!'}
-                                      </div>
-                                      {/* Circle */}
-                                      <button onClick={() => setActiveTaskIdx(i)}
-                                        className="relative w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl shadow-lg transition-all hover:scale-110 active:scale-95 overflow-hidden"
-                                        style={{
-                                          background: sub ? 'linear-gradient(135deg, #16a34a, #059669)' : `linear-gradient(135deg, ${p.from}, ${p.to})`,
-                                          animation: !sub ? 'node-breathe 2s ease-in-out infinite' : undefined,
-                                        }}>
-                                        {!sub && (
-                                          <div className="absolute inset-0 pointer-events-none"
-                                            style={{ background: 'linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.42) 50%, transparent 65%)', animation: 'node-shimmer 2.4s ease-in-out infinite' }} />
-                                        )}
-                                        {sub ? '✓' : nodeIcons[i % nodeIcons.length]}
-                                      </button>
-                                      {/* Label */}
-                                      <span className="text-xs font-bold text-gray-600 text-center leading-tight">Bài {i + 1}</span>
-                                      {hasComment && <span className="text-[9px] text-indigo-500 font-bold">💬 Có nhận xét</span>}
-                                    </div>
-                                    {/* Connector — chỉ trong cùng dòng */}
-                                    {colIdx < row.length - 1 && (
-                                      <div className="h-1 rounded-full shrink-0 mb-8" style={{
-                                        width: 28,
-                                        background: sub ? 'linear-gradient(90deg, #4ade80, #86efac)' : '#e5e7eb'
-                                      }} />
-                                    )}
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          ))}
-                        </div>
-                      )
-                    })()}
-                    </div>
-
-                    {/* ── Chi tiết bài đã chọn: hộp thoại nổi trên mobile, hiện ngay tại chỗ trên desktop ── */}
-                    {activeTaskIdx !== null && (() => {
-                      const i = activeTaskIdx
-                      const task = practiceTasks[i]
-                      const sub = taskSubmissions[i]
-                      const file = taskFiles[i]
-                      const note = taskNotes[i] || ''
-                      const isSubmitting = taskSubmitting === i
-                      const isResubmitting = resubmitTask === i
-                      const p = palette[i % palette.length]
-                      const lightBg = ['#f5f3ff','#f0f9ff','#fff7ed','#f0fdf4','#fdf2f8'][i % 5]
-                      const borderCol = ['#c4b5fd','#7dd3fc','#fdba74','#6ee7b7','#f9a8d4'][i % 5]
-                      const textCol = ['#7c3aed','#0369a1','#c2410c','#047857','#be185d'][i % 5]
-
-                      function closeModal() {
-                        setActiveTaskIdx(null)
-                        if (resubmitTask === i) {
-                          setResubmitTask(null)
-                          const nf = [...taskFiles]; nf[i] = null; setTaskFiles(nf)
-                          const nn = [...taskNotes]; nn[i] = ''; setTaskNotes(nn)
-                        }
-                      }
-
-                      const header = (
-                        <div className="px-5 py-4 flex items-center gap-3 shrink-0"
-                          style={{ background: sub
-                            ? 'linear-gradient(135deg, #d1fae5, #bbf7d0)'
-                            : `linear-gradient(135deg, ${p.from}28, ${p.to}14)` }}>
-                          <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-md shrink-0"
-                            style={{ background: sub
-                              ? 'linear-gradient(135deg, #16a34a, #059669)'
-                              : `linear-gradient(135deg, ${p.from}, ${p.to})` }}>
-                            {sub ? '✓' : i + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-black text-gray-800 text-base">Bài thực hành {i + 1}</p>
-                            <p className="text-xs font-medium mt-0.5 text-gray-500">
-                              {sub ? `✅ Đã nộp · ${new Date(sub.submitted_at).toLocaleDateString('vi-VN')}` : task?.optional ? '📖 Bài đọc thêm — không cần nộp' : '📤 Chưa nộp'}
-                            </p>
-                          </div>
-                          {feedbackVisible(sub) && mucCua(sub) && (
-                            <div className="text-center bg-white/70 rounded-xl px-3 py-1.5 shrink-0" title={MUC[mucCua(sub)].ten}>
-                              <div className="text-2xl font-black" style={{ color: p.from }}>{mucCua(sub)}</div>
-                              <div className="text-[10px] text-gray-500 font-semibold">MỨC</div>
-                            </div>
-                          )}
-                          <button onClick={closeModal}
-                            className="w-8 h-8 rounded-full bg-white/60 hover:bg-white flex items-center justify-center text-gray-500 transition shrink-0">
-                            ✕
-                          </button>
-                        </div>
-                      )
-
-                      const body = (
-                            <div className="overflow-y-auto flex-1 p-5 space-y-4">
-                              {/* Instructions */}
-                              {(task.instructions || task.instruction_file_url) && (
-                                <div className="rounded-2xl p-4 border space-y-3" style={{ background: lightBg, borderColor: borderCol }}>
-                                  <div className="flex items-center gap-1.5 font-bold text-xs" style={{ color: textCol }}>
-                                    📋 Đề bài
-                                  </div>
-                                  {task.instructions && (
-                                    <MarkdownContent text={task.instructions} className="text-gray-800 text-sm" />
-                                  )}
-                                  {task.instruction_file_url && (() => {
-                                    const ext = task.instruction_file_url.split('.').pop().toLowerCase().split('?')[0]
-                                    const isOffice = ['doc','docx','ppt','pptx'].includes(ext)
-                                    const isPdf = ext === 'pdf'
-                                    return isPdf ? (
-                                      <PDFViewer url={task.instruction_file_url} />
-                                    ) : isOffice ? (
-                                      <iframe
-                                        src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(task.instruction_file_url)}`}
-                                        width="100%" height="480" frameBorder="0"
-                                        className="rounded-xl border border-gray-200 block w-full" />
-                                    ) : (
-                                      <a href={task.instruction_file_url} target="_blank" rel="noopener noreferrer"
-                                        className="flex items-center gap-2 text-sm text-indigo-600 hover:underline">
-                                        📄 Tải file đề bài
-                                      </a>
-                                    )
-                                  })()}
-                                </div>
-                              )}
-
-                              {/* Hỏi trợ giảng về bài thực hành này */}
-                              <button onClick={() => openTutor('practice', {
-                                taskInstructions: task.instructions || `Bài thực hành ${i + 1}`,
-                                questionText: `Bài thực hành ${i + 1}`,
-                              })}
-                                className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 py-2 rounded-xl transition">
-                                🙋 Chưa hiểu bài? {STUDENT_AI_DIRECT ? 'Hỏi trợ giảng' : 'Hỏi thầy cô'}
-                              </button>
-
-                              {/* Bài đọc thêm: không có ô nộp bài */}
-                              {task?.optional && !sub ? (
-                                <p className="text-sm text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5 text-center">📖 Đây là bài đọc thêm — em đọc để hiểu thêm, không cần nộp bài.</p>
-                              ) : sub && !isResubmitting ? (
-                                <div className="space-y-3">
-                                  {sub.file_url && <SubmittedFile url={sub.file_url} name={sub.file_name} />}
-                                  {sub.text_content && (
-                                    <div className="bg-gray-50 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-600 whitespace-pre-wrap">
-                                      {sub.text_content}
-                                    </div>
-                                  )}
-                                  {sub.allow_resubmit && (
-                                    <div className="rounded-xl p-3 border border-orange-300 bg-orange-50 flex items-center gap-2">
-                                      <span className="text-lg">📢</span>
-                                      <p className="text-sm text-orange-700 font-semibold">Giáo viên cho phép bạn nộp lại bài này!</p>
-                                    </div>
-                                  )}
-                                  {!feedbackVisible(sub) && <PyTestStatus fileUrl={sub.file_url} task={task} />}
-                                  {!sub.reviewed_at && !task?.optional && (
-                                    <RaSoatLoi sub={sub} task={task} onCapNhat={moi => setTaskSubmissions(prev => prev.map(x => (x && x.id === moi.id ? moi : x)))} />
-                                  )}
-                                  {aiGradingTask === i ? (
-                                    <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2.5 border border-amber-200">
-                                      <Loader2 size={13} className="animate-spin" /> AI đang chấm bài… có thể mất tới 1 phút, em đừng đóng trang nhé
-                                    </div>
-                                  ) : feedbackVisible(sub) ? (
-                                    <div className={`rounded-xl p-4 border ${sub.graded_by === 'ai' ? 'border-amber-200 bg-amber-50' : 'border-indigo-200 bg-indigo-50'}`}>
-                                      <div className="flex items-center justify-between mb-1.5">
-                                        <div className={`text-xs font-bold ${sub.graded_by === 'ai' ? 'text-amber-700' : 'text-indigo-700'}`}>
-                                          {sub.graded_by !== 'ai' ? '💬 Nhận xét của giáo viên' : sub.reviewed_at ? '💬 Nhận xét (thầy cô đã duyệt)' : '🤖 AI nhận xét'}
-                                        </div>
-                                        {mucCua(sub) && <span className={`text-xs font-black px-2 py-1 rounded-lg border ${MUC[mucCua(sub)].cls}`}>
-                                          {mucCua(sub)} · {MUC[mucCua(sub)].ten}
-                                        </span>}
-                                      </div>
-                                      {sub.teacher_comment && (
-                                        <p className="text-sm text-gray-800 leading-relaxed">{sub.teacher_comment}</p>
-                                      )}
-                                      {sub.ai_breakdown?.length > 0 && (
-                                        <div className="mt-3 border-t border-amber-200 pt-3">
-                                          <p className="text-[11px] font-bold text-amber-700 mb-1.5">Các tiêu chí</p>
-                                          <table className="w-full text-xs border-collapse">
-                                            <tbody>
-                                              {sub.ai_breakdown.map((row, ri) => (
-                                                <tr key={ri} className={ri % 2 === 0 ? 'bg-white/60' : ''}>
-                                                  <td className="py-1 pr-2 text-gray-700 leading-snug">{row.criterion}</td>
-                                                  <td className="py-1 text-right shrink-0 whitespace-nowrap font-semibold">
-                                                    <span className={row.earned >= row.max ? 'text-green-600' : 'text-red-500'}>
-                                                      {row.earned >= row.max ? '✓ đạt' : '⚠ chưa đủ'}
-                                                    </span>
-                                                  </td>
-                                                  {row.note && (
-                                                    <td className="py-1 pl-2 text-gray-400 italic leading-snug">{row.note}</td>
-                                                  )}
-                                                </tr>
-                                              ))}
-                                            </tbody>
-                                          </table>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <p className="text-xs text-gray-400 italic text-center py-2">⏳ Thầy cô sẽ xem bài và nhận xét – em quay lại sau nhé (nhận xét tự hiện ở đây)</p>
-                                  )}
-                                  {/* Luôn nộp lại được, kể cả bài đã duyệt — nộp lại thì bài quay về chờ thầy/cô duyệt */}
-                                  <button onClick={() => {
-                                    const nn = [...taskNotes]; nn[i] = sub.text_content || ''; setTaskNotes(nn)
-                                    setResubmitTask(i)
-                                  }} className="w-full py-2.5 rounded-xl border-2 border-orange-300 text-orange-600 font-bold text-sm hover:bg-orange-50 transition">
-                                    🔄 Nộp lại bài này
-                                  </button>
-                                </div>
-                              ) : (
-                                /* Upload form */
-                                <div className="space-y-3">
-                                  {isResubmitting && (
-                                    <div className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-xl px-3 py-2">
-                                      <span className="text-xs text-orange-700 font-semibold">🔄 File cũ sẽ được thay thế</span>
-                                      <button onClick={() => {
-                                        setResubmitTask(null)
-                                        const nf = [...taskFiles]; nf[i] = null; setTaskFiles(nf)
-                                        const nn = [...taskNotes]; nn[i] = ''; setTaskNotes(nn)
-                                      }} className="text-xs text-gray-400 hover:text-gray-600">Hủy</button>
-                                    </div>
-                                  )}
-                                  <label className={`flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-2xl px-4 py-8 cursor-pointer transition-all
-                                    ${file ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-gray-50 hover:bg-gray-100'}`}>
-                                    {file ? (
-                                      <>
-                                        <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center shadow-sm">
-                                          <FileIcon url={file.name} size={28} />
-                                        </div>
-                                        <div className="text-center">
-                                          <p className="text-sm font-bold text-gray-800 break-all max-w-xs">{file.name}</p>
-                                          <p className="text-xs text-gray-400 mt-1">{(file.size / 1024).toFixed(0)} KB · Bấm để đổi</p>
-                                        </div>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center">
-                                          <Upload size={30} className="text-gray-300" />
-                                        </div>
-                                        <div className="text-center">
-                                          <p className="text-sm font-bold text-gray-500">
-                                            {isResubmitting ? 'Chọn file mới' : 'Bấm để chọn file nộp bài'}
-                                          </p>
-                                          <p className="text-xs text-gray-400 mt-1">.pptx · .docx · .pdf · .sb3 · .py · .txt · ảnh</p>
-                                        </div>
-                                      </>
-                                    )}
-                                    <input type="file" className="hidden" accept=".pptx,.docx,.pdf,.sb3,.py,.txt,image/*"
-                                      onChange={e => {
-                                        if (!e.target.files?.[0]) return
-                                        const next = [...taskFiles]; next[i] = e.target.files[0]; setTaskFiles(next)
-                                        setRaSoatTruoc(prev => ({ ...prev, [i]: null }))
-                                      }} />
-                                  </label>
-                                  <textarea
-                                    value={note}
-                                    onChange={e => { const next = [...taskNotes]; next[i] = e.target.value; setTaskNotes(next) }}
-                                    rows={2}
-                                    placeholder="Ghi chú thêm (tuỳ chọn)..."
-                                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none bg-gray-50"
-                                  />
-                                  {/* Tự rà soát TRƯỚC khi nộp: chọn file → rà soát → sửa → thấy ổn mới bấm Nộp */}
-                                  {file && !task?.optional && (
-                                    <RaSoatLoi file={file} note={note} lessonId={id} taskIdx={i} task={task}
-                                      onKetQua={kq => setRaSoatTruoc(prev => ({ ...prev, [i]: kq }))} />
-                                  )}
-                                  <button
-                                    onClick={() => isResubmitting ? handleTaskResubmit(i) : handleTaskSubmit(i)}
-                                    disabled={isSubmitting || (isResubmitting ? !file && !sub?.file_url : !file)}
-                                    className="w-full flex items-center justify-center gap-2 text-white py-3.5 rounded-2xl text-sm font-black shadow-lg transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100"
-                                    style={{ background: isSubmitting ? '#9ca3af' : isResubmitting
-                                      ? 'linear-gradient(135deg, #f97316, #f59e0b)'
-                                      : `linear-gradient(135deg, ${p.from}, ${p.to})` }}>
-                                    {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                                    {isSubmitting ? 'Đang nộp...' : isResubmitting ? `Cập nhật bài ${i + 1}` : `Nộp bài ${i + 1} 🚀`}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                      )
-
-                      return (
-                        <>
-                          {/* Desktop: hiện ngay tại chỗ, không hộp thoại nổi */}
-                          <div className="hidden md:flex md:flex-col md:bg-white md:rounded-2xl md:border md:border-gray-100 md:shadow-sm md:overflow-hidden">
-                            <button onClick={closeModal}
-                              className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-700 px-4 pt-3 pb-1 shrink-0">
-                              ← Quay lại danh sách
-                            </button>
-                            {header}
-                            {body}
-                          </div>
-
-                          {/* Mobile: hộp thoại nổi như cũ */}
-                          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 md:hidden"
-                            onClick={closeModal}>
-                            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-                            <div className="relative w-full sm:max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
-                              onClick={e => e.stopPropagation()}>
-                              {header}
-                              {body}
-                            </div>
-                          </div>
-                        </>
-                      )
-                    })()}
-                  </>
-                )
-              })()}
+                {/* ── Task grid ── */}
+                <BanDoBaiThucHanh practiceTasks={practiceTasks} taskSubmissions={th.taskSubmissions}
+                  activeTaskIdx={th.activeTaskIdx} leftPanelHidden={leftPanelHidden} onChon={th.setActiveTaskIdx} />
+                {th.activeTaskIdx !== null && (() => {
+                  const i = th.activeTaskIdx
+                  const task = practiceTasks[i]
+                  return (
+                    <ChiTietBaiThucHanh key={i} i={i} task={task} sub={th.taskSubmissions[i]} file={th.taskFiles[i]}
+                      note={th.taskNotes[i] || ''} dangNop={th.taskSubmitting === i} dangNopLai={th.resubmitTask === i}
+                      dangChamAi={th.aiGradingTask === i} lessonId={id}
+                      onDong={() => th.dongBai(i)} onChonFile={f => th.chonFile(i, f)} onDoiGhiChu={t => th.doiGhiChu(i, t)}
+                      onRaSoatTruoc={kq => th.ghiRaSoatTruoc(i, kq)} onNop={() => th.nop(i)}
+                      onBatDauNopLai={() => th.batDauNopLai(i)} onHuyNopLai={() => th.huyNopLai(i)}
+                      onCapNhatBaiNop={th.capNhatMotBaiNop}
+                      onHoiTroGiang={() => openTutor('practice', {
+                        taskInstructions: task.instructions || `Bài thực hành ${i + 1}`,
+                        questionText: `Bài thực hành ${i + 1}`,
+                      })} />
+                  )
+                })()}
             </div>
           </SectionCard>
         </div>
