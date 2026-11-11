@@ -25,6 +25,7 @@ import RaSoatLoi from '../../components/student/RaSoatLoi'
 import { MUC, mucCua } from '../../utils/muc'
 import { topicKeyOf } from '../../utils/lessonSteps'
 import { parseTasks } from '../../domain/baiThucHanh'
+import { datQuiz, trangThaiBuoc } from '../../domain/tienDoBaiHoc'
 // Bài giảng web (trình chiếu) – tải khi bài có bài giảng web
 const LessonSlidesViewer = lazy(() => import('../../components/slides/LessonSlidesViewer.jsx'))
 
@@ -375,15 +376,6 @@ function checkAnswer(type, ans, correct) {
   return ans.trim().toLowerCase() === correct.trim().toLowerCase()
 }
 
-function calcCompleted(prog, les) {
-  const theoryOk = !les.ai_context || prog.theory_read
-  const videoOk = !les.video_url || prog.video_watched
-  const pptxOk = !(les.pptx_url || les.has_slides) || prog.pptx_viewed
-  const quizOk = !(les.question_ids?.length > 0) || prog.quiz_passed
-  const practiceOk = !les.has_practice || prog.practice_submitted
-  return theoryOk && videoOk && pptxOk && quizOk && practiceOk
-}
-
 /* ── FileIcon ──────────────────────────────────────────────── */
 function FileIcon({ url, size = 20 }) {
   const ext = (url || '').split('.').pop().toLowerCase()
@@ -498,7 +490,7 @@ function LessonQuiz({ questions, onSubmit, initialCurrent = 0, initialCorrectCou
     const newCorrect = correctCount + (correct ? 1 : 0)
     if (isLast) {
       const total = questions.length
-      const passed = newCorrect / total >= 2 / 3
+      const passed = datQuiz(newCorrect, total)
       setCorrectCount(newCorrect)
       setDone(true)
       onSubmit({ correct: newCorrect, total, passed })
@@ -528,7 +520,7 @@ function LessonQuiz({ questions, onSubmit, initialCurrent = 0, initialCorrectCou
 
   if (done) {
     const total = questions.length
-    const passed = correctCount / total >= 2 / 3
+    const passed = datQuiz(correctCount, total)
     return (
       <div className="bg-white border border-gray-200 rounded-xl p-5 text-center space-y-3">
         <p className="text-3xl font-bold text-gray-800">{correctCount}/{total}</p>
@@ -981,7 +973,7 @@ export default function LessonPage() {
   async function upsertProgress(updates) {
     const current = progress || {}
     const newData = { ...current, ...updates, user_id: user.id, lesson_id: id }
-    const completed = calcCompleted(newData, lesson)
+    const completed = trangThaiBuoc(lesson, newData).hoanThanh
     const { data, error } = await supabase.from('lesson_progress').upsert(
       { ...newData, completed, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,lesson_id' }
@@ -1250,24 +1242,17 @@ export default function LessonPage() {
     })
   }
 
-  const hasTheory = !!lesson.ai_context
-  const hasVideo = !!lesson.video_url
-  const hasPptx = !!lesson.pptx_url || !!lesson.has_slides
-  const hasQuiz = questions.length > 0
-  const hasPractice = lesson.has_practice
+  // quy tắc bước / hoàn thành: src/domain/tienDoBaiHoc.js (ở đây đếm quiz theo số câu thực tế tải được)
+  const buoc = trangThaiBuoc(lesson, progress, questions.length)
+  const { theory: hasTheory, video: hasVideo, pptx: hasPptx, quiz: hasQuiz, practice: hasPractice } = buoc.co
   const embedUrl = getEmbedUrl(lesson.video_url)
   const practiceTasks = parseTasks(lesson.practice_instructions)
   // Chỉ đếm bài bắt buộc (bài đọc thêm — optional — không cần nộp)
   const requiredCount = practiceTasks.filter(t => !t?.optional).length
   const submittedCount = taskSubmissions.filter((s, k) => s && !practiceTasks[k]?.optional).length
 
-  const theoryOk = !hasTheory || progress?.theory_read
-  const videoOk = !hasVideo || progress?.video_watched
-  const pptxOk = !hasPptx || progress?.pptx_viewed
-  const quizOk = !hasQuiz || progress?.quiz_passed
-  const practiceOk = !hasPractice || progress?.practice_submitted
-  const totalSteps = [hasTheory, hasVideo, hasPptx, hasQuiz, hasPractice].filter(Boolean).length
-  const doneSteps = [theoryOk && hasTheory, videoOk && hasVideo, pptxOk && hasPptx, quizOk && hasQuiz, practiceOk && hasPractice].filter(Boolean).length
+  const { theory: theoryOk, video: videoOk, pptx: pptxOk, quiz: quizOk, practice: practiceOk } = buoc.xong
+  const totalSteps = buoc.tongBuoc, doneSteps = buoc.soBuocXong
 
   const pptxLocked = false
   const quizLocked = false
