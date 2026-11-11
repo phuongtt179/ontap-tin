@@ -68,6 +68,7 @@ trang tự gọi DB ở ~279 chỗ, quy tắc chép nhiều nơi, 0 kiểm tra t
   3. [ ] Kiểm tra tự động (vitest) cho domain + chấm Python + quyền truy cập; chạy trước khi đưa lên.
   4. [ ] Tách trang lớn: student/LessonPage (1.887 dòng) → teacher/LessonsPage (1.648) → QuizSession (1.219) → LessonSubmissionsPage (1.188) → StudentsPage (1.121).
   5. [ ] Vá bảo mật đợt 3 (đi cùng bước 1–2): điểm quiz/thi lý thuyết do máy chủ tính; ẩn đáp án, bài chưa xuất bản, tiêu chí chấm khỏi học sinh.
+- Đã có (11/11): `src/domain/thuTuBaiHoc.js` (thứ tự Chủ đề → Đơn vị → bài) + test, `src/data/baiHoc.js`, vitest — chạy `npm test` trước khi đưa lên.
 - Đã xong 10/11: SQL vào `sql/`, tài liệu vào `docs/` (ARCHITECTURE cập nhật theo Neon), eslint hết báo nhầm ở `api/`.
 
 ## Routes
