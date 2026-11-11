@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { layKhoaCuaEm } from '../data/ghiDanh'
 
 // Danh sách enrollment đã duyệt của học sinh
 export function useEnrollments(userId) {
@@ -8,11 +8,7 @@ export function useEnrollments(userId) {
 
   useEffect(() => {
     if (!userId) { setEnrollments([]); setLoading(false); return }
-    supabase
-      .from('student_enrollments')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_approved', true)
+    layKhoaCuaEm(userId)
       .then(({ data }) => { setEnrollments(data || []); setLoading(false) })
   }, [userId])
 

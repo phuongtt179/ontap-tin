@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { useAuth } from '../../context/AuthContext'
 import { useGrades } from '../../hooks/useGrades'
 import { Sparkles, Send, Loader2 } from 'lucide-react'
@@ -55,10 +56,7 @@ async function buildCourseSnapshot(grade, classesInGrade) {
 
 // Gom dữ liệu tiến độ của lớp thành 1 khối JSON gọn để gửi cho AI trả lời.
 async function buildSnapshot(grade, className) {
-  const { data: enrollData, error: enrollErr } = await supabase
-    .from('student_enrollments')
-    .select('user_id, profiles!inner(id, full_name)')
-    .eq('grade', grade).eq('class_name', className).eq('is_approved', true)
+  const { data: enrollData, error: enrollErr } = await layHocSinhKemHoSo({ grade, lop: className })
   if (enrollErr) throw enrollErr
   const roster = (enrollData || []).map(e => ({ id: e.user_id, name: e.profiles.full_name }))
   const userIds = roster.map(s => s.id)

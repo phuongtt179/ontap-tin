@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { layGhiDanh } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, Check, X, Users, Unlock } from 'lucide-react'
@@ -47,8 +48,7 @@ export default function ClassesPage() {
     if (data?.length) {
       const classGrades = [...new Set(data.map(c => c.grade))]
       const [{ data: enrollments }, { data: lessonsData }] = await Promise.all([
-        supabase.from('student_enrollments').select('class_name')
-          .eq('is_approved', true).in('class_name', data.map(c => c.name)),
+        layGhiDanh({ cacLop: data.map(c => c.name) }),
         layBaiDaXuatBanCuaCacKhoa(classGrades),
       ])
       const counts = {}

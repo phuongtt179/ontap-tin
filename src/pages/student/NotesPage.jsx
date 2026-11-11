@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
+import { layKhoaCuaEm } from '../../data/ghiDanh'
 import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
 import { Plus, Pin, PinOff, Pencil, Trash2, Search, X, Loader2, AlertTriangle, BookOpen } from 'lucide-react'
@@ -220,9 +221,7 @@ export default function NotesPage() {
   }
 
   async function loadEnrollmentsAndTopics() {
-    const { data: enrollData } = await supabase
-      .from('student_enrollments').select('grade, class_name')
-      .eq('user_id', user.id).eq('is_approved', true)
+    const { data: enrollData } = await layKhoaCuaEm(user.id)
     const enr = (enrollData || []).sort((a, b) => a.grade.localeCompare(b.grade, 'vi', { numeric: true }))
     setEnrollments(enr)
 

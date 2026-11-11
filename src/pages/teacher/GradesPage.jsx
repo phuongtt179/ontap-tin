@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { layGhiDanh, doiKhoaCuaGhiDanh, xoaGhiDanhCuaKhoa } from '../../data/ghiDanh'
 import { Users, School, ChevronRight, Plus, Trash2, Loader2, Pencil, Check, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
@@ -40,7 +41,7 @@ export default function GradesPage() {
     const [gradeRes, classRes, enrollRes] = await Promise.all([
       supabase.from('grades').select('value, ai_scope').order('value'),
       supabase.from('classes').select('grade'),
-      supabase.from('student_enrollments').select('grade').eq('is_approved', true),
+      layGhiDanh(),
     ])
     const gradeList = gradeRes.data?.map(g => g.value) || []
     const scopeMap = {}
@@ -77,7 +78,7 @@ export default function GradesPage() {
     // Cascade update tất cả bảng liên quan
     await Promise.all([
       supabase.from('classes').update({ grade: val }).eq('grade', oldValue),
-      supabase.from('student_enrollments').update({ grade: val }).eq('grade', oldValue),
+      doiKhoaCuaGhiDanh(oldValue, val),
       supabase.from('questions').update({ grade: val }).eq('grade', oldValue),
       supabase.from('exams').update({ grade: val }).eq('grade', oldValue),
       doiKhoaCuaBaiHoc(oldValue, val),
@@ -117,7 +118,7 @@ export default function GradesPage() {
       // Xóa cascading data (classes và enrollments không có FK → xóa thủ công)
       await Promise.all([
         supabase.from('classes').delete().eq('grade', value),
-        supabase.from('student_enrollments').delete().eq('grade', value),
+        xoaGhiDanhCuaKhoa(value),
       ])
       toast.success(`Đã xóa khoá học "${value}"`)
       fetchAll()

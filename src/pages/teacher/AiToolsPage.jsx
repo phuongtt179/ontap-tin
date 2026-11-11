@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { layGhiDanh } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import { ShieldCheck, RefreshCw, BookOpenText, MessagesSquare, Lightbulb, MessageCircleQuestion, BookMarked } from 'lucide-react'
 import QuestionsTab from '../../components/teacher/aiTools/QuestionsTab'
@@ -38,9 +39,7 @@ export default function AiToolsPage() {
   }, [grade])
   useEffect(() => {
     if (!lop) { setHsLop(null); return }
-    let q = supabase.from('student_enrollments').select('user_id').eq('class_name', lop).eq('is_approved', true)
-    if (grade) q = q.eq('grade', grade)
-    q.then(({ data }) => setHsLop((data || []).map(e => e.user_id)))
+    layGhiDanh({ grade, lop }).then(({ data }) => setHsLop((data || []).map(e => e.user_id)))
   }, [grade, lop])
   const loc = { grade: grade || null, lop: lop || null, hsLop }
 

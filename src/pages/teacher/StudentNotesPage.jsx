@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import toast from 'react-hot-toast'
 import { Trash2, AlertTriangle, Search, X, BookOpen, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { useGrades } from '../../hooks/useGrades'
@@ -79,12 +80,7 @@ export default function StudentNotesPage() {
     setLoading(true)
 
     // Lấy danh sách học sinh (filter theo grade/class nếu có)
-    let enrollQ = supabase.from('student_enrollments')
-      .select('user_id, class_name, grade, profiles(id, full_name, notes_warning)')
-      .eq('is_approved', true)
-    if (filterGrade) enrollQ = enrollQ.eq('grade', filterGrade)
-    if (filterClass) enrollQ = enrollQ.eq('class_name', filterClass)
-    const { data: enrollData } = await enrollQ
+    const { data: enrollData } = await layHocSinhKemHoSo({ grade: filterGrade, lop: filterClass })
 
     const studentMap = {}
     ;(enrollData || []).forEach(e => {

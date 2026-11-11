@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
+import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { useAuth } from '../../context/AuthContext'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
@@ -114,13 +115,7 @@ export default function AttendancePage() {
     setSessions(sessData || [])
 
     // Students
-    let enrQ = supabase
-      .from('student_enrollments')
-      .select('user_id, class_name, profiles!inner(id, full_name, username)')
-      .eq('grade', filterGrade)
-      .eq('is_approved', true)
-    if (filterClass) enrQ = enrQ.eq('class_name', filterClass)
-    const { data: enrollData } = await enrQ
+    const { data: enrollData } = await layHocSinhKemHoSo({ grade: filterGrade, lop: filterClass })
     const studs = (enrollData || []).map(e => ({
       id: e.user_id,
       full_name: e.profiles.full_name,

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Loader2, Bot, Check, ExternalLink, ClipboardCheck, User, BookOpen } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import { MUC, CAC_MUC, mucCua, mucTuDiem } from '../../utils/muc'
 import { aiChamNhap, luuDanhGia } from '../../utils/danhGia'
@@ -164,9 +165,7 @@ export default function GradingPage() {
   // danh sách học sinh của lớp (hoặc cả khoá)
   useEffect(() => {
     if (!grade) return
-    let q = supabase.from('student_enrollments').select('user_id, class_name, profiles!inner(full_name)').eq('grade', grade).eq('is_approved', true)
-    if (lop) q = q.eq('class_name', lop)
-    q.then(({ data }) => setHss((data || []).map(e => ({ id: e.user_id, ten: e.profiles.full_name || '(chưa có tên)', lop: e.class_name }))
+    layHocSinhKemHoSo({ grade, lop }).then(({ data }) => setHss((data || []).map(e => ({ id: e.user_id, ten: e.profiles.full_name || '(chưa có tên)', lop: e.class_name }))
       .sort((a, b) => a.ten.split(' ').pop().localeCompare(b.ten.split(' ').pop(), 'vi'))))
   }, [grade, lop])
 

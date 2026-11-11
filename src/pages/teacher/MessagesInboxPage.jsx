@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { layGhiDanh, layLopCuaCacHs } from '../../data/ghiDanh'
 import { useAuth } from '../../context/AuthContext'
 import { Send, Loader2, MessageCircle, Search, Trash2, Users, X, PenSquare, BookOpen, Sparkles } from 'lucide-react'
 
@@ -77,7 +78,7 @@ export default function MessagesInboxPage() {
   }, [selected?.messages])
 
   useEffect(() => {
-    supabase.from('student_enrollments').select('class_name').then(({ data }) => {
+    layGhiDanh({ daDuyet: null }).then(({ data }) => {
       const cls = [...new Set((data || []).map(e => e.class_name).filter(Boolean))].sort()
       setClasses(cls)
       if (cls.length) setGroupClass(cls[0])
@@ -89,8 +90,7 @@ export default function MessagesInboxPage() {
     async function loadStudents() {
       const { data: profiles } = await supabase
         .from('profiles').select('id, full_name').eq('role', 'student').eq('is_approved', true)
-      const { data: enrolls } = await supabase
-        .from('student_enrollments').select('user_id, class_name').eq('is_approved', true)
+      const { data: enrolls } = await layGhiDanh()
       const classMap = {}
       ;(enrolls || []).forEach(e => { classMap[e.user_id] = e.class_name })
       setAllStudents((profiles || []).map(p => ({ ...p, class_name: classMap[p.id] || '' }))
@@ -116,8 +116,7 @@ export default function MessagesInboxPage() {
     if (!text || !groupClass || groupSending) return
     setGroupSending(true)
     // Lấy tất cả học sinh trong lớp
-    const { data: enrolls } = await supabase
-      .from('student_enrollments').select('user_id').eq('class_name', groupClass).eq('is_approved', true)
+    const { data: enrolls } = await layGhiDanh({ lop: groupClass })
     if (!enrolls?.length) {
       setGroupSending(false)
       return
@@ -153,7 +152,7 @@ export default function MessagesInboxPage() {
 
     const studentIds = [...new Set([...(teacherMsgs || []), ...aiMsgs].map(m => m.student_id))]
     const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', studentIds)
-    const { data: enrollments } = await supabase.from('student_enrollments').select('user_id, class_name').in('user_id', studentIds)
+    const { data: enrollments } = await layLopCuaCacHs(studentIds)
     const classMap = {}
     ;(enrollments || []).forEach(e => { classMap[e.user_id] = e.class_name })
     const profileMap = {}

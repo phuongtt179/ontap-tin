@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { summarizeClassErrors } from '../../utils/weakness'
 import toast from 'react-hot-toast'
 import { ArrowLeft, MessageSquare, CheckCircle, Loader2, PlayCircle, BookOpen, Upload, Users, FileText, FileImage, File, ExternalLink, Code, Play, TerminalSquare, Search, Wifi, RefreshCw, Bot } from 'lucide-react'
@@ -213,11 +214,7 @@ export default function LessonSubmissionsPage() {
     setLesson(lessonData)
 
     // Fetch students enrolled in lesson's grade (via student_enrollments)
-    const { data: enrollData } = await supabase
-      .from('student_enrollments')
-      .select('user_id, class_name, grade, profiles(id, full_name)')
-      .eq('grade', lessonData.grade)
-      .eq('is_approved', true)
+    const { data: enrollData } = await layHocSinhKemHoSo({ grade: lessonData.grade })
 
     const studentData = (enrollData || []).map(e => ({
       id: e.profiles?.id || e.user_id,

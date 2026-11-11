@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { layLopCuaCacHs } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
 import {
@@ -471,11 +472,7 @@ function ExamResultsModal({ exam, onClose }) {
         const sess = data || []
         const userIds = [...new Set(sess.map(s => s.user_id))]
         if (userIds.length > 0 && exam.grade) {
-          const { data: enrollData } = await supabase
-            .from('student_enrollments')
-            .select('user_id, class_name')
-            .in('user_id', userIds)
-            .eq('grade', exam.grade)
+          const { data: enrollData } = await layLopCuaCacHs(userIds, { grade: exam.grade })
           const em = {}
           ;(enrollData || []).forEach(e => { em[e.user_id] = e.class_name || '' })
           setSessions(sess.map(s => ({

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
+import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { adjustStickerCount } from '../../utils/stickerAward'
 import SlidePlayer from '../../components/slides/SlidePlayer.jsx'
 import { beep, ting, fanfare, ring3, moAmThanh } from '../../components/slides/sound.js'
@@ -162,9 +163,7 @@ export default function TeachPage() {
   useEffect(() => {
     if (!lesson) return
     lsSet('dayLop', lop)
-    let q = supabase.from('student_enrollments').select('user_id, class_name, profiles!inner(id, full_name, is_active)').eq('grade', lesson.grade).eq('is_approved', true)
-    if (lop) q = q.eq('class_name', lop)
-    q.then(({ data }) => setHs((data || []).filter(e => e.profiles.is_active !== false).map(e => ({ id: e.user_id, full_name: e.profiles.full_name || '(chưa có tên)' })).sort((a, b) => tenNgan(a.full_name).localeCompare(tenNgan(b.full_name), 'vi'))))
+    layHocSinhKemHoSo({ grade: lesson.grade, lop }).then(({ data }) => setHs((data || []).filter(e => e.profiles.is_active !== false).map(e => ({ id: e.user_id, full_name: e.profiles.full_name || '(chưa có tên)' })).sort((a, b) => tenNgan(a.full_name).localeCompare(tenNgan(b.full_name), 'vi'))))
   }, [lesson, lop])
 
   const toanManHinh = () => { if (document.fullscreenElement) document.exitFullscreen?.(); else document.documentElement.requestFullscreen?.().catch(() => {}) }

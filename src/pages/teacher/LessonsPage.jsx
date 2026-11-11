@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import MarkdownContent from '../../components/ui/MarkdownContent'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import { useTopics } from '../../hooks/useTopics'
 import { useUnits, useUnitsByGrade } from '../../hooks/useUnits'
@@ -265,9 +266,7 @@ function LessonFormModal({ lesson, defaultGrade, defaultTopic, defaultUnitId, on
   // Danh sách học sinh thuộc khoá này (để chọn giới hạn người xem)
   useEffect(() => {
     if (!form.grade) { setRoster([]); return }
-    supabase.from('student_enrollments')
-      .select('user_id, profiles!inner(id, full_name)')
-      .eq('grade', form.grade).eq('is_approved', true)
+    layHocSinhKemHoSo({ grade: form.grade })
       .then(({ data }) => {
         const list = (data || []).map(e => ({ id: e.user_id, full_name: e.profiles.full_name }))
         list.sort((a, b) => a.full_name.localeCompare(b.full_name))
@@ -983,9 +982,7 @@ function LessonAudienceModal({ lesson, onClose, onDone }) {
 
   useEffect(() => {
     Promise.all([
-      supabase.from('student_enrollments')
-        .select('user_id, profiles!inner(id, full_name)')
-        .eq('grade', lesson.grade).eq('is_approved', true),
+      layHocSinhKemHoSo({ grade: lesson.grade }),
       supabase.from('lesson_visibility').select('user_id').eq('lesson_id', lesson.id),
     ]).then(([{ data: enr }, { data: vis }]) => {
       const list = (enr || []).map(e => ({ id: e.user_id, full_name: e.profiles.full_name }))

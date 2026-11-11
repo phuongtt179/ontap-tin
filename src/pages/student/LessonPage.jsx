@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { layLopCuaEm } from '../../data/ghiDanh'
 import { buildWeaknessProfile } from '../../utils/weakness'
 import { STUDENT_AI_DIRECT, feedbackVisible } from '../../lib/aiMode'
 import { phraseBank, sameSentence } from '../../utils/wordOrder'
@@ -842,8 +843,7 @@ export default function LessonPage() {
     if (!lessonData.is_published) {
       toast.error('Bài học này chưa được mở'); navigate(-1); return
     }
-    const { data: enrollRow } = await supabase.from('student_enrollments')
-      .select('class_name').eq('user_id', user.id).eq('grade', lessonData.grade).eq('is_approved', true).maybeSingle()
+    const { data: enrollRow } = await layLopCuaEm(user.id, lessonData.grade)
     const className = enrollRow?.class_name || null
     let topicUnlockSet = null   // null = không thuộc lớp nào -> không giới hạn
     let lessonUnlockSet = null

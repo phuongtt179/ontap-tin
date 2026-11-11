@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase, NOI_DU_LIEU } from '../../lib/supabase'
+import { ghiDanhHocSinh, xoaGhiDanh, layGhiDanhDayDuCuaCacHs, duyetGhiDanhCuaHs, tuChoiGhiDanhCuaHs } from '../../data/ghiDanh'
 import { maDangNhap } from '../../lib/maDangNhap'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
@@ -110,12 +111,12 @@ function StudentImportModal({ onClose, onDone }) {
             .eq('id', authUser.id)
           // Tạo enrollment nếu có khoá học
           if (row.grade) {
-            await supabase.from('student_enrollments').upsert({
+            await ghiDanhHocSinh({
               user_id: authUser.id,
               grade: row.grade,
               class_name: row.class_name || null,
               is_approved: true,
-            }, { onConflict: 'user_id,grade' })
+            })
           }
         }
 
@@ -363,10 +364,10 @@ function StudentEditModal({ student, classes, gradeValues, onClose, onDone }) {
     ]
     if (form.grade) {
       ops.push(
-        supabase.from('student_enrollments').upsert({
+        ghiDanhHocSinh({
           user_id: student.id, grade: form.grade,
           class_name: form.class_name || null, is_approved: true,
-        }, { onConflict: 'user_id,grade' })
+        })
       )
     }
     const results = await Promise.all(ops)
@@ -486,7 +487,7 @@ function EnrollStudentModal({ student, classes, gradeValues, onClose, onDone }) 
   async function handleRemove(enrollment) {
     if (!confirm(`Hủy khoá "${enrollment.grade}" của ${student.full_name}?`)) return
     setRemovingId(enrollment.id)
-    const { error } = await supabase.from('student_enrollments').delete().eq('id', enrollment.id)
+    const { error } = await xoaGhiDanh(enrollment.id)
     setRemovingId(null)
     if (error) { toast.error('Hủy thất bại: ' + error.message); return }
     setEnrollments(prev => prev.filter(e => e.id !== enrollment.id))
@@ -502,10 +503,7 @@ function EnrollStudentModal({ student, classes, gradeValues, onClose, onDone }) 
       class_name: className || null,
       is_approved: true,
     }))
-    const { data, error } = await supabase
-      .from('student_enrollments')
-      .upsert(rows, { onConflict: 'user_id,grade' })
-      .select()
+    const { data, error } = await ghiDanhHocSinh(rows)
     setSaving(false)
     if (error) { toast.error('Thêm thất bại: ' + error.message); return }
     setEnrollments(prev => [...prev, ...(data || [])])
@@ -650,7 +648,7 @@ export default function StudentsPage() {
 
     const ids = (profileData || []).map(s => s.id)
     const { data: enrollData } = ids.length
-      ? await supabase.from('student_enrollments').select('*').in('user_id', ids)
+      ? await layGhiDanhDayDuCuaCacHs(ids)
       : { data: [] }
 
     const enrollMap = {}
@@ -679,8 +677,7 @@ export default function StudentsPage() {
     setApprovingId(student.id)
     // Duyệt tất cả enrollment đang chờ + duyệt tài khoản
     await Promise.all([
-      supabase.from('student_enrollments').update({ is_approved: true })
-        .eq('user_id', student.id).eq('is_approved', false),
+      duyetGhiDanhCuaHs(student.id),
       supabase.from('profiles').update({ is_approved: true }).eq('id', student.id),
     ])
     setApprovingId(null)
@@ -690,10 +687,7 @@ export default function StudentsPage() {
 
   async function handleReject(student) {
     if (!confirm(`Từ chối đăng ký của "${student.full_name}"?\nHọc sinh sẽ không bị xóa tài khoản.`)) return
-    const { error } = await supabase.from('student_enrollments')
-      .delete()
-      .eq('user_id', student.id)
-      .eq('is_approved', false)
+    const { error } = await tuChoiGhiDanhCuaHs(student.id)
     if (error) toast.error('Từ chối thất bại: ' + error.message)
     else { toast.success(`Đã từ chối đăng ký của ${student.full_name}`); fetchStudents() }
   }

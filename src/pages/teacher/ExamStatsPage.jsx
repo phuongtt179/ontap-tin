@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { layGhiDanh } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import { X, Loader2, Eye, ChevronRight } from 'lucide-react'
 
@@ -156,10 +157,7 @@ export default function ExamStatsPage() {
   async function fetchData() {
     setLoading(true)
     // Lấy danh sách học sinh qua student_enrollments
-    let enrollQ = supabase.from('student_enrollments')
-      .select('user_id, class_name').eq('grade', filterGrade).eq('is_approved', true)
-    if (filterClass) enrollQ = enrollQ.eq('class_name', filterClass)
-    const { data: enrollData } = await enrollQ
+    const { data: enrollData } = await layGhiDanh({ grade: filterGrade, lop: filterClass })
 
     const enrolledIds = (enrollData || []).map(e => e.user_id)
     const enrollMap = {}

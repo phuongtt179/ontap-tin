@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { layGhiDanh, layLopCuaCacHs } from '../../data/ghiDanh'
 import { Trophy, BookOpen, Users, ClipboardCheck, CheckSquare, Activity, Sparkles, RefreshCw } from 'lucide-react'
 
 // Trang này chạy hơn 15 truy vấn, có lệnh đếm trên >10.000 bài (máy chủ nano dễ quá 8 giây khi thiếu RAM).
@@ -79,7 +80,7 @@ export default function TeacherDashboard() {
       { data: openSessions, error: sessErr },
     ] = await Promise.all([
       supabase.from('profiles').select('id').eq('role', 'student').eq('is_approved', false),
-      supabase.from('student_enrollments').select('user_id').eq('is_approved', false),
+      layGhiDanh({ daDuyet: false }),
       demBai,
       supabase.from('attendance_sessions').select('id, grade, class_name, opened_at')
         .is('closed_at', null),
@@ -137,8 +138,7 @@ export default function TeacherDashboard() {
     const userIds = [...new Set(sessions.map(s => s.user_id))]
     const [{ data: profiles }, { data: enrollments }] = await Promise.all([
       supabase.from('profiles').select('id, full_name').in('id', userIds),
-      supabase.from('student_enrollments').select('user_id, class_name, grade')
-        .in('user_id', userIds).eq('is_approved', true),
+      layLopCuaCacHs(userIds, { chiDaDuyet: true }),
     ])
     const pm = {}; profiles?.forEach(p => { pm[p.id] = p })
     const em = {}; enrollments?.forEach(e => { if (!em[e.user_id]) em[e.user_id] = e })
