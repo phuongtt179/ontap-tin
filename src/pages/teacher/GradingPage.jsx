@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase'
 import { useGrades } from '../../hooks/useGrades'
 import { MUC, CAC_MUC, mucCua, mucTuDiem } from '../../utils/muc'
 import { parseTasks, aiChamNhap, luuDanhGia } from '../../utils/danhGia'
+import { nhomBaiTheoChuDe } from '../../domain/thuTuBaiHoc'
 
 const COT = 'id,user_id,lesson_id,file_url,file_name,text_content,content_json,submitted_at,score,ai_score,muc,teacher_comment,graded_by,reviewed_at,ai_breakdown,ai_suspect,ai_suspect_reason,sticker_awarded,allow_resubmit,ra_soat'
 const lsGet = k => { try { return localStorage.getItem(k) || '' } catch { return '' } }
@@ -151,8 +152,14 @@ export default function GradingPage() {
     if (!grade) return
     lsSet('chamGrade', grade); setLop(''); setBaiId(''); setHsId(''); setSubs(null)
     supabase.from('classes').select('name').eq('grade', grade).order('name').then(({ data }) => setLops((data || []).map(c => c.name)))
-    supabase.from('lessons').select('id, title, "order", practice_instructions').eq('grade', grade).eq('has_practice', true).order('order')
-      .then(({ data }) => { setBaiHocs(data || []); setLessonMap(Object.fromEntries((data || []).map(l => [l.id, l]))) })
+    // xếp theo Chủ đề → Đơn vị → thứ tự bài, giống trang Học bài (không chỉ theo cột order — order chỉ là thứ tự trong đơn vị)
+    Promise.all([
+      supabase.from('lessons').select('id, title, topic, unit_id, "order", created_at, practice_instructions').eq('grade', grade).eq('has_practice', true).limit(1000),
+      supabase.from('units').select('id, name, sort_order').eq('grade', grade).limit(500),
+    ]).then(([{ data }, { data: us }]) => {
+      setBaiHocs(nhomBaiTheoChuDe(data || [], us || []))
+      setLessonMap(Object.fromEntries((data || []).map(l => [l.id, l])))
+    })
   }, [grade])
   // danh sách học sinh của lớp (hoặc cả khoá)
   useEffect(() => {
@@ -245,7 +252,7 @@ export default function GradingPage() {
           <option value="">Tất cả lớp</option>{lops.map(l => <option key={l}>{l}</option>)}</select>
         {cach === 'bai'
           ? <select className={SEL + ' min-w-[240px]'} value={baiId} onChange={e => setBaiId(e.target.value)}>
-              <option value="">— Chọn bài học —</option>{baiHocs.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}</select>
+              <option value="">— Chọn bài học —</option>{baiHocs.map(g => <optgroup key={g.topic} label={g.topic || 'Chưa có chủ đề'}>{g.lessons.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}</optgroup>)}</select>
           : <select className={SEL + ' min-w-[220px]'} value={hsId} onChange={e => setHsId(e.target.value)}>
               <option value="">— Chọn học sinh ({hss.length}) —</option>{hss.map(h => <option key={h.id} value={h.id}>{h.ten}{!lop && h.lop ? ` (${h.lop})` : ''}</option>)}</select>}
         {cach === 'bai' && baiId && (
