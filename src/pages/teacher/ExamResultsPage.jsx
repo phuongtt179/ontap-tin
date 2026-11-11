@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { layTenCacHs } from '../../data/hoSo'
+import { layLopCuaCacHs } from '../../data/ghiDanh'
 import { layCauHoiKemDapAn } from '../../data/cauHoi'
 import { ArrowLeft, ChevronRight, Loader2, CheckCircle, Trash2, Bot, ExternalLink } from 'lucide-react'
 import WordEditor from '../../components/editor/WordEditor'
@@ -77,9 +79,10 @@ export default function ExamResultsPage() {
     const userIds = [...new Set((sessionData || []).map(s => s.user_id))]
     let profileMap = {}
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase.from('profiles')
-        .select('id, full_name, class_name').in('id', userIds)
-      profiles?.forEach(p => { profileMap[p.id] = p })
+      // lớp lấy từ ghi danh của khoá đề thi (bảng profiles không còn cột class_name)
+      const [{ data: profiles }, { data: lops }] = await Promise.all([layTenCacHs(userIds), layLopCuaCacHs(userIds, { grade: examData.grade })])
+      const lopCua = Object.fromEntries((lops || []).map(e => [e.user_id, e.class_name || '']))
+      profiles?.forEach(p => { profileMap[p.id] = { ...p, class_name: lopCua[p.id] || '' } })
     }
 
     const { data: qData } = await layCauHoiKemDapAn(examData.question_ids)

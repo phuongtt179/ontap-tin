@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { laySticker } from '../data/hoSo'
 import { NGUONG_DOI_QUA_MAC_DINH } from '../domain/sticker'
 import { topicKeyOf } from '../utils/lessonSteps'
 import { layDanhSachBai } from '../data/baiHoc'
@@ -47,7 +48,7 @@ export function useLearnData(user, selectedGrade, className) {
       layDanhSachBai(selectedGrade, { xuatBan: false }),
       supabase.from('lesson_progress').select('*').eq('user_id', user.id),
       supabase.from('units').select('*').eq('grade', selectedGrade).order('sort_order').order('name'),
-      supabase.from('profiles').select('sticker_count, streak_days').eq('id', user.id).single(),
+      laySticker(user.id),
       supabase.from('reward_configs').select('sticker_threshold').eq('grade', selectedGrade).maybeSingle(),
       supabase.from('grades').select('ai_scope').eq('value', selectedGrade).maybeSingle(),
       supabase.from('lesson_visibility').select('lesson_id').eq('user_id', user.id),

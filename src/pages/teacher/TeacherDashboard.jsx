@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { demHocSinh, layHocSinhChoDuyet, layTenCacHs } from '../../data/hoSo'
 import { demCauHoi } from '../../data/cauHoi'
 import { layGhiDanh, layLopCuaCacHs } from '../../data/ghiDanh'
 import { Trophy, BookOpen, Users, ClipboardCheck, CheckSquare, Activity, Sparkles, RefreshCw } from 'lucide-react'
@@ -68,7 +69,7 @@ export default function TeacherDashboard() {
     const [q, e, s] = await Promise.all([
       demCauHoi(),
       supabase.from('exams').select('id', { count: 'exact', head: true }),
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student'),
+      demHocSinh(),
     ])
     setStats({ questions: q.count ?? 0, exams: e.count ?? 0, students: s.count ?? 0 })
   }
@@ -80,7 +81,7 @@ export default function TeacherDashboard() {
       dem,
       { data: openSessions, error: sessErr },
     ] = await Promise.all([
-      supabase.from('profiles').select('id').eq('role', 'student').eq('is_approved', false),
+      layHocSinhChoDuyet(),
       layGhiDanh({ daDuyet: false }),
       demBai,
       supabase.from('attendance_sessions').select('id, grade, class_name, opened_at')
@@ -138,7 +139,7 @@ export default function TeacherDashboard() {
     if (!sessions?.length) return []
     const userIds = [...new Set(sessions.map(s => s.user_id))]
     const [{ data: profiles }, { data: enrollments }] = await Promise.all([
-      supabase.from('profiles').select('id, full_name').in('id', userIds),
+      layTenCacHs(userIds),
       layLopCuaCacHs(userIds, { chiDaDuyet: true }),
     ])
     const pm = {}; profiles?.forEach(p => { pm[p.id] = p })

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { layHocSinhDaDuyet, layTenCacHs } from '../../data/hoSo'
 import { layGhiDanh, layLopCuaCacHs } from '../../data/ghiDanh'
 import { useAuth } from '../../context/AuthContext'
 import { Send, Loader2, MessageCircle, Search, Trash2, Users, X, PenSquare, BookOpen, Sparkles } from 'lucide-react'
@@ -88,8 +89,7 @@ export default function MessagesInboxPage() {
   useEffect(() => {
     if (!showNew || allStudents.length) return
     async function loadStudents() {
-      const { data: profiles } = await supabase
-        .from('profiles').select('id, full_name').eq('role', 'student').eq('is_approved', true)
+      const { data: profiles } = await layHocSinhDaDuyet()
       const { data: enrolls } = await layGhiDanh()
       const classMap = {}
       ;(enrolls || []).forEach(e => { classMap[e.user_id] = e.class_name })
@@ -151,7 +151,7 @@ export default function MessagesInboxPage() {
     if (!teacherMsgs?.length && !aiMsgs.length) { setThreads([]); setLoading(false); return }
 
     const studentIds = [...new Set([...(teacherMsgs || []), ...aiMsgs].map(m => m.student_id))]
-    const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', studentIds)
+    const { data: profiles } = await layTenCacHs(studentIds)
     const { data: enrollments } = await layLopCuaCacHs(studentIds)
     const classMap = {}
     ;(enrollments || []).forEach(e => { classMap[e.user_id] = e.class_name })

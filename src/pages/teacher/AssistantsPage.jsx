@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase, NOI_DU_LIEU } from '../../lib/supabase'
+import { layTroGiang, capNhatHoSo } from '../../data/hoSo'
 import { maDangNhap } from '../../lib/maDangNhap'
 import toast from 'react-hot-toast'
 import { UserPlus, Trash2, Loader2, Eye, EyeOff, Pencil, Check, X, BookOpen, ClipboardList, Tags, FileText, ChevronLeft } from 'lucide-react'
@@ -156,11 +157,7 @@ export default function AssistantsPage() {
 
   async function fetchAssistants() {
     setLoading(true)
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, username, created_at')
-      .eq('role', 'assistant')
-      .order('created_at', { ascending: false })
+    const { data } = await layTroGiang()
     setAssistants(data || [])
     setLoading(false)
   }
@@ -183,7 +180,7 @@ export default function AssistantsPage() {
     if (editForm.password && editForm.password.length < 6) { toast.error('Mật khẩu ít nhất 6 ký tự'); return }
     setEditSaving(true)
     try {
-      const { error } = await supabase.from('profiles').update({ full_name: editForm.full_name.trim() }).eq('id', editId)
+      const { error } = await capNhatHoSo(editId, { full_name: editForm.full_name.trim() })
       if (error) throw new Error(error.message)
       if (editForm.password) await adminUpdateUser(editId, { password: editForm.password })
       toast.success('Đã cập nhật')

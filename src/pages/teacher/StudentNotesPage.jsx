@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { capNhatHoSo } from '../../data/hoSo'
 import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import toast from 'react-hot-toast'
 import { Trash2, AlertTriangle, Search, X, BookOpen, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
@@ -21,9 +22,7 @@ function WarnModal({ student, onClose, onSave }) {
 
   async function handleSave() {
     setSaving(true)
-    const { error } = await supabase.from('profiles')
-      .update({ notes_warning: msg.trim() || null })
-      .eq('id', student.id)
+    const { error } = await capNhatHoSo(student.id, { notes_warning: msg.trim() || null })
     setSaving(false)
     if (error) { toast.error('Lưu thất bại'); return }
     toast.success(msg.trim() ? 'Đã gửi cảnh báo' : 'Đã xóa cảnh báo')

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../../../lib/supabase'
+import { layTenCacHs } from '../../../data/hoSo'
 import { gradeStudent } from '../../../utils/aiGrader'
 import toast from 'react-hot-toast'
 import { Loader2, Play, Square } from 'lucide-react'
@@ -40,7 +40,7 @@ export default function BackfillTab({ onChanged, loc = {} }) {
       .then(async ({ data }) => {
         const rows = data || []
         const { data: profs } = rows.length
-          ? await supabase.from('profiles').select('id, full_name').in('id', [...new Set(rows.map(s => s.user_id))])
+          ? await layTenCacHs([...new Set(rows.map(s => s.user_id))])
           : { data: [] }
         const hs = Object.fromEntries((profs || []).map(p => [p.id, p]))
         setDs(rows.map(s => ({ ...s, hs: hs[s.user_id] })))
@@ -56,7 +56,7 @@ export default function BackfillTab({ onChanged, loc = {} }) {
     const { data: pool, error } = await layBaiChuaChamDeCham(dieuKien(), Math.min(batch * 5, 500))
     if (error) { toast.error('Không tải được danh sách bài'); setRunning(false); return }
     // lesson_submissions không có khoá ngoại sang profiles → lấy tên học sinh riêng
-    const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', [...new Set(pool.map(s => s.user_id))])
+    const { data: profs } = await layTenCacHs([...new Set(pool.map(s => s.user_id))])
     const tenHs = Object.fromEntries((profs || []).map(p => [p.id, p.full_name]))
     pool.forEach(s => { s.profiles = { full_name: tenHs[s.user_id] } })
 

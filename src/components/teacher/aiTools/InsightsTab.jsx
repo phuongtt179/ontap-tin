@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
+import { layTenCacHs } from '../../../data/hoSo'
 import { useGrades } from '../../../hooks/useGrades'
 import { maskNames, unmaskNames } from '../../../utils/anonymize'
 import toast from 'react-hot-toast'
@@ -42,7 +43,7 @@ export default function InsightsTab() {
     if (error) { toast.error('Không tải được câu hỏi'); setLoading(false); return }
     const studentIds = [...new Set((data || []).map(m => m.student_id))]
     const { data: profs } = studentIds.length
-      ? await supabase.from('profiles').select('id, full_name').in('id', studentIds) : { data: [] }
+      ? await layTenCacHs(studentIds) : { data: [] }
     const nameOf = Object.fromEntries((profs || []).map(p => [p.id, p.full_name]))
     setMsgs((data || []).map(m => ({ ...m, name: nameOf[m.student_id] || '?' })))
     setLoading(false)

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { layTenCacHs } from '../../data/hoSo'
 import { layLopCuaCacHs } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import { adjustStickerCount } from '../../utils/stickerAward'
@@ -78,7 +79,7 @@ export default function RewardsPage() {
     let classMap = {}
     if (studentIds.length > 0) {
       const [{ data: profileData }, { data: enrollData }] = await Promise.all([
-        supabase.from('profiles').select('id, full_name').in('id', studentIds),
+        layTenCacHs(studentIds),
         layLopCuaCacHs(studentIds),
       ])
       ;(profileData || []).forEach(p => { profileMap[p.id] = p.full_name })

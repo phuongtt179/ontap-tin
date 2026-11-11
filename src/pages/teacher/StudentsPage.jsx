@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase, NOI_DU_LIEU } from '../../lib/supabase'
+import { timTenDangNhapDaCo, capNhatHoSo, layTatCaHocSinh } from '../../data/hoSo'
 import { ghiDanhHocSinh, xoaGhiDanh, layGhiDanhDayDuCuaCacHs, duyetGhiDanhCuaHs, tuChoiGhiDanhCuaHs } from '../../data/ghiDanh'
 import { maDangNhap } from '../../lib/maDangNhap'
 import { useGrades } from '../../hooks/useGrades'
@@ -68,7 +69,7 @@ function StudentImportModal({ onClose, onDone }) {
     const usernames = rows.filter(r => r.username).map(r => r.username)
     let existingSet = new Set()
     if (usernames.length > 0) {
-      const { data } = await supabase.from('profiles').select('username').in('username', usernames)
+      const { data } = await timTenDangNhapDaCo(usernames)
       existingSet = new Set((data || []).map(p => p.username))
     }
     // Đánh dấu trùng username
@@ -106,9 +107,7 @@ function StudentImportModal({ onClose, onDone }) {
 
         if (authUser?.id) {
           // Cập nhật profile
-          await supabase.from('profiles')
-            .update({ username: row.username, is_approved: true })
-            .eq('id', authUser.id)
+          await capNhatHoSo(authUser.id, { username: row.username, is_approved: true })
           // Tạo enrollment nếu có khoá học
           if (row.grade) {
             await ghiDanhHocSinh({
@@ -360,7 +359,7 @@ function StudentEditModal({ student, classes, gradeValues, onClose, onDone }) {
     }
     setSaving(true)
     const ops = [
-      supabase.from('profiles').update({ full_name: form.full_name }).eq('id', student.id),
+      capNhatHoSo(student.id, { full_name: form.full_name }),
     ]
     if (form.grade) {
       ops.push(
@@ -642,8 +641,7 @@ export default function StudentsPage() {
   async function fetchStudents() {
     const khoa = `${filterGrade}|${filterClass}`
     if (daTai.current !== khoa) { daTai.current = khoa; setLoading(true) }
-    const { data: profileData, error } = await supabase
-      .from('profiles').select('*').eq('role', 'student').order('full_name')
+    const { data: profileData, error } = await layTatCaHocSinh()
     if (error) { toast.error('Lỗi tải danh sách học sinh: ' + error.message); setLoading(false); return }
 
     const ids = (profileData || []).map(s => s.id)
@@ -678,7 +676,7 @@ export default function StudentsPage() {
     // Duyệt tất cả enrollment đang chờ + duyệt tài khoản
     await Promise.all([
       duyetGhiDanhCuaHs(student.id),
-      supabase.from('profiles').update({ is_approved: true }).eq('id', student.id),
+      capNhatHoSo(student.id, { is_approved: true }),
     ])
     setApprovingId(null)
     toast.success(`Đã duyệt ${student.full_name}`)

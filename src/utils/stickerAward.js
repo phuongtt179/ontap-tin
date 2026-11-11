@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase'
+import { docSoSticker, ghiStickerNeuChuaDoi } from '../data/hoSo'
 import { stickerTheoMuc, stickerConThieu } from '../domain/sticker'
 import { laySoStickerDaThuong, ghiStickerDaThuong } from '../data/baiNop'
 
@@ -18,8 +18,7 @@ import { laySoStickerDaThuong, ghiStickerDaThuong } from '../data/baiNop'
 // mức này (mặc định 0 — không cho âm). Trả về `insufficient: true` nếu chặn.
 export async function adjustStickerCount(userId, delta, { affectsTotal = false, minResultCount = 0 } = {}) {
   for (let attempt = 0; attempt < 5; attempt++) {
-    const { data: prof, error: readErr } = await supabase
-      .from('profiles').select('sticker_count, sticker_total').eq('id', userId).single()
+    const { data: prof, error: readErr } = await docSoSticker(userId)
     if (readErr) return { data: null, error: readErr, insufficient: false }
     const baseCount = prof?.sticker_count ?? 0
     const baseTotal = prof?.sticker_total ?? 0
@@ -28,10 +27,7 @@ export async function adjustStickerCount(userId, delta, { affectsTotal = false, 
       return { data: null, error: new Error('Số sticker không đủ'), insufficient: true }
     }
     const newTotal = affectsTotal ? baseTotal + delta : baseTotal
-    const { data: updated, error: writeErr } = await supabase.from('profiles')
-      .update({ sticker_count: newCount, sticker_total: newTotal })
-      .eq('id', userId).eq('sticker_count', baseCount)
-      .select('sticker_count, sticker_total')
+    const { data: updated, error: writeErr } = await ghiStickerNeuChuaDoi(userId, baseCount, newCount, newTotal)
     if (writeErr) return { data: null, error: writeErr, insufficient: false }
     if (updated && updated.length > 0) return { data: updated[0], error: null, insufficient: false }
     // 0 dòng khớp -> giá trị vừa bị đổi xen giữa, đọc lại và thử ghi lại

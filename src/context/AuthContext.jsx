@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { layHoSo } from '../data/hoSo'
 import toast from 'react-hot-toast'
 
 const AuthContext = createContext(null)
@@ -49,7 +50,7 @@ export function AuthProvider({ children }) {
     // KHÔNG coi lỗi mạng là "không có hồ sơ" (trước đây đăng xuất oan người dùng).
     let data = null, error = null
     for (let lan = 0; lan < 4; lan++) {
-      ;({ data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle())
+      ;({ data, error } = await layHoSo(userId))
       if (!error) break
       await new Promise(r => setTimeout(r, 1500 * (lan + 1)))
     }

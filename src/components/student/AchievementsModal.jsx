@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { laySticker } from '../../data/hoSo'
 import { X, Trophy, Medal, Award, Loader2, Flame, Star, GraduationCap, Gift } from 'lucide-react'
 
 const TABS = [
@@ -50,7 +51,7 @@ export default function AchievementsModal({ open, onClose, userId, userName }) {
     setLoading(true)
     const [{ data: lb }, { data: prof }, { count }, { data: rw }] = await Promise.all([
       supabase.rpc('get_class_leaderboard'),
-      supabase.from('profiles').select('sticker_total, streak_days, streak_max, sticker_count').eq('id', userId).single(),
+      laySticker(userId),
       supabase.from('lesson_progress').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('completed', true),
       supabase.from('reward_requests').select('*, reward_items(name, emoji)').eq('student_id', userId).order('requested_at', { ascending: false }),
     ])

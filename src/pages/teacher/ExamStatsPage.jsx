@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { layTenCacHs } from '../../data/hoSo'
 import { layCauHoiKemDapAn } from '../../data/cauHoi'
 import { layGhiDanh } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
@@ -165,7 +166,7 @@ export default function ExamStatsPage() {
     const [examRes, profileRes] = await Promise.all([
       supabase.from('exams').select('id, title, question_ids, class_name').eq('grade', filterGrade).order('created_at'),
       enrolledIds.length > 0
-        ? supabase.from('profiles').select('id, full_name').in('id', enrolledIds).order('full_name')
+        ? layTenCacHs(enrolledIds)
         : Promise.resolve({ data: [] }),
     ])
 
