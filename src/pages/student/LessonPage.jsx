@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -7,13 +7,11 @@ import { layLopCuaEm } from '../../data/ghiDanh'
 import { buildWeaknessProfile } from '../../utils/weakness'
 import { STUDENT_AI_DIRECT } from '../../lib/aiMode'
 import toast from 'react-hot-toast'
-import { ArrowLeft, CheckCircle, PlayCircle, BookOpen, Upload, FileText, Lock, Lightbulb, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
-import MarkdownContent from '../../components/ui/MarkdownContent'
+import { Upload, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import StickerModal from '../../components/student/StickerModal'
 import RewardModal from '../../components/student/RewardModal'
 import { updateStreak } from '../../utils/updateStreak'
 import { NGUONG_DOI_QUA_MAC_DINH } from '../../domain/sticker'
-import PDFViewer from '../../components/ui/PDFViewer'
 import AskTutorModal from '../../components/student/AskTutorModal'
 import { topicKeyOf } from '../../utils/lessonSteps'
 import { parseTasks } from '../../domain/baiThucHanh'
@@ -23,27 +21,15 @@ import { layBaiHocTheoId, layDanhSachBai } from '../../data/baiHoc'
 import BanDoBaiThucHanh from '../../components/student/baiHoc/BanDoBaiThucHanh'
 import ChiTietBaiThucHanh from '../../components/student/baiHoc/ChiTietBaiThucHanh'
 import { useBaiThucHanh } from '../../hooks/useBaiThucHanh'
-import { LessonQuiz } from '../../components/student/baiHoc/LessonQuiz'
-import { DoneChip, ActionButton, SectionCard } from '../../components/student/baiHoc/KhungMuc'
-// Bài giảng web (trình chiếu) – tải khi bài có bài giảng web
-const LessonSlidesViewer = lazy(() => import('../../components/slides/LessonSlidesViewer.jsx'))
-
-
-/* ── Helpers ───────────────────────────────────────────────── */
-function getEmbedUrl(url) {
-  if (!url) return null
-  const m = url.match(/(?:youtu\.be\/|[?&]v=)([a-zA-Z0-9_-]{11})/)
-  if (m) return `https://www.youtube.com/embed/${m[1]}`
-  if (url.includes('/embed/')) return url
-  return null
-}
+import DauBaiHoc from '../../components/student/baiHoc/DauBaiHoc'
+import { MucLyThuyet, MucVideo, MucBaiGiang, MucBaiTap } from '../../components/student/baiHoc/CacMucHoc'
+import { SectionCard } from '../../components/student/baiHoc/KhungMuc'
 
 /* ── LessonPage ────────────────────────────────────────────── */
 export default function LessonPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-    const { user } = useAuth()
-
+  const { user } = useAuth()
 
   const [lesson, setLesson] = useState(null)
   const [questions, setQuestions] = useState([])
@@ -68,7 +54,6 @@ export default function LessonPage() {
   const wasCompleted = useRef(false)
   const [pptxMarking, setPptxMarking] = useState(false)
     const [webSlides, setWebSlides] = useState(null)   // bài giảng web (lesson_slides) – có thì hiện thay PPTX
-
 
   async function loadAll() {
     setLoading(true)
@@ -181,8 +166,6 @@ export default function LessonPage() {
 
     // 4. Bài nộp thực hành của em
     await th.napBaiNop(lessonData)
-
-
 
     setLoading(false)
   }
@@ -315,26 +298,13 @@ export default function LessonPage() {
   // quy tắc bước / hoàn thành: src/domain/tienDoBaiHoc.js (ở đây đếm quiz theo số câu thực tế tải được)
   const buoc = trangThaiBuoc(lesson, progress, questions.length)
   const { theory: hasTheory, video: hasVideo, pptx: hasPptx, quiz: hasQuiz, practice: hasPractice } = buoc.co
-  const embedUrl = getEmbedUrl(lesson.video_url)
+
   const practiceTasks = parseTasks(lesson.practice_instructions)
   // Chỉ đếm bài bắt buộc (bài đọc thêm — optional — không cần nộp)
   const requiredCount = practiceTasks.filter(t => !t?.optional).length
   const submittedCount = th.taskSubmissions.filter((s, k) => s && !practiceTasks[k]?.optional).length
 
   const { theory: theoryOk, video: videoOk, pptx: pptxOk, quiz: quizOk, practice: practiceOk } = buoc.xong
-  const totalSteps = buoc.tongBuoc, doneSteps = buoc.soBuocXong
-
-  const pptxLocked = false
-  const quizLocked = false
-  const practiceLocked = false
-
-  const steps = [
-    hasTheory && { key: 'theory', label: 'Lý thuyết', icon: <Lightbulb size={16} />, done: theoryOk, locked: false },
-    hasVideo && { key: 'video', label: 'Video', icon: <PlayCircle size={16} />, done: videoOk, locked: false },
-    hasPptx && { key: 'pptx', label: 'Bài giảng', icon: <FileText size={16} />, done: pptxOk, locked: pptxLocked },
-    hasQuiz && { key: 'quiz', label: 'Bài tập', icon: <BookOpen size={16} />, done: quizOk, locked: quizLocked },
-    hasPractice && { key: 'practice', label: 'Thực hành', icon: <Upload size={16} />, done: practiceOk, locked: practiceLocked },
-  ].filter(Boolean)
 
   return (
     <div className="min-h-full bg-gray-50 flex flex-col">
@@ -380,61 +350,7 @@ export default function LessonPage() {
         {newAnswers > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-black flex items-center justify-center">{newAnswers}</span>}
       </button>
 
-      {/* ── Hero gradient ── */}
-      <div className="bg-gradient-to-r from-[#003d8f] via-[#0055bb] to-[#0077dd] text-white px-5 pt-5 pb-4 md:px-8 shrink-0">
-        <div className="max-w-5xl mx-auto">
-          <button onClick={() => navigate('/student/learn')}
-            className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm mb-4 transition">
-            <ArrowLeft size={15} /> Bài học
-          </button>
-          <h1 className="text-xl md:text-2xl font-bold leading-tight">{lesson.title}</h1>
-          {lesson.description && <p className="text-blue-200 text-sm mt-1">{lesson.description}</p>}
-
-          {/* Stepper */}
-          {steps.length > 0 && (
-            <div className="flex items-center mt-6 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-              {steps.map((step, i) => (
-                <div key={step.key} className="flex items-center flex-1 min-w-0">
-                  <div className="flex flex-col items-center shrink-0">
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all duration-300
-                      ${step.done
-                        ? 'bg-green-400 border-green-300 shadow-lg shadow-green-500/40'
-                        : !step.locked
-                        ? 'bg-white border-white shadow-lg'
-                        : 'bg-white/10 border-white/20'}`}
-                      style={!step.done && !step.locked ? { animation: 'node-breathe 2s ease-in-out infinite' } : {}}>
-                      {step.done
-                        ? <CheckCircle size={20} className="text-white" />
-                        : step.locked
-                        ? <Lock size={15} className="text-white/30" />
-                        : <span className="text-indigo-700">{step.icon}</span>}
-                    </div>
-                    <span className={`text-[10px] font-semibold mt-1.5 whitespace-nowrap
-                      ${step.done ? 'text-green-300' : !step.locked ? 'text-white' : 'text-white/30'}`}>
-                      {step.label}
-                    </span>
-                  </div>
-                  {i < steps.length - 1 && (
-                    <div className={`flex-1 h-0.5 mx-2 mb-4 rounded-full min-w-[16px] transition-all duration-500
-                      ${step.done ? 'bg-green-400/70' : 'bg-white/20'}`} />
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
-            <span className="text-blue-200 text-xs font-medium">
-              {doneSteps === totalSteps && totalSteps > 0
-                ? '🎉 Hoàn thành bài học!'
-                : `Bước ${Math.min(doneSteps + 1, totalSteps)}/${totalSteps}`}
-            </span>
-            {doneSteps === totalSteps && totalSteps > 0 && (
-              <span className="text-xs bg-green-400/20 text-green-300 font-semibold px-3 py-1 rounded-full">✓ Xong</span>
-            )}
-          </div>
-        </div>
-      </div>
+      <DauBaiHoc lesson={lesson} buoc={buoc} onQuayLai={() => navigate('/student/learn')} />
 
       {/* ── Content sections ── */}
       <div className="flex-1 max-w-[1600px] w-full mx-auto px-4 md:px-8 py-6 md:flex md:items-start md:gap-5">
@@ -442,120 +358,20 @@ export default function LessonPage() {
       {/* Cột trái: Lý thuyết/Video/Bài giảng/Bài tập — Bài thực hành tách riêng ở dưới. Có thể ẩn trên desktop để bên phải rộng hơn. */}
       <div className={`${leftPanelHidden ? 'md:hidden' : ''} md:w-1/2 min-w-0 space-y-4 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto md:pr-2`}>
 
-        {/* Lý thuyết */}
-        {hasTheory && (
-          <SectionCard icon={<Lightbulb size={18} />} iconBg="bg-amber-100" iconColor="text-amber-600"
-            title="Lý thuyết" done={theoryOk} locked={false} lockMessage="">
-            <div className="mb-4">
-              <MarkdownContent text={lesson.ai_context} />
-            </div>
-            {theoryOk
-              ? <DoneChip label="Đã đọc lý thuyết" />
-              : <ActionButton onClick={handleMarkTheoryRead} disabled={theoryMarking} loading={theoryMarking} color="amber">
-                  Đánh dấu đã đọc
-                </ActionButton>}
-          </SectionCard>
-        )}
-
-        {/* Video */}
-        {hasVideo && (
-          <SectionCard icon={<PlayCircle size={18} />} iconBg="bg-blue-100" iconColor="text-blue-600"
-            title="Video bài giảng" done={videoOk} locked={false} lockMessage="">
-            {/* Cột này bị ẩn hẳn (display:none) khi leftPanelHidden trên desktop — không
-                render iframe/video lúc đó để tránh giữ tài nguyên chạy ngầm trong lúc ẩn
-                (video/pptx/pdf nặng, một số máy cấu hình yếu bị treo/trắng trang). */}
-            {leftPanelHidden ? null : embedUrl ? (
-              <div className="w-full aspect-video rounded-xl overflow-hidden bg-black mb-4">
-                <iframe src={embedUrl} title="Lesson video" className="w-full h-full"
-                  frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
-              </div>
-            ) : (
-              <div className="mb-4">
-                <a href={lesson.video_url} target="_blank" rel="noopener noreferrer"
-                  className="text-indigo-600 hover:underline text-sm">{lesson.video_url}</a>
-              </div>
-            )}
-            {videoOk
-              ? <DoneChip label="Đã xem video" />
-              : <ActionButton onClick={handleMarkVideoWatched} disabled={videoMarking} loading={videoMarking} color="blue">
-                  Đánh dấu đã xem video
-                </ActionButton>}
-          </SectionCard>
-        )}
-
-        {/* PPTX / PDF */}
-        {hasPptx && (() => {
-          const isPdf = lesson.pptx_url?.split('?')[0].toLowerCase().endsWith('.pdf')
-          return (
-          <SectionCard icon={<FileText size={18} />} iconBg="bg-orange-100" iconColor="text-orange-600"
-            title={webSlides ? 'Bài giảng' : isPdf ? 'Bài giảng (PDF)' : 'Bài giảng (PowerPoint)'} done={pptxOk} locked={pptxLocked}
-            lockMessage="Xem video trước để mở khóa">
-            {leftPanelHidden ? null : webSlides ? (
-              <Suspense fallback={<div className="w-full rounded-xl bg-gray-100 mb-4 flex items-center justify-center text-sm text-gray-400" style={{ aspectRatio: '16/9' }}>Đang tải bài giảng…</div>}>
-                <LessonSlidesViewer slides={webSlides} onXemHet={() => { if (!progress?.pptx_viewed && !pptxMarking) handleMarkPptxViewed() }} />
-              </Suspense>
-            ) : !lesson.pptx_url ? (
-              <div className="w-full rounded-xl bg-gray-100 mb-4 flex items-center justify-center text-sm text-gray-400" style={{ aspectRatio: '16/9' }}>Đang tải bài giảng…</div>
-            ) : isPdf ? (
-              <div className="mb-4">
-                <PDFViewer url={lesson.pptx_url} />
-              </div>
-            ) : (
-              <div className="w-full rounded-xl overflow-hidden border border-gray-200 mb-4" style={{ aspectRatio: '16/9' }}>
-                <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(lesson.pptx_url)}`}
-                  width="100%" height="100%" frameBorder="0" title="Bài giảng PPTX" className="w-full h-full block" allowFullScreen />
-              </div>
-            )}
-            {pptxOk
-              ? <DoneChip label="Đã xem bài giảng" />
-              : <ActionButton onClick={handleMarkPptxViewed} disabled={pptxMarking} loading={pptxMarking} color="orange">
-                  Đánh dấu đã xem bài giảng
-                </ActionButton>}
-          </SectionCard>
-          )
-        })()}
-
-        {/* Quiz */}
+        {hasTheory && <MucLyThuyet noiDung={lesson.ai_context} xong={theoryOk} dangDanhDau={theoryMarking} onDanhDau={handleMarkTheoryRead} />}
+        {hasVideo && <MucVideo videoUrl={lesson.video_url} xong={videoOk} an={leftPanelHidden} dangDanhDau={videoMarking} onDanhDau={handleMarkVideoWatched} />}
+        {hasPptx && <MucBaiGiang pptxUrl={lesson.pptx_url} webSlides={webSlides} xong={pptxOk} daXem={!!progress?.pptx_viewed}
+          an={leftPanelHidden} dangDanhDau={pptxMarking} onDanhDau={handleMarkPptxViewed} />}
         {hasQuiz && (
-          <SectionCard icon={<BookOpen size={18} />} iconBg="bg-indigo-100" iconColor="text-indigo-600"
-            title="Bài tập" badge={`${questions.length} câu`}
-            done={quizOk && !quizActive} locked={quizLocked}
-            lockMessage={hasPptx ? 'Xem bài giảng trước để mở khóa' : 'Xem video trước để mở khóa'}>
-            {quizOk && !quizActive ? (
-              <div className="flex items-center gap-4 flex-wrap">
-                <DoneChip label={`Đạt · ${progress?.quiz_correct ?? 0}/${progress?.quiz_total ?? questions.length} câu đúng`} />
-                <button onClick={() => setQuizActive(true)} className="text-xs text-indigo-600 hover:underline font-medium">Làm lại</button>
-              </div>
-            ) : !quizActive ? (
-              (() => {
-                const hasResume = progress?.quiz_current_idx > 0 && !progress?.quiz_passed
-                return hasResume ? (
-                  <div className="flex flex-col gap-3">
-                    <ActionButton onClick={() => startQuiz(false)} color="indigo">
-                      Tiếp tục từ câu {progress.quiz_current_idx + 1}/{questions.length}
-                    </ActionButton>
-                    <button onClick={() => startQuiz(true)} className="text-xs text-gray-400 hover:text-gray-600 underline text-left">
-                      Làm lại từ đầu
-                    </button>
-                  </div>
-                ) : (
-                  <ActionButton onClick={() => startQuiz()} color="indigo">Bắt đầu làm bài</ActionButton>
-                )
-              })()
-            ) : (
-              <LessonQuiz
-                questions={questions}
-                initialCurrent={quizInitIdx}
-                initialCorrectCount={quizInitCorrect}
-                onAskTutor={(extra) => openTutor('quiz', extra)}
-                onProgress={(idx, correct) => upsertProgress({ quiz_current_idx: idx, quiz_correct: correct })}
-                onSubmit={({ correct, total, passed }) => {
-                  handleQuizSubmit({ correct, total, passed })
-                  if (passed) setQuizActive(false)
-                }}
-              />
-            )}
-          </SectionCard>
+          <MucBaiTap questions={questions} progress={progress} xong={quizOk} dangLam={quizActive} coBaiGiang={hasPptx}
+            batDauTuCau={quizInitIdx} soDungLucDau={quizInitCorrect}
+            onBatDau={startQuiz} onLamLai={() => setQuizActive(true)}
+            onHoiTroGiang={extra => openTutor('quiz', extra)}
+            onTienDo={(idx, correct) => upsertProgress({ quiz_current_idx: idx, quiz_correct: correct })}
+            onNop={({ correct, total, passed }) => {
+              handleQuizSubmit({ correct, total, passed })
+              if (passed) setQuizActive(false)
+            }} />
         )}
 
       </div>
@@ -573,7 +389,7 @@ export default function LessonPage() {
           </button>
           <SectionCard icon={<Upload size={18} />} iconBg="bg-emerald-100" iconColor="text-emerald-600"
             title="Bài thực hành" badge={`${submittedCount}/${requiredCount} đã nộp`}
-            done={practiceOk} locked={practiceLocked}
+            done={practiceOk} locked={false}
             lockMessage={hasQuiz ? 'Hoàn thành bài tập trước để mở khóa'
               : hasPptx ? 'Xem bài giảng trước để mở khóa'
               : 'Xem video trước để mở khóa'}>

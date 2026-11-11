@@ -7,6 +7,9 @@ import ChiTietBaiThucHanh from './ChiTietBaiThucHanh'
 import { LessonQuiz } from './LessonQuiz'
 import { FileIcon, SubmittedFile } from './TepDaNop'
 import { DoneChip, ActionButton, SectionCard } from './KhungMuc'
+import DauBaiHoc from './DauBaiHoc'
+import { MucLyThuyet, MucVideo, MucBaiGiang, MucBaiTap } from './CacMucHoc'
+import { trangThaiBuoc } from '../../../domain/tienDoBaiHoc'
 
 vi.mock('../../ui/PDFViewer', () => ({ default: () => null }))   // react-pdf cần trình duyệt thật
 
@@ -87,5 +90,41 @@ describe('phần nhỏ', () => {
     renderToString(<ActionButton onClick={khong} loading>Bấm</ActionButton>)
     expect(renderToString(<SectionCard title="Lý thuyết" done locked={false}>nội dung</SectionCard>)).toContain('Lý thuyết')
     expect(renderToString(<SectionCard title="Khoá" locked lockMessage="Làm bài trước">x</SectionCard>)).toContain('Khoá')
+  })
+})
+
+describe('đầu bài + các khung học', () => {
+  const bai = { title: 'Bài 1: Làm quen', description: 'mô tả', ai_context: '# Lý thuyết', video_url: 'https://youtu.be/dQw4w9WgXcQ',
+    pptx_url: 'https://x.test/a.pptx', has_practice: true, question_ids: ['a', 'b'] }
+  it.each([
+    ['chưa học gì', null],
+    ['học được một nửa', { theory_read: true, video_watched: true }],
+    ['xong cả bài', { theory_read: true, video_watched: true, pptx_viewed: true, quiz_passed: true, practice_submitted: true }],
+  ])('thanh bước: %s', (_, tienDo) => {
+    expect(renderToString(<DauBaiHoc lesson={bai} buoc={trangThaiBuoc(bai, tienDo)} onQuayLai={khong} />)).toContain('Làm quen')
+  })
+  it('lý thuyết: chưa đọc / đã đọc', () => {
+    expect(renderToString(<MucLyThuyet noiDung="# A" xong={false} dangDanhDau={false} onDanhDau={khong} />)).toContain('Đánh dấu đã đọc')
+    expect(renderToString(<MucLyThuyet noiDung="# A" xong dangDanhDau={false} onDanhDau={khong} />)).toContain('Đã đọc lý thuyết')
+  })
+  it('video: YouTube nhúng / link thường / cột đang ẩn', () => {
+    expect(renderToString(<MucVideo videoUrl={bai.video_url} xong={false} an={false} onDanhDau={khong} />)).toContain('youtube.com/embed')
+    expect(renderToString(<MucVideo videoUrl="https://drive.test/v" xong an={false} onDanhDau={khong} />)).toContain('https://drive.test/v')
+    expect(renderToString(<MucVideo videoUrl={bai.video_url} xong={false} an onDanhDau={khong} />)).not.toContain('iframe')
+  })
+  it('bài giảng: PowerPoint / PDF / bài giảng web / chưa có', () => {
+    expect(renderToString(<MucBaiGiang pptxUrl="https://x.test/a.pptx" xong={false} an={false} onDanhDau={khong} />)).toContain('officeapps')
+    expect(renderToString(<MucBaiGiang pptxUrl="https://x.test/a.pdf?x=1" xong an={false} onDanhDau={khong} />)).toContain('Bài giảng (PDF)')
+    expect(renderToString(<MucBaiGiang webSlides={[{}]} xong={false} an={false} onDanhDau={khong} />)).toContain('Đang tải bài giảng')
+    expect(renderToString(<MucBaiGiang xong={false} an={false} onDanhDau={khong} />)).toContain('Đang tải bài giảng')
+  })
+  const cau = [{ id: 1, type: 'multiple_choice', question: 'Chọn A', options: [{ key: 'A', text: 'a' }], correct_answer: 'A' }]
+  const quiz = props => renderToString(<MucBaiTap questions={cau} progress={null} xong={false} dangLam={false} coBaiGiang
+    batDauTuCau={0} soDungLucDau={0} onBatDau={khong} onLamLai={khong} onHoiTroGiang={khong} onTienDo={khong} onNop={khong} {...props} />)
+  it('bài tập: chưa làm / làm dở / đang làm / đã đạt', () => {
+    expect(quiz({})).toContain('Bắt đầu làm bài')
+    expect(quiz({ progress: { quiz_current_idx: 1 } })).toMatch(/Tiếp tục từ câu/)
+    expect(quiz({ dangLam: true })).toContain('Chọn A')
+    expect(quiz({ xong: true, progress: { quiz_correct: 1, quiz_total: 1 } })).toContain('Làm lại')
   })
 })

@@ -66,7 +66,7 @@ trang tự gọi DB ở ~279 chỗ, quy tắc chép nhiều nơi, 0 kiểm tra t
   1. [x] (11/11) Gom quy tắc về `src/domain/`: `baiThucHanh.js` (parseTasks — 7 bản → 1, dùng chung cả `api/`), `tienDoBaiHoc.js` (đạt quiz 2/3, bước / hoàn thành bài), `sticker.js` (sticker theo mức, mốc chuỗi, ngưỡng quà), `thuTuBaiHoc.js`. Đã so trên dữ liệu thật: giống hệt bản cũ.
   2. [x] (11/11) Tạo `src/data/`: `baiNop.js` · `baiHoc.js` · `ghiDanh.js` · `cauHoi.js` · `hoSo.js` — 141 chỗ gọi thẳng 5 bảng này → 0. Bảng khác (lesson_progress, exams, exam_sessions, messages, units, topics…) vẫn gọi thẳng: chuyển dần khi sửa tới.
   3. [x] (11/11) Kiểm tra tự động: `src/domain/*.test.js` (gồm `dapAn.js` — so đáp án 3 bản → 1, `chamPython.js` — chạy thật chương trình chấm bằng Python máy), `api/_auth.test.js` (cổng quyền), `api/_quyen_api.test.js` (gọi từng API bằng người lạ / học sinh; API mới chưa khai báo quyền → đỏ), `tests/that/quyenDuLieu.test.js` (đăng nhập HS thử, cố đọc / sửa trên Neon thật, tự khôi phục nếu lọt; lỗ hổng bước 5 ghi `it.todo`).
-  4. [ ] Tách trang lớn: student/LessonPage (1.887 dòng) → teacher/LessonsPage (1.648) → QuizSession (1.219) → LessonSubmissionsPage (1.188) → StudentsPage (1.121).
+  4. [ ] Tách trang lớn: [x] (11/11) student/LessonPage 1.847 → 425 (`components/student/baiHoc/*` + `hooks/useBaiThucHanh.js`; còn `loadAll` gọi thẳng ~9 bảng khác) → [ ] teacher/LessonsPage (1.648) → [ ] QuizSession (1.219) → [ ] LessonSubmissionsPage (1.072) → [ ] StudentsPage (1.121). Mỗi lần tách: `src/kiemTraMa.test.js` (thành phần dùng mà quên import) + test dựng thử `*.render.test.jsx` (renderToString nhiều trạng thái).
   5. [ ] Vá bảo mật đợt 3 (đi cùng bước 1–2): điểm quiz/thi lý thuyết do máy chủ tính; ẩn đáp án, bài chưa xuất bản, tiêu chí chấm khỏi học sinh.
 - Đã có (11/11): `src/domain/` (7 tệp, có test), `src/data/` (5 tệp), vitest. **Trước khi đưa lên: `npm test` (nhanh, không mạng) + `npm run test:quyen` (dữ liệu thật) + eslint.** Đọc ghi 5 bảng trên PHẢI qua `src/data/`, không gọi `supabase.from()` thẳng trong trang.
 - Đã xong 10/11: SQL vào `sql/`, tài liệu vào `docs/` (ARCHITECTURE cập nhật theo Neon), eslint hết báo nhầm ở `api/`.
@@ -94,7 +94,7 @@ src/components/teacher/QuestionImportModal.jsx — import hàng loạt từ text
 src/utils/questionParser.js          — parse text Word → structured questions
 src/domain/dapAn.js                  — so đáp án + điểm phần tự chấm (dungDapAn, diemTuDong)
 src/hooks/useGrades.js               — fetch grades từ bảng grades
-src/pages/student/LessonPage.jsx     — trang học bài HS (video/pptx-pdf/quiz/thực hành + nút AI trợ giảng)
+src/pages/student/LessonPage.jsx     — trang học bài HS: tải dữ liệu + ghép các phần trong components/student/baiHoc/ (thực hành: hooks/useBaiThucHanh.js)
 src/pages/teacher/LessonSubmissionsPage.jsx — chấm bài thực hành
 src/components/student/AskTutorModal.jsx — modal AI trợ giảng (quiz/thực hành/lý thuyết)
 api/tutor.js · api/grade.js          — serverless Gemini: trợ giảng · chấm bài
