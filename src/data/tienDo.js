@@ -18,3 +18,15 @@ export function demBaiHoanThanh(userId) {
 export function luuTienDo(dong) {
   return supabase.from(BANG).upsert(dong, { onConflict: 'user_id,lesson_id' }).select().single()
 }
+
+const COT_TIEN_DO_LOP = 'id, user_id, video_watched, quiz_passed, quiz_correct, quiz_total, completed, updated_at'
+
+/** tiến độ cả lớp ở 1 bài (trang chấm bài của giáo viên) — chỉ các cột trang dùng */
+export function layTienDoCuaLop(lessonId, userIds) {
+  return supabase.from(BANG).select(COT_TIEN_DO_LOP).eq('lesson_id', lessonId).in('user_id', userIds)
+}
+
+/** dấu vết nhẹ (id + giờ sửa) để biết tiến độ cả lớp có đổi không trước khi tải đầy đủ */
+export function layDauVetTienDo(lessonId, userIds) {
+  return supabase.from(BANG).select('id, updated_at').eq('lesson_id', lessonId).in('user_id', userIds)
+}

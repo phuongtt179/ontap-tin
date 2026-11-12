@@ -8,6 +8,7 @@ import PDFViewer from '../../ui/PDFViewer'
 import { DoneChip, ActionButton, SectionCard } from './KhungMuc'
 import { LessonQuiz } from './LessonQuiz'
 import { getEmbedUrl } from '../../../utils/video'
+import { linkXemOffice } from '../../../domain/tepNop'
 // Bài giảng web (trình chiếu) – tải khi bài có bài giảng web
 const LessonSlidesViewer = lazy(() => import('../../slides/LessonSlidesViewer.jsx'))
 
@@ -73,7 +74,7 @@ export function MucBaiGiang({ pptxUrl, webSlides, xong, daXem, an, dangDanhDau, 
         </div>
       ) : (
         <div className="w-full rounded-xl overflow-hidden border border-gray-200 mb-4" style={{ aspectRatio: '16/9' }}>
-          <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pptxUrl)}`}
+          <iframe src={linkXemOffice(pptxUrl)}
             width="100%" height="100%" frameBorder="0" title="Bài giảng PPTX" className="w-full h-full block" allowFullScreen />
         </div>
       )}

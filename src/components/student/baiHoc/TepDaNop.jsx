@@ -1,6 +1,7 @@
 // Hiển thị tệp học sinh đã nộp (biểu tượng theo loại tệp, xem ảnh / mã / tải về).
 import { FileText, FileImage, File, Code } from 'lucide-react'
 import CodeViewer from '../../ui/CodeViewer'
+import { loaiTep, tenTep, linkXemOffice } from '../../../domain/tepNop'
 
 /* ── FileIcon ──────────────────────────────────────────────── */
 export function FileIcon({ url, size = 20 }) {
@@ -17,12 +18,9 @@ export function FileIcon({ url, size = 20 }) {
 
 /* ── SubmittedFile ──────────────────────────────────────────── */
 export function SubmittedFile({ url, name }) {
-  const ext = (url || '').split('.').pop().toLowerCase().split('?')[0]
-  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
-  const isOffice = ['doc', 'docx', 'ppt', 'pptx'].includes(ext)
-  const isCode = ext === 'py' || ext === 'txt'
+  const { duoi: ext, anh: isImage, office: isOffice, code: isCode } = loaiTep(url)
   // Ưu tiên tên gốc học sinh đặt; nếu không có thì lấy từ URL (bị Cloudinary đổi ngẫu nhiên)
-  const fileName = name || decodeURIComponent(url.split('/').pop().split('?')[0])
+  const fileName = tenTep(url, name)
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 overflow-hidden">
@@ -40,7 +38,7 @@ export function SubmittedFile({ url, name }) {
       {isOffice && (
         <div className="border-t border-gray-200 bg-gray-100 overflow-hidden">
           <iframe
-            src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`}
+            src={linkXemOffice(url)}
             width="100%" height="480" frameBorder="0" title="Xem file" className="w-full block"
           />
         </div>

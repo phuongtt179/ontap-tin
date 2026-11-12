@@ -6,6 +6,7 @@ import { FileText, X, Loader2, Upload } from 'lucide-react'
 import MarkdownContent from '../../ui/MarkdownContent'
 import { uploadFile } from '../../../lib/cloudinary'
 import { generateSb3Text } from '../../../utils/sb3Text'
+import { loaiTep, tenTep, linkXemOffice } from '../../../domain/tepNop'
 
 export default function TaskEditor({ index, task, onChange, onRemove, autoFocus }) {
   const [tab, setTab] = useState('edit')
@@ -48,9 +49,8 @@ export default function TaskEditor({ index, task, onChange, onRemove, autoFocus 
   }
 
   const fileUrl = task.instruction_file_url || ''
-  const fileExt = fileUrl ? fileUrl.split('.').pop().toLowerCase().split('?')[0] : ''
-  const isOffice = ['doc','docx','ppt','pptx'].includes(fileExt)
-  const fileName = fileUrl ? decodeURIComponent(fileUrl.split('/').pop().split('?')[0]) : ''
+  const { office: isOffice } = loaiTep(fileUrl)
+  const fileName = tenTep(fileUrl)
 
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -163,7 +163,7 @@ export default function TaskEditor({ index, task, onChange, onRemove, autoFocus 
             ? <MarkdownContent text={task.instructions} />
             : !fileUrl && <p className="text-gray-400 text-sm italic">Chưa có nội dung...</p>}
           {fileUrl && isOffice && (
-            <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`}
+            <iframe src={linkXemOffice(fileUrl)}
               width="100%" height="400" frameBorder="0" className="rounded-lg border border-gray-200 block" />
           )}
         </div>

@@ -10,6 +10,7 @@ import PyTestStatus from '../PyTestStatus'
 import RaSoatLoi from '../RaSoatLoi'
 import { FileIcon, SubmittedFile } from './TepDaNop'
 import { MAU_BAI } from './mauBai'
+import { loaiTep, linkXemOffice } from '../../../domain/tepNop'
 
 export default function ChiTietBaiThucHanh({
   i, task, sub, file, note, dangNop, dangNopLai, dangChamAi, lessonId,
@@ -63,14 +64,12 @@ export default function ChiTietBaiThucHanh({
                 <MarkdownContent text={task.instructions} className="text-gray-800 text-sm" />
               )}
               {task.instruction_file_url && (() => {
-                const ext = task.instruction_file_url.split('.').pop().toLowerCase().split('?')[0]
-                const isOffice = ['doc','docx','ppt','pptx'].includes(ext)
-                const isPdf = ext === 'pdf'
+                const { office: isOffice, pdf: isPdf } = loaiTep(task.instruction_file_url)
                 return isPdf ? (
                   <PDFViewer url={task.instruction_file_url} />
                 ) : isOffice ? (
                   <iframe
-                    src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(task.instruction_file_url)}`}
+                    src={linkXemOffice(task.instruction_file_url)}
                     width="100%" height="480" frameBorder="0"
                     className="rounded-xl border border-gray-200 block w-full" />
                 ) : (

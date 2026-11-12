@@ -17,6 +17,9 @@ const ctx = { ai: null }
 vi.mock('../../src/lib/supabase', () => ({ supabase: { from: (...a) => ctx.ai.from(...a), rpc: (...a) => ctx.ai.rpc(...a) } }))
 import { taoBaiHoc, luuBaiHoc, xoaBaiHoc, layNguoiXemBai, ghiNguoiXemBai, emDuocXemBai } from '../../src/data/baiHoc'
 import { layTenHocSinhCuaKhoa } from '../../src/data/ghiDanh'
+import { layBaiNopCuaLop, capNhatBaiNop } from '../../src/data/baiNop'
+import { layTienDoCuaLop, layDauVetTienDo } from '../../src/data/tienDo'
+import { capNhatTuKetQuaAi, capNhatKhiDuyetAi, capNhatKhiGvChot, gomTheoHocSinh, baiCuaPhan } from '../../src/domain/chamBai'
 
 async function dangNhap(ten, matKhau) {
   const auth = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } })
@@ -84,9 +87,53 @@ describe.skipIf(!coDu)('GIÁO VIÊN soạn bài + giới hạn người xem (qua
     ctx.ai = hs.client
     expect(await emDuocXemBai(baiId, hs.id)).toBe(false)
   })
+  // ── chấm bài thực hành (trang Chấm bài: hooks/useTienDoLop + useChamBaiThucHanh) trên bài thử của demo1 ──
+  // bài nộp + tiến độ thử do tài khoản chủ tạo trên bài nháp; xoá bài ở bước cuối thì 2 dòng này tự xoá theo.
+  it('chấm bài: giáo viên thấy tiến độ + bài nộp của em trong lớp', async () => {
+    await chu.query(`insert into lesson_submissions (user_id, lesson_id, file_url, content_json, submitted_at)
+      values ($1, $2, 'https://x.test/kiem_thu.py', '{"task_index":0}', now())`, [hs.id, baiId])
+    await chu.query('insert into lesson_progress (user_id, lesson_id, video_watched) values ($1, $2, true)', [hs.id, baiId])
+    ctx.ai = gv.client
+    const [{ data: td, error: e1 }, { data: bn, error: e2 }, { data: dv }] = await Promise.all([
+      layTienDoCuaLop(baiId, [hs.id]), layBaiNopCuaLop(baiId, [hs.id]), layDauVetTienDo(baiId, [hs.id])])
+    expect(e1).toBeNull(); expect(e2).toBeNull()
+    expect(gomTheoHocSinh(td)[hs.id]).toMatchObject({ video_watched: true, completed: false })
+    expect(baiCuaPhan(gomTheoHocSinh(bn, true)[hs.id], 0).file_url).toBe('https://x.test/kiem_thu.py')
+    expect(dv).toHaveLength(1)
+  })
+  const baiThu = async () => (await chu.query('select * from lesson_submissions where lesson_id = $1', [baiId])).rows[0]
+  it('chấm bài: AI chấm nháp → giáo viên duyệt nguyên mức AI', async () => {
+    ctx.ai = gv.client
+    let sub = await baiThu()
+    expect((await capNhatBaiNop(sub.id, capNhatTuKetQuaAi({ score: 9, comment: 'AI: tốt' }))).error).toBeNull()
+    sub = await baiThu()
+    expect((await capNhatBaiNop(sub.id, capNhatKhiDuyetAi(sub))).error).toBeNull()
+    expect(await baiThu()).toMatchObject({ muc: 'T', graded_by: 'ai', teacher_comment: 'AI: tốt', sticker_awarded: true })
+  })
+  it('chấm bài: giáo viên đổi mức + nhận xét, cho nộp lại', async () => {
+    ctx.ai = gv.client
+    const sub = await baiThu()
+    expect((await capNhatBaiNop(sub.id, capNhatKhiGvChot(sub, 'H', 'Thầy: khá'))).error).toBeNull()
+    expect((await capNhatBaiNop(sub.id, { allow_resubmit: true })).error).toBeNull()
+    const sau = await baiThu()
+    expect(sau).toMatchObject({ muc: 'H', graded_by: 'teacher', teacher_comment: 'Thầy: khá', allow_resubmit: true })
+    expect(Number(sau.score)).toBe(6.5)
+    expect(Number(sau.ai_score)).toBe(9)
+  })
+  it('chấm bài: học sinh không tự chấm bài mình, không xem tiến độ bạn khác', async () => {
+    ctx.ai = hs.client
+    const sub = await baiThu()
+    const { error } = await capNhatBaiNop(sub.id, capNhatKhiGvChot(sub, 'T', 'tự khen'))
+    expect(error?.code).toBe('42501')
+    expect(await baiThu()).toMatchObject({ muc: 'H', teacher_comment: 'Thầy: khá' })
+    const [khac] = (await chu.query(`select user_id from lesson_progress where user_id <> $1 limit 1`, [hs.id])).rows
+    const { data } = await layTienDoCuaLop(baiId, [hs.id, khac.user_id])
+    expect(data.map(d => d.user_id)).toEqual([hs.id])
+  })
   it('xoá bài', async () => {
     ctx.ai = gv.client
     expect((await xoaBaiHoc(baiId)).error).toBeNull()
     expect((await chu.query('select 1 from lessons where id = $1', [baiId])).rowCount).toBe(0)
+    expect((await chu.query('select 1 from lesson_submissions where lesson_id = $1 union all select 1 from lesson_progress where lesson_id = $1', [baiId])).rowCount).toBe(0)
   })
 })
