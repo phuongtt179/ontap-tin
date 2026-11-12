@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { layTongQuanCongCuAi } from '../../data/hoiThayCo'
 import { layTenLopCuaKhoa } from '../../data/khoaHoc'
 import { layGhiDanh } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
@@ -45,7 +45,7 @@ export default function AiToolsPage() {
   const loc = { grade: grade || null, lop: lop || null, hsLop }
 
   const loadSummary = useCallback(() => {
-    supabase.rpc('ai_tools_summary', { p_grade: grade || null, p_class: lop || null }).then(({ data }) => setSummary(data || null))
+    layTongQuanCongCuAi(grade, lop).then(({ data }) => setSummary(data || null))
   }, [grade, lop])
   useEffect(() => { loadSummary() }, [loadSummary])
   // Duyệt liên tiếp nhiều bài: chờ ngừng tay 5 giây mới đếm lại 1 lần, không đếm lại sau từng bài

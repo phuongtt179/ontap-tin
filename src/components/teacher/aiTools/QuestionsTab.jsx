@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../../../lib/supabase'
+import { layCauHoiChoTraLoi, layNhapTraLoi, luuNhapTraLoi, traLoiCauHoi } from '../../../data/hoiThayCo'
+import { themHoiDap } from '../../../data/hoiDapMau'
 import { layCauHoiTomTat } from '../../../data/cauHoi'
 import { apiFetch } from '../../../lib/apiFetch'
 import { useAuth } from '../../../context/AuthContext'
@@ -21,19 +22,13 @@ export default function QuestionsTab({ onChanged, loc = {} }) {
 
   const load = useCallback(async () => {
     if (loc.lop && !loc.hsLop) return
-    let q = supabase.from('student_questions')
-      .select(`id, student_id, lesson_id, mode, question, context, created_at, profiles!student_questions_student_id_fkey(full_name), lessons${loc.grade ? '!inner' : ''}(title, grade, description, ai_context, ai_tutor_notes)`)
-      .eq('status', 'pending')
-    if (loc.grade) q = q.eq('lessons.grade', loc.grade)
-    if (loc.hsLop) q = q.in('student_id', loc.hsLop.length ? loc.hsLop : ['00000000-0000-0000-0000-000000000000'])
-    const { data, error } = await q.order('created_at', { ascending: true }).limit(100)
+    const { data, error } = await layCauHoiChoTraLoi({ grade: loc.grade, hocSinh: loc.hsLop })
     if (error) { toast.error('Không tải được câu hỏi'); setItems([]); return }
     setItems(data || [])
     const ids = (data || []).map(q => q.id)
     if (!ids.length) { setDrafts({}); return }
-    const { data: d } = await supabase.from('student_question_drafts').select('question_id, draft, skip_reason').in('question_id', ids)
-    setDrafts(Object.fromEntries((d || []).map(x => [x.question_id, { text: x.draft || '', skip: x.skip_reason }])))
-  }, [loc.grade, loc.lop, loc.hsLop])   // eslint-disable-line react-hooks/exhaustive-deps
+    setDrafts(await layNhapTraLoi(ids))
+  }, [loc.grade, loc.lop, loc.hsLop])
 
   useEffect(() => { load() }, [load])
 
@@ -69,7 +64,7 @@ export default function QuestionsTab({ onChanged, loc = {} }) {
       const rows = (data.drafts || []).filter(d => !d.error).map(d => ({
         question_id: d.id, draft: d.draft ? unmaskNames(d.draft, codeToName) : null, skip_reason: d.skip_reason || null,
       }))
-      if (rows.length) await supabase.from('student_question_drafts').upsert(rows)
+      if (rows.length) await luuNhapTraLoi(rows)
       setDrafts(prev => ({ ...prev, ...Object.fromEntries(rows.map(r => [r.question_id, { text: r.draft || '', skip: r.skip_reason }])) }))
       if (data.quota) toast.error('AI hết lượt giữa chừng — đã soạn được ' + rows.length + ' câu')
       else toast.success(`AI đã soạn nháp ${rows.length} câu — thầy/cô đọc lại rồi gửi`)
@@ -82,14 +77,12 @@ export default function QuestionsTab({ onChanged, loc = {} }) {
     const text = (drafts[q.id]?.text || '').trim()
     if (status === 'answered' && !text) { toast.error('Câu trả lời đang trống'); return false }
     setSending(s => ({ ...s, [q.id]: true }))
-    const { error } = await supabase.from('student_questions').update({
-      status, answer: status === 'answered' ? text : null, answered_by: user.id, answered_at: new Date().toISOString(),
-    }).eq('id', q.id)
+    const { error } = await traLoiCauHoi(q.id, { status, traLoi: text, nguoiTraLoi: user.id })
     setSending(s => ({ ...s, [q.id]: false }))
     if (error) { toast.error('Lưu thất bại: ' + error.message); return false }
     // Lưu thành hỏi đáp mẫu đã duyệt của bài → lần sau em khác hỏi cùng ý sẽ nhận ngay câu trả lời này
     if (luuMau && q.lesson_id) {
-      const { error: e2 } = await supabase.from('lesson_faq').insert({ lesson_id: q.lesson_id, question: q.question.slice(0, 500), answer: text.slice(0, 3000), approved: true, approved_at: new Date().toISOString(), source: 'student', created_by: user.id })
+      const { error: e2 } = await themHoiDap({ lesson_id: q.lesson_id, question: q.question.slice(0, 500), answer: text.slice(0, 3000), approved: true, approved_at: new Date().toISOString(), source: 'student', created_by: user.id })
       if (e2) toast.error('Đã gửi nhưng chưa lưu được hỏi đáp mẫu: ' + e2.message); else toast.success('Đã gửi và lưu thành hỏi đáp mẫu')
     }
     setItems(prev => prev.filter(x => x.id !== q.id))

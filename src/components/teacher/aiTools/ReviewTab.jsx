@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../../lib/supabase'
+import { layHangDoiDuyet } from '../../../data/hoiThayCo'
 import { thuongStickerTheoMuc } from '../../../utils/stickerAward'
 import { MUC, CAC_MUC, mucTuDiem, DIEM_DAI_DIEN } from '../../../utils/muc'
 import toast from 'react-hot-toast'
@@ -218,7 +218,7 @@ export default function ReviewTab({ summary, onChanged, loc = {} }) {
   useEffect(() => {
     if (loc.lop && !loc.hsLop) return   // đang tải danh sách lớp
     setItems(null)
-    supabase.rpc('ai_review_queue', { p_reason: reason, p_limit: pageSize, p_grade: loc.grade, p_class: loc.lop, p_muc: locMuc }).then(({ data, error }) => {
+    layHangDoiDuyet({ lyDo: reason, soDong: pageSize, grade: loc.grade, lop: loc.lop, muc: locMuc }).then(({ data, error }) => {
       if (error) { toast.error('Không tải được hàng đợi duyệt'); setItems([]) } else setItems(data || [])
       setSelected(new Set())
     })

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '../../lib/supabase'
+import { layCauHoiCuaEm, danhDauDaXem, guiCauHoi } from '../../data/hoiThayCo'
+import { layHoiDapMauChoEm } from '../../data/hoiDapMau'
 import { X, Loader2, Send, BookOpen, MessageCircleQuestion, ChevronDown, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiFetch } from '../../lib/apiFetch'
@@ -29,23 +30,19 @@ export default function MediatedAskModal({ open, onClose, mode = 'theory', conte
   useEffect(() => {
     if (!open || !studentId) return
     let alive = true
-    let q = supabase.from('student_questions').select('id, question, answer, status, created_at, answered_at, seen_at, context')
-      .eq('student_id', studentId).order('created_at', { ascending: true }).limit(50)
-    q = lessonId ? q.eq('lesson_id', lessonId) : q.is('lesson_id', null)
-    q.then(({ data }) => {
+    layCauHoiCuaEm(studentId, lessonId).then(({ data }) => {
       if (!alive) return
       setItems(data || [])
       // đánh dấu đã xem các câu trả lời mới
       const unseen = (data || []).filter(x => x.status === 'answered' && !x.seen_at).map(x => x.id)
-      if (unseen.length) supabase.from('student_questions').update({ seen_at: new Date().toISOString() }).in('id', unseen).then(() => {})
+      if (unseen.length) danhDauDaXem(unseen).then(() => {})
     })
     return () => { alive = false }
   }, [open, studentId, lessonId])
 
   useEffect(() => {
     if (!open || !lessonId) { setMau([]); return }
-    supabase.from('lesson_faq').select('id, question, answer').eq('lesson_id', lessonId).eq('approved', true)
-      .order('use_count', { ascending: false }).order('sort_order').limit(30)
+    layHoiDapMauChoEm(lessonId)
       .then(({ data }) => setMau(data || []))
   }, [open, lessonId])
 
@@ -69,9 +66,7 @@ export default function MediatedAskModal({ open, onClose, mode = 'theory', conte
       taskInstructions: context.taskInstructions ? String(context.taskInstructions).slice(0, 2000) : null,
       ...them,
     }
-    const { data, error } = await supabase.from('student_questions')
-      .insert({ student_id: studentId, lesson_id: lessonId || null, mode, question: q.slice(0, 1000), context: safeContext })
-      .select('id, question, answer, status, created_at, answered_at, seen_at, context').single()
+    const { data, error } = await guiCauHoi({ studentId, lessonId, mode, cauHoi: q, context: safeContext })
     if (error) { toast.error('Chưa gửi được câu hỏi, em thử lại nhé'); return false }
     setItems(prev => [...(prev || []), data])
     return true

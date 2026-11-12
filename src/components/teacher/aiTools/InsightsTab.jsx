@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../../lib/supabase'
+import { layCauHoiAiTheoBai } from '../../../data/tinNhan'
 import { layTenCacHs } from '../../../data/hoSo'
 import { useGrades } from '../../../hooks/useGrades'
 import { maskNames, unmaskNames } from '../../../utils/anonymize'
@@ -35,11 +35,7 @@ export default function InsightsTab() {
     setLoading(true); setResult(null)
     const ids = lessonId === 'all' ? lessons.map(l => l.id) : [lessonId]
     if (!ids.length) { setMsgs([]); setLoading(false); return }
-    let q = supabase.from('messages').select('id, student_id, content, created_at, context')
-      .eq('channel', 'ai').eq('sender_role', 'student').in('context->>lessonId', ids)
-      .order('created_at', { ascending: false }).limit(300)
-    if (days) q = q.gte('created_at', new Date(Date.now() - days * 864e5).toISOString())
-    const { data, error } = await q
+    const { data, error } = await layCauHoiAiTheoBai(ids, days)
     if (error) { toast.error('Không tải được câu hỏi'); setLoading(false); return }
     const studentIds = [...new Set((data || []).map(m => m.student_id))]
     const { data: profs } = studentIds.length

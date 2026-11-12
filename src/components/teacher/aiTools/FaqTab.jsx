@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Loader2, Sparkles, Check, Trash2, Plus, EyeOff, Save } from 'lucide-react'
-import { supabase } from '../../../lib/supabase'
+import { layHoiDapCuaBai, demHoiDapDaDuyet, themHoiDap, suaHoiDap, duyetHoiDap, xoaHoiDap } from '../../../data/hoiDapMau'
 import { layCauHoiTomTat } from '../../../data/cauHoi'
 import { apiFetch } from '../../../lib/apiFetch'
 import { useAuth } from '../../../context/AuthContext'
@@ -26,9 +26,7 @@ function DongFaq({ f, onDoi, onXoa }) {
   async function luu(approved = f.approved) {
     if (hoi.trim().length < 3 || dap.trim().length < 3) { toast.error('Câu hỏi và câu trả lời không được để trống'); return }
     setDang(true)
-    const { data, error } = await supabase.from('lesson_faq')
-      .update({ question: hoi.trim(), answer: dap.trim(), approved, approved_at: approved ? new Date().toISOString() : null })
-      .eq('id', f.id).select().single()
+    const { data, error } = await suaHoiDap(f.id, { question: hoi.trim(), answer: dap.trim(), approved, approved_at: approved ? new Date().toISOString() : null })
     setDang(false)
     if (error) { toast.error('Lưu thất bại: ' + error.message); return }
     onDoi(data)
@@ -68,12 +66,11 @@ export default function FaqTab({ loc = {} }) {
   }, [loc.grade])
   useEffect(() => {
     if (!baiHocs.length) { setDem({}); return }
-    supabase.from('lesson_faq').select('lesson_id').eq('approved', true).in('lesson_id', baiHocs.map(b => b.id))
-      .then(({ data }) => { const m = {}; (data || []).forEach(r => { m[r.lesson_id] = (m[r.lesson_id] || 0) + 1 }); setDem(m) })
+    demHoiDapDaDuyet(baiHocs.map(b => b.id)).then(({ data }) => setDem(data))
   }, [baiHocs, ds])
   useEffect(() => {
     if (!baiId) { setDs(null); return }
-    supabase.from('lesson_faq').select('*').eq('lesson_id', baiId).order('approved').order('sort_order').order('created_at')
+    layHoiDapCuaBai(baiId)
       .then(({ data }) => setDs(data || []))
   }, [baiId])
 
@@ -87,31 +84,28 @@ export default function FaqTab({ loc = {} }) {
       const d = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(AI_LOI[d.error] || 'Lỗi AI: ' + (d.error || r.status))
       if (!d.items?.length) throw new Error('AI chưa soạn được câu nào, bấm thử lại')
-      const { data: moi, error } = await supabase.from('lesson_faq')
-        .insert(d.items.map((x, i) => ({ lesson_id: baiId, question: x.hoi, answer: x.dap, source: 'ai', sort_order: (ds?.length || 0) + i, created_by: user?.id })))
-        .select()
+      const { data: moi, error } = await themHoiDap(d.items.map((x, i) => ({ lesson_id: baiId, question: x.hoi, answer: x.dap, source: 'ai', sort_order: (ds?.length || 0) + i, created_by: user?.id })))
       if (error) throw error
       setDs(prev => [...(prev || []), ...moi]); toast.success(`AI đã soạn ${moi.length} câu — thầy cô đọc, sửa rồi duyệt`)
     } catch (e) { toast.error(e.message) }
     setDang('')
   }
   async function themTay() {
-    const { data, error } = await supabase.from('lesson_faq')
-      .insert({ lesson_id: baiId, question: 'Câu học sinh hay hỏi…', answer: 'Câu trả lời của thầy cô…', source: 'teacher', sort_order: ds?.length || 0, created_by: user?.id }).select().single()
+    const { data, error } = await themHoiDap({ lesson_id: baiId, question: 'Câu học sinh hay hỏi…', answer: 'Câu trả lời của thầy cô…', source: 'teacher', sort_order: ds?.length || 0, created_by: user?.id })
     if (error) { toast.error(error.message); return }
-    setDs(prev => [...(prev || []), data])
+    setDs(prev => [...(prev || []), ...data])
   }
   async function duyetHet() {
     const cho = (ds || []).filter(f => !f.approved)
     if (!cho.length || !confirm(`Duyệt cả ${cho.length} câu đang chờ? Thầy cô nên đọc qua trước.`)) return
     setDang('duyet')
-    const { error } = await supabase.from('lesson_faq').update({ approved: true, approved_at: new Date().toISOString() }).in('id', cho.map(f => f.id))
+    const { error } = await duyetHoiDap(cho.map(f => f.id))
     setDang('')
     if (error) { toast.error(error.message); return }
     setDs(prev => prev.map(f => (cho.some(c => c.id === f.id) ? { ...f, approved: true } : f)))
   }
   async function xoa(f) {
-    const { error } = await supabase.from('lesson_faq').delete().eq('id', f.id)
+    const { error } = await xoaHoiDap(f.id)
     if (error) { toast.error(error.message); return }
     setDs(prev => prev.filter(x => x.id !== f.id))
   }
