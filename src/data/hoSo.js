@@ -23,9 +23,9 @@ export function layTenCacHs(ids) {
   return supabase.from(BANG).select('id, full_name').in('id', ids).order('full_name')
 }
 
-/** trang Học sinh: mọi tài khoản học sinh, đủ cột */
+/** trang Học sinh: mọi tài khoản học sinh (khoá / lớp lấy từ ghi danh, data/ghiDanh.js) */
 export function layTatCaHocSinh() {
-  return supabase.from(BANG).select('*').eq('role', 'student').order('full_name').limit(GIOI_HAN)
+  return supabase.from(BANG).select('id, full_name, username, is_approved').eq('role', 'student').order('full_name').limit(GIOI_HAN)
 }
 
 /** học sinh đã duyệt (soạn tin nhắn mới) */

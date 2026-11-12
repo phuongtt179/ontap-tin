@@ -37,3 +37,8 @@ export async function layMoKhoaCuaLop(grade, className) {
     bai: new Map((bai.data || []).map(r => [r.lesson_id, r.created_at])),
   }
 }
+
+/** mọi lớp (ca học) của mọi khoá, xếp theo khoá rồi tên */
+export function layCacLop() {
+  return supabase.from('classes').select('name, grade').order('grade').order('name').limit(GIOI_HAN)
+}
