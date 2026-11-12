@@ -139,3 +139,25 @@ export function duLieuCauHoi(form) {
     unit_id: form.unit_id || null, lesson_title_id: form.lesson_title_id || null, ...dapAn.duLieu,
   } }
 }
+
+/** câu nhập hàng loạt (đã phân tích từ chữ dán vào) → dòng lưu vào questions; khoá / chủ đề / bài / mức độ lấy chung từ meta */
+export function dongLuuCauNhap(q, meta, userId) {
+  return {
+    question: q.question,
+    type: q.type,
+    options: q.type === 'essay' ? [{ allow_file: false, max_score: 1 }] : q.options,
+    match_options: q.match_options?.length ? q.match_options : null,
+    correct_answer: q.type === 'essay' ? (q.correct_answer || null)
+      : q.type === 'word_order' ? splitPhrases(q.correct_answer).sentence   // bỏ dấu "/" ngăn cụm
+      : q.correct_answer,
+    hint: q.hint || null,
+    image_url: q.image_url || null,
+    audio_url: null,
+    grade: meta.grade,
+    topic: meta.topic,
+    unit_id: meta.unit_id || null,
+    lesson_title_id: meta.lesson_title_id || null,
+    difficulty: meta.difficulty,
+    created_by: userId,
+  }
+}

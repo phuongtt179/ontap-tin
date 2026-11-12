@@ -43,3 +43,15 @@ describe('soạn câu hỏi', () => {
     expect(duLieuCauHoi(form).duLieu).toMatchObject({ correct_answer: 'chuột', options: q.options, topic: null, hint: null })
   })
 })
+
+import { dongLuuCauNhap } from './soanCauHoi'
+describe('nhập câu hỏi hàng loạt → dòng lưu', () => {
+  const meta = { grade: 'K3', topic: 'Chủ đề 1', unit_id: '', lesson_title_id: 't1', difficulty: 'medium' }
+  it('lấy khoá / chủ đề / mức độ chung, bỏ "/" của câu sắp xếp từ', () => {
+    expect(dongLuuCauNhap({ type: 'word_order', question: 'Sắp', options: [{ text: 'Em' }], correct_answer: 'Em / đi học' }, meta, 'gv'))
+      .toMatchObject({ correct_answer: 'Em đi học', grade: 'K3', topic: 'Chủ đề 1', unit_id: null, lesson_title_id: 't1', difficulty: 'medium', created_by: 'gv', match_options: null })
+  })
+  it('tự luận: lựa chọn mặc định, đáp án mẫu rỗng → null', () =>
+    expect(dongLuuCauNhap({ type: 'essay', question: 'Viết', options: [], correct_answer: '' }, meta, 'gv'))
+      .toMatchObject({ options: [{ allow_file: false, max_score: 1 }], correct_answer: null }))
+})

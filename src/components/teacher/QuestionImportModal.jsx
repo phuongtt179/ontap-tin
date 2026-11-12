@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { parseQuestions } from '../../utils/questionParser'
 import { checkParsedQuestions } from '../../utils/questionCheck'
 import AiQuestionPanel from './AiQuestionPanel'
-import { splitPhrases } from '../../utils/wordOrder'
+import { dongLuuCauNhap } from '../../domain/soanCauHoi'
+import HuongDanNhap from './cauHoi/HuongDanNhap'
+import SuaCauNhap from './cauHoi/SuaCauNhap'
 import { themCauHoi } from '../../data/cauHoi'
 import { uploadImage } from '../../lib/cloudinary'
 import { useAuth } from '../../context/AuthContext'
@@ -10,17 +12,6 @@ import { useUnits } from '../../hooks/useUnits'
 import { useLessonTitles } from '../../hooks/useLessonTitles'
 import toast from 'react-hot-toast'
 import { X, ChevronRight, Save, ImagePlus, Trash2 } from 'lucide-react'
-
-const QUESTION_TYPES = {
-  multiple_choice: 'Trắc nghiệm',
-  true_false: 'Đúng / Sai',
-  fill_blank: 'Điền từ',
-  drag_word: 'Kéo thả từ',
-  ordering: 'Sắp xếp',
-  matching: 'Ghép đôi',
-  word_order: 'Sắp xếp từ',
-  essay: 'Tự luận',
-}
 
 export default function QuestionImportModal({ onClose, onSaved, grades, topics, defaultGrade, defaultTopic, defaultUnitId }) {
   const { user } = useAuth()
@@ -88,6 +79,11 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics, 
     }))
   }
 
+  /** sửa nhiều trường của 1 câu một lúc */
+  function doiNhieu(index, thayDoi) {
+    setParsed(prev => prev.map((q, i) => (i === index ? { ...q, ...thayDoi } : q)))
+  }
+
   function removeQuestion(index) {
     setParsed(prev => prev.filter((_, i) => i !== index))
   }
@@ -107,24 +103,7 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics, 
     if (parsed.length === 0) { toast.error('Không có câu hỏi nào để lưu'); return }
     setSaving(true)
     try {
-      const rows = parsed.map(q => ({
-        question: q.question,
-        type: q.type,
-        options: q.type === 'essay' ? [{ allow_file: false, max_score: 1 }] : q.options,
-        match_options: q.match_options?.length ? q.match_options : null,
-        correct_answer: q.type === 'essay' ? (q.correct_answer || null)
-          : q.type === 'word_order' ? splitPhrases(q.correct_answer).sentence   // bỏ dấu "/" ngăn cụm
-          : q.correct_answer,
-        hint: q.hint || null,
-        image_url: q.image_url || null,
-        audio_url: null,
-        grade: meta.grade,
-        topic: meta.topic,
-        unit_id: meta.unit_id || null,
-        lesson_title_id: meta.lesson_title_id || null,
-        difficulty: meta.difficulty,
-        created_by: user.id,
-      }))
+      const rows = parsed.map(q => dongLuuCauNhap(q, meta, user.id))
       const { data: inserted, error } = await themCauHoi(rows)
       if (error) throw error
       toast.success(`Đã lưu ${rows.length} câu hỏi`)
@@ -208,118 +187,7 @@ export default function QuestionImportModal({ onClose, onSaved, grades, topics, 
                   Dán nội dung từ Word vào đây
                 </label>
                 {/* Hướng dẫn */}
-                <details className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden mb-2">
-                  <summary className="px-4 py-2.5 text-sm font-medium text-gray-600 cursor-pointer select-none hover:bg-gray-100 transition">
-                    📋 Hướng dẫn định dạng từng loại câu hỏi
-                  </summary>
-                  <div className="px-4 pb-4 pt-2 space-y-3 text-xs text-gray-600 font-mono">
-
-                    <div>
-                      <p className="font-sans font-semibold text-gray-700 mb-1">Mã loại câu hỏi (tùy chọn, đặt ngay sau "Câu N:")</p>
-                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`[TN] Trắc nghiệm    [DS] Đúng/Sai     [DT] Điền từ      [KT] Kéo thả từ
-[SX] Sắp xếp        [ND] Ghép đôi     [ST] Sắp xếp từ  [TL] Tự luận
-
-Ví dụ: Câu 1: [TN] Thiết bị nào dùng để nhập dữ liệu?
-       Câu 5: [SX] Sắp xếp các bước khởi động máy tính`}</pre>
-                      <p className="font-sans text-gray-400 mt-1">Không dùng mã → hệ thống tự nhận dạng từ nội dung. Mã [SX] bắt buộc cho câu sắp xếp có code.</p>
-                    </div>
-
-                    <div>
-                      <p className="font-sans font-semibold text-gray-700 mb-1">1. Trắc nghiệm</p>
-                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 1: [TN] Thiết bị nào dùng để nhập dữ liệu?
-A. Màn hình
-B. Bàn phím
-C. Loa
-D. Máy in
-Đáp án: B
-Gợi ý: Bàn phím là thiết bị INPUT`}</pre>
-                    </div>
-
-                    <div>
-                      <p className="font-sans font-semibold text-gray-700 mb-1">2. Đúng / Sai</p>
-                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 2: CPU là bộ não của máy tính. Đúng hay sai?
-Đáp án: Đúng`}</pre>
-                    </div>
-
-                    <div>
-                      <p className="font-sans font-semibold text-gray-700 mb-1">3. Điền từ — 1 hoặc nhiều chỗ trống</p>
-                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 3: [DT] ___ là thiết bị dùng để nhập văn bản.
-Đáp án: Bàn phím
-
-Câu 4: [DT] ___ là thiết bị nhập, ___ là thiết bị xuất.
-Đáp án: Bàn phím, Màn hình`}</pre>
-                      <p className="font-sans text-gray-400 mt-1">Số đáp án = số ___ trong câu (phân cách dấu phẩy)</p>
-                    </div>
-
-                    <div>
-                      <p className="font-sans font-semibold text-gray-700 mb-1">4. Kéo thả từ — 1 hoặc nhiều chỗ trống</p>
-                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 5: [KT] ___ là ngôn ngữ lập trình, ___ là phần mềm soạn thảo.
-Từ: Python, Word, Excel, Scratch
-Đáp án: Python, Word`}</pre>
-                      <p className="font-sans text-gray-400 mt-1">Từ thừa trong "Từ:" → từ gây nhiễu. Số đáp án = số ___.</p>
-                    </div>
-
-                    <div>
-                      <p className="font-sans font-semibold text-gray-700 mb-1">5. Sắp xếp thứ tự</p>
-                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 6: [SX] Sắp xếp các bước khởi động máy tính
-1. Bật màn hình
-2. Bật thùng máy
-3. Đăng nhập`}</pre>
-                      <p className="font-sans text-gray-400 mt-1">Dùng [SX] để tránh nhầm lẫn — đặc biệt khi câu hỏi có code.</p>
-                    </div>
-
-                    <div>
-                      <p className="font-sans font-semibold text-gray-700 mb-1">6. Ghép đôi</p>
-                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 7: [ND] Ghép thiết bị với chức năng
-Bàn phím | Nhập văn bản
-Chuột | Di chuyển con trỏ
-Màn hình | Hiển thị thông tin`}</pre>
-                    </div>
-
-                    <div>
-                      <p className="font-sans font-semibold text-gray-700 mb-1">7. Sắp xếp từ thành câu</p>
-                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 8: [ST] Sắp xếp các từ thành câu đúng
-Câu đúng: Bàn phím là thiết bị nhập dữ liệu`}</pre>
-                    </div>
-
-                    <div>
-                      <p className="font-sans font-semibold text-gray-700 mb-1">8. Tự luận</p>
-                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 9: [TL] Em hãy nêu tên 3 thiết bị nhập dữ liệu
-Gợi ý: Bàn phím, chuột, màn hình cảm ứng`}</pre>
-                    </div>
-
-                    <div>
-                      <p className="font-sans font-semibold text-gray-700 mb-1">9. Câu hỏi có code — dùng ---python / --- (dễ gõ)</p>
-                      <pre className="bg-white border border-gray-200 rounded-lg p-2 whitespace-pre-wrap">{`Câu 10: [TN] Đoạn code sau in ra kết quả gì?
----python
-x = 5
-print(x + 3)
----
-A. 5
-B. 3
-C. 8
-D. 53
-Đáp án: C
-
-Câu 11: [DT] Điền từ còn thiếu vào chỗ ___ để in ra "Xin chào"
----python
-___("Xin chào")
----
-Đáp án: print
-
-Câu 12: [KT] Kéo thả từ đúng vào chỗ trống
----python
-x = ___
-y = ___
-print(x + y)
----
-Từ: 10, 20, 30, "hello"
-Đáp án: 10, 20`}</pre>
-                      <p className="font-sans text-gray-400 mt-1">---python / --- dễ gõ hơn backtick. Cũng dùng được: ```python ... ```</p>
-                    </div>
-
-                  </div>
-                </details>
+                <HuongDanNhap />
 
                 <textarea
                   value={rawText}
@@ -344,239 +212,8 @@ Từ: 10, 20, 30, "hello"
           ) : (
             <div className="space-y-4">
               {parsed.map((q, i) => (
-                <div key={i} className="border border-gray-200 rounded-xl p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-xs font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
-                      Câu {i + 1} — {QUESTION_TYPES[q.type] || q.type}
-                    </span>
-                    <button onClick={() => removeQuestion(i)} className="text-red-400 hover:text-red-600">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                  {/* Cảnh báo lỗi cấu trúc (thiếu chỗ trống, đáp án không khớp...) — cập nhật ngay khi sửa */}
-                  {issues.filter(x => x.index === i).map((x, k) => (
-                    <p key={k} className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">⚠ {x.msg}</p>
-                  ))}
-
-                  {/* Question text */}
-                  <textarea
-                    value={q.question}
-                    onChange={e => updateQuestion(i, 'question', e.target.value)}
-                    rows={2}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
-                  />
-
-                  {/* Image */}
-                  <div className="flex items-center gap-3">
-                    {q.image_url ? (
-                      <div className="flex items-center gap-2">
-                        <img src={q.image_url} alt="" className="h-16 rounded border" />
-                        <button onClick={() => updateQuestion(i, 'image_url', null)}
-                          className="text-xs text-red-500 hover:underline">Xóa ảnh</button>
-                      </div>
-                    ) : (
-                      <label className="flex items-center gap-1.5 text-xs text-indigo-600 cursor-pointer hover:underline">
-                        <ImagePlus size={14} /> Thêm ảnh
-                        <input type="file" accept="image/*" className="hidden"
-                          onChange={e => e.target.files[0] && handleImageUpload(i, e.target.files[0])} />
-                      </label>
-                    )}
-                  </div>
-
-                  {/* Options for multiple choice */}
-                  {q.type === 'multiple_choice' && (
-                    <div className="space-y-1.5">
-                      {q.options.map((opt, oi) => (
-                        <div key={oi} className="flex items-center gap-2">
-                          <button
-                            onClick={() => updateQuestion(i, 'correct_answer', opt.key)}
-                            className={`w-7 h-7 rounded-full text-xs font-bold border-2 flex-shrink-0 transition
-                              ${q.correct_answer === opt.key
-                                ? 'bg-green-500 border-green-500 text-white'
-                                : 'border-gray-300 text-gray-500 hover:border-indigo-400'}`}
-                          >
-                            {opt.key}
-                          </button>
-                          <input
-                            value={opt.text}
-                            onChange={e => updateOption(i, oi, e.target.value)}
-                            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                          />
-                        </div>
-                      ))}
-                      <p className="text-xs text-gray-400">Bấm vào chữ cái để chọn đáp án đúng</p>
-                    </div>
-                  )}
-
-                  {/* True/False */}
-                  {q.type === 'true_false' && (
-                    <div className="flex gap-2">
-                      {['Đúng', 'Sai'].map(val => (
-                        <button key={val}
-                          onClick={() => updateQuestion(i, 'correct_answer', val)}
-                          className={`px-4 py-1.5 rounded-lg text-sm font-medium border-2 transition
-                            ${q.correct_answer === val
-                              ? 'bg-green-500 border-green-500 text-white'
-                              : 'border-gray-300 text-gray-600 hover:border-indigo-400'}`}
-                        >
-                          {val}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Fill blank */}
-                  {q.type === 'fill_blank' && (
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">Đáp án</label>
-                      <input
-                        value={q.correct_answer || ''}
-                        onChange={e => updateQuestion(i, 'correct_answer', e.target.value)}
-                        className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400 w-full"
-                      />
-                    </div>
-                  )}
-
-                  {/* Drag word */}
-                  {q.type === 'drag_word' && (
-                    <div className="space-y-2">
-                      <div>
-                        <label className="text-xs text-gray-500 block mb-1">Từ vựng (cách nhau bằng dấu phẩy)</label>
-                        <input
-                          value={q.options.map(o => o.text).join(', ')}
-                          onChange={e => updateWordBank(i, e.target.value)}
-                          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400 w-full"
-                          placeholder="từ1, từ2, từ3..."
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500 block mb-1">Đáp án (thứ tự từ cần điền)</label>
-                        <input
-                          value={q.correct_answer || ''}
-                          onChange={e => updateQuestion(i, 'correct_answer', e.target.value)}
-                          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400 w-full"
-                          placeholder="từ1, từ2..."
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Ordering */}
-                  {q.type === 'ordering' && (
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-gray-500 block">Các mục (thứ tự hiện tại = đáp án đúng)</label>
-                      {q.options.map((opt, oi) => (
-                        <div key={oi} className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">
-                            {oi + 1}
-                          </span>
-                          <input
-                            value={opt.text}
-                            onChange={e => updateOption(i, oi, e.target.value)}
-                            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Matching */}
-                  {q.type === 'matching' && (
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-gray-500 block">Cặp ghép đôi (trái | phải)</label>
-                      {q.options.map((opt, oi) => (
-                        <div key={oi} className="flex items-center gap-2">
-                          <span className="w-6 text-xs font-bold text-indigo-600 text-center shrink-0">{opt.key}</span>
-                          <input
-                            value={opt.text}
-                            onChange={e => updateOption(i, oi, e.target.value)}
-                            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                          />
-                          <span className="text-gray-400 text-xs shrink-0">→</span>
-                          <input
-                            value={(q.match_options || [])[oi]?.text || ''}
-                            onChange={e => updateMatchOption(i, oi, e.target.value)}
-                            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Word Order */}
-                  {q.type === 'word_order' && (
-                    <div className="space-y-2">
-                      <div>
-                        <label className="text-xs text-gray-500 block mb-1">Câu đúng (đáp án)</label>
-                        <input
-                          value={q.correct_answer || ''}
-                          onChange={e => {
-                            // Giữ nguyên chữ giáo viên gõ (kể cả "/"); tách cụm để xem trước — lưu sẽ bỏ "/"
-                            const sentence = e.target.value
-                            const { chunks } = splitPhrases(sentence)
-                            setParsed(prev => prev.map((item, idx) => idx !== i ? item : {
-                              ...item,
-                              correct_answer: sentence,
-                              options: chunks.map((text, wi) => ({ key: String.fromCharCode(65 + wi), text }))
-                            }))
-                          }}
-                          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400 w-full"
-                          placeholder="Ví dụ: Bàn phím là thiết bị nhập dữ liệu"
-                        />
-                      </div>
-                      {q.options.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {q.options.map((opt, oi) => (
-                            <span key={oi} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full border border-indigo-200">
-                              {opt.text}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Essay */}
-                  {q.type === 'essay' && (
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">Gợi ý / Đáp án mẫu (tùy chọn)</label>
-                      <textarea
-                        value={q.correct_answer || ''}
-                        onChange={e => updateQuestion(i, 'correct_answer', e.target.value)}
-                        rows={2}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400 resize-none"
-                        placeholder="Nhập đáp án mẫu (không bắt buộc, giáo viên sẽ chấm)"
-                      />
-                    </div>
-                  )}
-
-                  {/* Hint */}
-                  {q.type !== 'essay' && (
-                    <div>
-                      <label className="text-xs text-amber-600 block mb-1">Gợi ý khi sai (tùy chọn)</label>
-                      <input
-                        value={q.hint || ''}
-                        onChange={e => updateQuestion(i, 'hint', e.target.value)}
-                        className="border border-amber-200 bg-amber-50 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400 w-full"
-                        placeholder="Nhập gợi ý cho học sinh khi trả lời sai..."
-                      />
-                    </div>
-                  )}
-
-                  {/* Type selector */}
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-500">Dạng:</label>
-                    <select
-                      value={q.type}
-                      onChange={e => updateQuestion(i, 'type', e.target.value)}
-                      className="text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                    >
-                      {Object.entries(QUESTION_TYPES).map(([k, v]) => (
-                        <option key={k} value={k}>{v}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                <SuaCauNhap key={i} q={q} i={i} issues={issues} updateQuestion={updateQuestion} updateOption={updateOption}
+                  updateMatchOption={updateMatchOption} updateWordBank={updateWordBank} doiNhieu={doiNhieu} removeQuestion={removeQuestion} handleImageUpload={handleImageUpload} />
               ))}
             </div>
           )}
