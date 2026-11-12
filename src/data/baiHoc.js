@@ -22,6 +22,19 @@ export async function emDuocXemBai(lessonId, userId) {
   return !!data
 }
 
+/** giáo viên: danh sách học sinh được xem 1 bài giới hạn người xem → mảng user_id */
+export async function layNguoiXemBai(lessonId) {
+  const { data, error } = await supabase.from('lesson_visibility').select('user_id').eq('lesson_id', lessonId).limit(5000)
+  return { data: (data || []).map(r => r.user_id), error }
+}
+
+/** giáo viên: ghi lại danh sách học sinh được xem bài (xoá hết rồi ghi lại) — trả { error } */
+export async function ghiNguoiXemBai(lessonId, userIds = []) {
+  const xoa = await supabase.from('lesson_visibility').delete().eq('lesson_id', lessonId)
+  if (xoa.error || userIds.length === 0) return { error: xoa.error }
+  return supabase.from('lesson_visibility').insert(userIds.map(user_id => ({ lesson_id: lessonId, user_id })))
+}
+
 /** các trang bài giảng web của bài (lesson_slides) — null nếu chưa có */
 export async function layBaiGiangWeb(lessonId) {
   const { data } = await supabase.from('lesson_slides').select('slides').eq('lesson_id', lessonId).maybeSingle()

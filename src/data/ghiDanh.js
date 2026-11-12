@@ -34,6 +34,14 @@ export function layHocSinhKemHoSo({ grade, lop } = {}) {
   return q.limit(GIOI_HAN)
 }
 
+/** tên học sinh đã duyệt của 1 khoá, xếp theo tên → [{ id, full_name }] (chọn người xem bài) */
+export async function layTenHocSinhCuaKhoa(grade) {
+  const { data, error } = await layHocSinhKemHoSo({ grade })
+  const ds = (data || []).map(e => ({ id: e.user_id, full_name: e.profiles.full_name }))
+  ds.sort((a, b) => a.full_name.localeCompare(b.full_name))
+  return { data: ds, error }
+}
+
 /**
  * Ghi danh (không kèm hồ sơ) — đếm sĩ số, tìm học sinh của lớp…
  * @param daDuyet true (mặc định) = đã duyệt · false = đang chờ duyệt · null = tất cả

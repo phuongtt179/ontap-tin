@@ -37,6 +37,10 @@ beforeAll(async () => {
   ;[nguoiKhac.baiNop] = await q('select id, teacher_comment from lesson_submissions where user_id <> $1 limit 1', [me])
   ;[nguoiKhac.bai] = await q('select id, is_published from lessons limit 1')
   ;[nguoiKhac.cau] = await q('select id, hint from questions limit 1')
+  ;[nguoiKhac.xem] = await q('select lesson_id, user_id from lesson_visibility where user_id <> $1 limit 1', [me])
+  anh.xem = await q('select lesson_id from lesson_visibility where user_id = $1', [me])
+  ;[nguoiKhac.baiGioiHan] = await q(`select id from lessons where restricted_audience
+    and id not in (select lesson_id from lesson_visibility where user_id = $1) limit 1`, [me])
 }, 30000)
 
 afterAll(async () => {
@@ -49,6 +53,10 @@ afterAll(async () => {
   for (const b of anh.baiNop || []) await chu.query('update lesson_submissions set score=$2 where id=$1 and score is distinct from $2', [b.id, b.score])
   for (const b of anh.baiThi || []) await chu.query('update exam_sessions set practical_score=$2 where id=$1 and practical_score is distinct from $2', [b.id, b.practical_score])
   await chu.query(`delete from lessons where title = $1`, [DAU])
+  // lọt: em tự thêm mình vào danh sách xem → xoá dòng mới (giữ dòng em vốn có); dòng của người khác bị xoá → ghi lại
+  await chu.query('delete from lesson_visibility where user_id = $1 and not (lesson_id = any($2::uuid[]))', [me, (anh.xem || []).map(r => r.lesson_id)])
+  if (nguoiKhac.xem) await chu.query(`insert into lesson_visibility (lesson_id, user_id) select $1, $2
+    where not exists (select 1 from lesson_visibility where lesson_id = $1 and user_id = $2)`, [nguoiKhac.xem.lesson_id, nguoiKhac.xem.user_id])
   await chu.query(`delete from messages where content = $1`, [DAU])
   await chu.query(`delete from exam_tests where input = $1`, [DAU])
   await chu.query(`delete from sticker_awards where award_key = $1`, [DAU])
@@ -153,6 +161,14 @@ describe('HỌC SINH không sửa được nội dung của giáo viên', () => 
   it('không thêm test chấm thi', async () => biChan(await hs.from('exam_tests').insert({ input: DAU, expected: '1' })))
   it('không tự duyệt ghi danh của mình', async () =>
     khongDong(await hs.from('student_enrollments').update({ is_approved: true }).eq('user_id', me).eq('is_approved', false).select('user_id')))
+  it('không tự thêm mình vào danh sách được xem bài giới hạn', async () => {
+    if (!nguoiKhac.baiGioiHan) return
+    biChan(await hs.from('lesson_visibility').insert({ lesson_id: nguoiKhac.baiGioiHan.id, user_id: me }))
+  })
+  it('không xoá danh sách người xem của bài', async () => {
+    if (!nguoiKhac.xem) return
+    khongDong(await hs.from('lesson_visibility').delete().eq('lesson_id', nguoiKhac.xem.lesson_id).select('lesson_id'))
+  })
   it('không giả tin nhắn của giáo viên', async () =>
     biChan(await hs.from('messages').insert({ student_id: me, sender_role: 'teacher', content: DAU })))
 })
