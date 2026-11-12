@@ -1,6 +1,7 @@
 // KIỂM TRA QUYỀN TRÊN DỮ LIỆU THẬT (Neon) — "một học sinh cố tình phá thì làm được gì?"
 // Chạy: npm run test:quyen   (cần .env: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, NEON_DATA_URL, NEON_DATABASE_URL,
-//                              THU_EMAIL / THU_MAT_KHAU = tài khoản HỌC SINH thử)
+//                              HS_EMAIL / HS_MAT_KHAU = tài khoản HỌC SINH thử — tên đăng nhập (demo1) hoặc email;
+//                              không có thì dùng THU_EMAIL / THU_MAT_KHAU)
 // An toàn dữ liệu:
 //  • Mọi thao tác "phá" chỉ nhắm vào tài khoản thử, hoặc ghi lại ĐÚNG giá trị đang có (lọt cũng không đổi gì).
 //  • Trước khi chạy chụp lại hồ sơ + bài nộp của tài khoản thử; cuối cùng nếu có gì lọt thì tự khôi phục
@@ -19,7 +20,10 @@ const rows = r => { if (r.error) throw r.error; return r.data }
 
 beforeAll(async () => {
   const auth = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } })
-  const { data, error } = await auth.auth.signInWithPassword({ email: env.THU_EMAIL, password: env.THU_MAT_KHAU })
+  // học sinh đăng nhập bằng tên → app ghép @school.local (giống LoginPage)
+  const ten = env.HS_EMAIL || env.THU_EMAIL
+  const email = ten.includes('@') ? ten : `${ten}@school.local`
+  const { data, error } = await auth.auth.signInWithPassword({ email, password: env.HS_EMAIL ? env.HS_MAT_KHAU : env.THU_MAT_KHAU })
   if (error) throw error
   me = data.user.id
   const token = data.session.access_token
@@ -29,7 +33,7 @@ beforeAll(async () => {
   await chu.connect()
   const q = async (s, p) => (await chu.query(s, p)).rows
   const [p] = await q('select role, sticker_count, sticker_total, streak_days, streak_max, last_active_date, is_active, is_approved, notes_warning from profiles where id = $1', [me])
-  expect(p.role, 'THU_EMAIL phải là tài khoản HỌC SINH').toBe('student')
+  expect(p.role, 'HS_EMAIL / THU_EMAIL phải là tài khoản HỌC SINH').toBe('student')
   anh.hoSo = p
   anh.baiNop = await q('select id, score, teacher_comment from lesson_submissions where user_id = $1', [me])
   anh.baiThi = await q('select id, score, practical_score from exam_sessions where user_id = $1', [me])
