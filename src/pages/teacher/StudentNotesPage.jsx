@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { layGhiChuCuaCacHs, xoaGhiChu } from '../../data/ghiChu'
 import { capNhatHoSo } from '../../data/hoSo'
 import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import toast from 'react-hot-toast'
@@ -105,9 +105,7 @@ export default function StudentNotesPage() {
     const ids = studentList.map(s => s.id)
     if (ids.length === 0) { setNotes([]); setLoading(false); return }
 
-    const { data: notesData } = await supabase
-      .from('student_notes').select('*').in('user_id', ids)
-      .order('updated_at', { ascending: false })
+    const { data: notesData } = await layGhiChuCuaCacHs(ids)
 
     const enriched = (notesData || []).map(n => ({
       ...n,
@@ -120,7 +118,7 @@ export default function StudentNotesPage() {
 
   async function handleDelete(note) {
     if (!confirm(`Xóa ghi chú của "${note.student?.full_name}"?`)) return
-    const { error } = await supabase.from('student_notes').delete().eq('id', note.id)
+    const { error } = await xoaGhiChu(note.id)
     if (error) { toast.error('Xóa thất bại'); return }
     toast.success('Đã xóa ghi chú')
     setNotes(prev => prev.filter(n => n.id !== note.id))

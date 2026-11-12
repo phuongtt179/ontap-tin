@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useEnrollments } from '../../hooks/useEnrollments'
-import { supabase } from '../../lib/supabase'
+import { layBuoiDangMoCuaEm, daDiemDanh, diemDanh } from '../../data/diemDanh'
 import toast from 'react-hot-toast'
 import { PenSquare, BarChart2, BookOpen, FileText, LibraryBig, ArrowRight, CheckSquare, Loader2 } from 'lucide-react'
 
@@ -17,29 +17,15 @@ export default function StudentDashboard() {
   }, [user?.id, enrollments.length])
 
   async function checkAttendance() {
-    const { data: sessions } = await supabase
-      .from('attendance_sessions')
-      .select('*')
-      .is('closed_at', null)
-      .limit(1)
-    if (!sessions?.length) { setAttendance(null); return }
-    const session = sessions[0]
-    const { data: record } = await supabase
-      .from('attendance_records')
-      .select('id')
-      .eq('session_id', session.id)
-      .eq('user_id', user.id)
-      .maybeSingle()
-    setAttendance({ session, checkedIn: !!record })
+    const session = await layBuoiDangMoCuaEm()
+    if (!session) { setAttendance(null); return }
+    setAttendance({ session, checkedIn: await daDiemDanh(session.id, user.id) })
   }
 
   async function handleCheckIn() {
     if (!attendance?.session) return
     setCheckingIn(true)
-    const { error } = await supabase.from('attendance_records').insert({
-      session_id: attendance.session.id,
-      user_id: user.id,
-    })
+    const { error } = await diemDanh(attendance.session.id, user.id)
     setCheckingIn(false)
     if (error) {
       toast.error('Điểm danh thất bại')
