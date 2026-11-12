@@ -14,6 +14,11 @@ export function layTienDoCuaEm(userId) {
   return supabase.from(BANG).select('*').eq('user_id', userId).limit(5000)
 }
 
+/** tiến độ của 1 em kèm tên bài (báo cáo thành tích của giáo viên) */
+export function layTienDoChoBaoCao(userId) {
+  return supabase.from(BANG).select('lesson_id, completed, quiz_passed, quiz_total, lessons(title)').eq('user_id', userId).limit(5000)
+}
+
 /** số bài em đã hoàn thành (chỉ đếm, không tải dòng) */
 export function demBaiHoanThanh(userId) {
   return supabase.from(BANG).select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('completed', true)

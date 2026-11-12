@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { layDeThiCuaKhoa } from '../../data/deThi'
+import { layLuotThiCuaCacDe } from '../../data/baiLam'
+import { deDanhChoLop } from '../../domain/deThi'
 import { layTenLopCuaKhoa } from '../../data/khoaHoc'
 import { layTenCacHs } from '../../data/hoSo'
 import { layCauHoiKemDapAn } from '../../data/cauHoi'
@@ -164,23 +166,20 @@ export default function ExamStatsPage() {
     ;(enrollData || []).forEach(e => { enrollMap[e.user_id] = e.class_name || '' })
 
     const [examRes, profileRes] = await Promise.all([
-      supabase.from('exams').select('id, title, question_ids, class_name').eq('grade', filterGrade).order('created_at'),
+      layDeThiCuaKhoa(filterGrade),
       enrolledIds.length > 0
         ? layTenCacHs(enrolledIds)
         : Promise.resolve({ data: [] }),
     ])
 
     const allExams = examRes.data || []
-    const filteredExams = filterClass
-      ? allExams.filter(e => !e.class_names?.length || e.class_names.includes(filterClass))
-      : allExams
+    // trước 12/11 cột lớp chọn nhầm (class_name cũ) nên lọc lớp không bao giờ ẩn đề dành cho lớp khác
+    const filteredExams = allExams.filter(e => deDanhChoLop(e, filterClass))
 
     const examIds = filteredExams.map(e => e.id)
     let sessionData = []
     if (examIds.length > 0) {
-      const { data } = await supabase.from('exam_sessions')
-        .select('id, user_id, exam_id, score, correct, total, attempt_number, submitted_at, answers')
-        .in('exam_id', examIds)
+      const { data } = await layLuotThiCuaCacDe(examIds)
       sessionData = data || []
     }
 

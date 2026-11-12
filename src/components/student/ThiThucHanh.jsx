@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Loader2, Send, Upload, CheckCircle } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { layLanNopPython, layTepThucHanh, nopTepThucHanh } from '../../data/baiLam'
 import { apiFetch } from '../../lib/apiFetch'
 import { uploadFile } from '../../lib/cloudinary'
 
@@ -30,7 +30,7 @@ export function ThiPython({ sessionId }) {
   const [cacLan, setCacLan] = useState([])   // [{ lan, ket_qua, diem }]
 
   useEffect(() => {
-    supabase.from('exam_nop_python').select('lan, ket_qua, diem').eq('session_id', sessionId).order('lan')
+    layLanNopPython(sessionId)
       .then(({ data }) => setCacLan(data || []))
   }, [sessionId])
 
@@ -105,8 +105,7 @@ export function ThiScratch({ sessionId, onCoFile }) {
   const [dang, setDang] = useState(false)
 
   useEffect(() => {
-    supabase.from('exam_sessions').select('practical_file_name').eq('id', sessionId).single()
-      .then(({ data }) => { setTenFile(data?.practical_file_name || ''); onCoFile?.(!!data?.practical_file_name) })
+    layTepThucHanh(sessionId).then(ten => { setTenFile(ten || ''); onCoFile?.(!!ten) })
   }, [sessionId])   // eslint-disable-line react-hooks/exhaustive-deps
 
   async function chonFile(e) {
@@ -116,7 +115,7 @@ export function ThiScratch({ sessionId, onCoFile }) {
     setDang(true)
     try {
       const url = await uploadFile(f)
-      const { error } = await supabase.from('exam_sessions').update({ practical_file_url: url, practical_file_name: f.name }).eq('id', sessionId)
+      const { error } = await nopTepThucHanh(sessionId, url, f.name)
       if (error) throw error
       setTenFile(f.name)
       onCoFile?.(true)

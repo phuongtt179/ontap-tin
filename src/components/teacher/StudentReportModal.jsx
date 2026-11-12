@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { supabase } from '../../lib/supabase'
 import { laySticker } from '../../data/hoSo'
+import { layTienDoChoBaoCao } from '../../data/tienDo'
+import { layDiemThiCuaEm } from '../../data/baiLam'
+import { layTrangThaiDoiQuaCuaEm } from '../../data/phanThuong'
 import { toPng } from 'html-to-image'
 import toast from 'react-hot-toast'
 import { X, Loader2, Flame, Star, GraduationCap, CheckCircle2, ClipboardList, FileText, Medal, Bot, User, CalendarCheck, Download, Sparkles } from 'lucide-react'
@@ -45,10 +47,10 @@ export default function StudentReportModal({ student, onClose }) {
     const grades = [...new Set((student.enrollments || []).map(e => e.grade).filter(Boolean))]
     const [prof, prog, subs, exams, rewards, allLessons] = await Promise.all([
       laySticker(student.id),
-      supabase.from('lesson_progress').select('lesson_id, completed, quiz_passed, quiz_total, lessons(title)').eq('user_id', student.id),
+      layTienDoChoBaoCao(student.id),
       layBaiNopChoBaoCao(student.id),
-      supabase.from('exam_sessions').select('score, correct, total, submitted_at, exams(title)').eq('user_id', student.id).order('submitted_at', { ascending: false }),
-      supabase.from('reward_requests').select('status').eq('student_id', student.id),
+      layDiemThiCuaEm(student.id),
+      layTrangThaiDoiQuaCuaEm(student.id),
       grades.length ? demBaiDaXuatBan(grades) : Promise.resolve({ count: 0 }),
     ])
     setD({

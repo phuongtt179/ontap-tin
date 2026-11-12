@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { layLuotThiCuaEm, layLuotLuyenTapCuaEm } from '../../data/baiLam'
+import { layTenDeThi } from '../../data/deThi'
 import { useAuth } from '../../context/AuthContext'
 import { CheckCircle, Clock, ClipboardList, PenSquare } from 'lucide-react'
 
@@ -13,18 +14,8 @@ export default function HistoryPage() {
   useEffect(() => {
     async function load() {
       const [{ data: practice }, { data: examSessionsData }] = await Promise.all([
-        supabase
-          .from('quiz_sessions')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(50),
-        supabase
-          .from('exam_sessions')
-          .select('id, exam_id, user_id, score, correct, total, attempt_number, submitted_at')
-          .eq('user_id', user.id)
-          .order('submitted_at', { ascending: false })
-          .limit(50),
+        layLuotLuyenTapCuaEm(user.id),
+        layLuotThiCuaEm(user.id),
       ])
 
       setPracticeSessions(practice || [])
@@ -33,12 +24,7 @@ export default function HistoryPage() {
       const sessions = examSessionsData || []
       if (sessions.length > 0) {
         const examIds = [...new Set(sessions.map(s => s.exam_id))]
-        const { data: examsData } = await supabase
-          .from('exams')
-          .select('id, title')
-          .in('id', examIds)
-        const titlesMap = {}
-        ;(examsData || []).forEach(e => { titlesMap[e.id] = e.title })
+        const titlesMap = await layTenDeThi(examIds)
         setExamSessions(sessions.map(s => ({ ...s, examTitle: titlesMap[s.exam_id] || 'Đề thi' })))
       } else {
         setExamSessions([])
