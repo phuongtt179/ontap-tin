@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase'
+import { ghiHoatDongHomNay } from '../data/hoSo'
 import { mocChuoi } from '../domain/sticker'
 
 // Ghi nhận hoạt động học hôm nay qua hàm máy chủ record_activity (migration_secure_profiles.sql):
@@ -6,7 +6,7 @@ import { mocChuoi } from '../domain/sticker'
 // học sinh không tự sửa được chuỗi/sticker. `userId` giữ để tương thích, máy chủ tự lấy từ phiên đăng nhập.
 // eslint-disable-next-line no-unused-vars
 export async function updateStreak(userId) {
-  const { data, error } = await supabase.rpc('record_activity')
+  const { data, error } = await ghiHoatDongHomNay()
   if (error || !data) return null
   if (!data.isNew) return { streakDays: data.streakDays ?? 0, isNew: false }
   const milestone = mocChuoi(data.streakDays, data.bonus)

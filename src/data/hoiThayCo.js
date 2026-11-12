@@ -73,3 +73,18 @@ export function layTongQuanCongCuAi(grade, lop) {
 export function layHangDoiDuyet({ lyDo, soDong, grade, lop, muc }) {
   return supabase.rpc('ai_review_queue', { p_reason: lyDo, p_limit: soDong, p_grade: grade, p_class: lop, p_muc: muc })
 }
+
+/** số câu học sinh hỏi đang chờ thầy cô (chỉ đếm) */
+export function demCauHoiDangCho() {
+  return supabase.from('student_questions').select('id', { count: 'exact', head: true }).eq('status', 'pending')
+}
+
+/** 3 số đếm bài nộp của trang tổng quan gộp 1 lần quét (hàm máy chủ dem_bai_tong_quan) */
+export function demBaiTongQuan() {
+  return supabase.rpc('dem_bai_tong_quan')
+}
+
+/** số liệu báo cáo tác động (hàm máy chủ impact_stats) */
+export function layBaoCaoTacDong() {
+  return supabase.rpc('impact_stats')
+}

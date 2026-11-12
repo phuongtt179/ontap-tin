@@ -118,3 +118,9 @@ export function layBaiChuaChamDeCham(dk, gioiHan) {
     .select('id, user_id, lesson_id, file_url, file_name, text_content, content_json, submitted_at, lessons!inner(title, grade, practice_instructions)'), dk)
     .order('submitted_at', { ascending: false }).limit(gioiHan)
 }
+
+/** số lần em đã dùng "rà soát lỗi" cho 1 phần thực hành (hàm máy chủ ra_soat_dem) */
+export async function demLuotRaSoat(lessonId, taskIdx) {
+  const { data } = await supabase.rpc('ra_soat_dem', { p_lesson: lessonId, p_task: taskIdx })
+  return Number(data) || 0
+}

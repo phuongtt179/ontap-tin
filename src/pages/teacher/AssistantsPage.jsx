@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { layNoiDungTroGiangSoan } from '../../data/hoSo'
 import { layTroGiang, capNhatHoSo } from '../../data/hoSo'
 import { taoTaiKhoan, suaTaiKhoan, xoaTaiKhoan } from '../../data/taiKhoan'
 import toast from 'react-hot-toast'
@@ -22,17 +22,11 @@ function AssistantContentPanel({ assistant, onBack }) {
   async function fetchData(type) {
     setLoading(true)
     setData([])
-    const col = type === 'topics' ? 'name' : 'title'
-    const { data: rows } = await supabase
-      .from(type)
-      .select(`id, ${col}, grade, created_at`)
-      .eq('created_by', assistant.id)
-      .order('created_at', { ascending: false })
+    const { data: rows } = await layNoiDungTroGiangSoan(type, assistant.id)
     setData(rows || [])
     setLoading(false)
   }
 
-  const nameKey = tab === 'topics' ? 'name' : 'title'
 
   return (
     <div>
@@ -70,7 +64,7 @@ function AssistantContentPanel({ assistant, onBack }) {
           {data.map(row => (
             <div key={row.id} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-4 py-2.5">
               <div>
-                <div className="text-sm text-gray-800">{row[nameKey]}</div>
+                <div className="text-sm text-gray-800">{row.ten}</div>
                 {row.grade && <span className="text-xs text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded mt-0.5 inline-block">{row.grade}</span>}
               </div>
               <div className="text-xs text-gray-400 shrink-0 ml-3">

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { layBangXepHangLop } from '../../data/hoSo'
+import { demBaiHoanThanh } from '../../data/tienDo'
+import { layYeuCauCuaEm } from '../../data/phanThuong'
 import { laySticker } from '../../data/hoSo'
 import { X, Trophy, Medal, Award, Loader2, Flame, Star, GraduationCap, Gift } from 'lucide-react'
 
@@ -50,10 +52,10 @@ export default function AchievementsModal({ open, onClose, userId, userName }) {
   async function loadAll() {
     setLoading(true)
     const [{ data: lb }, { data: prof }, { count }, { data: rw }] = await Promise.all([
-      supabase.rpc('get_class_leaderboard'),
+      layBangXepHangLop(),
       laySticker(userId),
-      supabase.from('lesson_progress').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('completed', true),
-      supabase.from('reward_requests').select('*, reward_items(name, emoji)').eq('student_id', userId).order('requested_at', { ascending: false }),
+      demBaiHoanThanh(userId),
+      layYeuCauCuaEm(userId),
     ])
     setLeaderboard(lb || [])
     setProfile(prof || { sticker_total: 0, streak_max: 0 })

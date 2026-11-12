@@ -40,3 +40,9 @@ export function layTienDoCuaLop(lessonId, userIds) {
 export function layDauVetTienDo(lessonId, userIds) {
   return supabase.from(BANG).select('id, updated_at').eq('lesson_id', lessonId).in('user_id', userIds)
 }
+
+/** tiến độ của nhiều em ở nhiều bài (trợ lý AI của giáo viên) — chỉ cột cần */
+export function layTienDoCuaCacHs(userIds, lessonIds) {
+  return supabase.from(BANG).select('user_id, lesson_id, completed, quiz_passed, practice_submitted, updated_at')
+    .in('user_id', userIds).in('lesson_id', lessonIds).limit(20000)
+}

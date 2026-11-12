@@ -76,3 +76,22 @@ export function ghiStickerNeuChuaDoi(userId, cu, soMoi, tongMoi) {
 export function thuongStickerMotLan(kind, lessonId, taskIdx = 0) {
   return supabase.rpc('award_sticker_once', { p_kind: kind, p_lesson: lessonId, p_task: taskIdx })
 }
+
+/** ghi nhận em vừa học hôm nay (hàm máy chủ record_activity: chuỗi ngày + sticker mốc, có khoá chống cộng trùng) */
+export function ghiHoatDongHomNay() {
+  return supabase.rpc('record_activity')
+}
+
+/** bảng xếp hạng lớp của em (hàm máy chủ get_class_leaderboard) */
+export function layBangXepHangLop() {
+  return supabase.rpc('get_class_leaderboard')
+}
+
+// cột tên của từng bảng (trước 12/11 câu hỏi lấy nhầm cột title → tab "Câu hỏi" của trang Trợ giảng luôn lỗi, trống)
+const BANG_TRO_GIANG_SOAN = { topics: 'name', questions: 'question', lessons: 'title' }
+/** nội dung 1 trợ giảng đã soạn (chủ đề / câu hỏi / bài học), mới trước — tên trả về ở cột chung `ten` */
+export function layNoiDungTroGiangSoan(bang, userId) {
+  const cot = BANG_TRO_GIANG_SOAN[bang]
+  if (!cot) throw new Error('bảng không hợp lệ: ' + bang)
+  return supabase.from(bang).select(`id, ten:${cot}, grade, created_at`).eq('created_by', userId).order('created_at', { ascending: false }).limit(1000)
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { supabase } from '../../lib/supabase'
+import { layBaoCaoTacDong } from '../../data/hoiThayCo'
 import toast from 'react-hot-toast'
 import { Loader2, Download, RefreshCw, Users, School, BookOpenCheck, FileCheck2, Bot, MessageCircleQuestion, ShieldCheck, Timer } from 'lucide-react'
 
@@ -60,7 +60,7 @@ export default function ImpactReportPage() {
 
   function taiLai() {
     setDangTai(true)
-    supabase.rpc('impact_stats').then(({ data, error }) => {
+    layBaoCaoTacDong().then(({ data, error }) => {
       if (error) {
         toast.error('Chưa tải được số liệu — đã chạy sql/2026-10-06_impact_report.sql chưa?')
         console.error(error)

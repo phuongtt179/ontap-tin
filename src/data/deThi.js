@@ -65,3 +65,8 @@ export async function ghiTestPython(examId, tests) {
   if (xoa.error || !tests.length) return { error: xoa.error }
   return supabase.from('exam_tests').insert(tests.map((t, i) => ({ exam_id: examId, thu_tu: i, input: t.input, expected: t.expected, diem: Number(t.diem) || 1 })))
 }
+
+/** số đề thi (chỉ đếm) */
+export function demDeThi() {
+  return supabase.from('exams').select('id', { count: 'exact', head: true })
+}

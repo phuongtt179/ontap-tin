@@ -139,3 +139,14 @@ export function xoaBaiHoc(id) {
 export function doiChuDeCuaBaiHoc(grade, chuDeCu, chuDeMoi) {
   return supabase.from(BANG).update({ topic: chuDeMoi }).eq('topic', chuDeCu).eq('grade', grade)
 }
+
+/** bài giảng web để soạn: các trang + kịch bản (null nếu chưa có) */
+export async function layBaiGiangDeSua(lessonId) {
+  const { data } = await supabase.from('lesson_slides').select('slides, kich_ban').eq('lesson_id', lessonId).maybeSingle()
+  return data
+}
+
+/** lưu bài giảng web (tạo mới hoặc ghi đè) */
+export function luuBaiGiang({ lessonId, slides, kichBan, userId }) {
+  return supabase.from('lesson_slides').upsert({ lesson_id: lessonId, slides, kich_ban: kichBan || null, updated_at: new Date().toISOString(), updated_by: userId })
+}

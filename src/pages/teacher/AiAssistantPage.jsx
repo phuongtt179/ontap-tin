@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Navigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { layTienDoCuaCacHs } from '../../data/tienDo'
 import { layCacLop } from '../../data/khoaHoc'
 import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { useAuth } from '../../context/AuthContext'
@@ -71,7 +71,7 @@ async function buildSnapshot(grade, className) {
   let progress = [], submissions = []
   if (userIds.length && lessonIds.length) {
     const [{ data: pData }, { data: sData }] = await Promise.all([
-      supabase.from('lesson_progress').select('user_id, lesson_id, completed, quiz_passed, practice_submitted, updated_at').in('user_id', userIds).in('lesson_id', lessonIds),
+      layTienDoCuaCacHs(userIds, lessonIds),
       layTrangThaiDuyet(userIds, lessonIds),
     ])
     progress = pData || []

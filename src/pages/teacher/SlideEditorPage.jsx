@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { ArrowLeft, Save, Sparkles, Eye, Play, Code2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Loader2, ListChecks, Upload, X, FileUp, FileImage } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { layBaiGiangDeSua, luuBaiGiang } from '../../data/baiHoc'
 import { layCauHoiTomTat } from '../../data/cauHoi'
 import { apiFetch } from '../../lib/apiFetch'
 import { uploadImage } from '../../lib/cloudinary'
@@ -292,7 +292,7 @@ export default function SlideEditorPage() {
     (async () => {
       const [{ data: l, error }, { data: s }] = await Promise.all([
         layNguonAiCuaBai(id),
-        supabase.from('lesson_slides').select('slides, kich_ban').eq('lesson_id', id).maybeSingle(),
+        layBaiGiangDeSua(id).then(data => ({ data })),
       ])
       if (error || !l) { toast.error('Không tìm thấy bài học'); return }
       setLesson(l)
@@ -311,7 +311,7 @@ export default function SlideEditorPage() {
 
   async function luuBai() {
     setLuu(true)
-    const { error } = await supabase.from('lesson_slides').upsert({ lesson_id: id, slides: ds, kich_ban: bai.kich_ban || null, updated_at: new Date().toISOString(), updated_by: user?.id })
+    const { error } = await luuBaiGiang({ lessonId: id, slides: ds, kichBan: bai.kich_ban, userId: user?.id })
     setLuu(false)
     if (error) { toast.error('Lưu thất bại: ' + error.message); return false }
     setDoi(false); toast.success('Đã lưu bài giảng'); return true

@@ -77,3 +77,9 @@ export async function layNguongCacKhoa() {
 export function luuNguong(grade, soSticker) {
   return supabase.from('reward_configs').upsert({ grade, sticker_threshold: soSticker, updated_at: new Date().toISOString() }, { onConflict: 'grade' })
 }
+
+/** các yêu cầu đổi quà của em kèm tên quà (thành tích của em) */
+export function layYeuCauCuaEm(userId) {
+  return supabase.from('reward_requests').select('id, status, sticker_cost, requested_at, fulfilled_at, given_at, reward_items(name, emoji)')
+    .eq('student_id', userId).order('requested_at', { ascending: false }).limit(GIOI_HAN)
+}

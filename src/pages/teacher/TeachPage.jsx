@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { supabase } from '../../lib/supabase'
+import { layBaiGiangWeb } from '../../data/baiHoc'
 import { layTenLopCuaKhoa } from '../../data/khoaHoc'
 import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { adjustStickerCount } from '../../utils/stickerAward'
@@ -153,7 +153,7 @@ export default function TeachPage() {
     (async () => {
       const [{ data: l }, { data: s }] = await Promise.all([
         layTenBaiHoc(id),
-        supabase.from('lesson_slides').select('slides').eq('lesson_id', id).maybeSingle(),
+        layBaiGiangWeb(id).then(slides => ({ data: { slides } })),
       ])
       if (!l) { toast.error('Không tìm thấy bài học'); return }
       setLesson(l); setDs(s?.slides || [])

@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 import { Loader2, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiFetch } from '../../lib/apiFetch'
-import { supabase } from '../../lib/supabase'
+import { demLuotRaSoat } from '../../data/baiNop'
 import { prepareTasks } from '../../utils/gradePrep.js'
 
 const MAX_LAN = 7
@@ -28,8 +28,8 @@ export default function RaSoatLoi({ sub, file, note, lessonId, taskIdx, task, on
 
   useEffect(() => {
     let huy = false
-    supabase.rpc('ra_soat_dem', { p_lesson: lessonId ?? sub?.lesson_id, p_task: taskIdx ?? Number(sub?.content_json?.task_index ?? 0) })
-      .then(({ data }) => { if (!huy) setDaDung(Number(data) || 0) })
+    demLuotRaSoat(lessonId ?? sub?.lesson_id, taskIdx ?? Number(sub?.content_json?.task_index ?? 0))
+      .then(so => { if (!huy) setDaDung(so) })
     return () => { huy = true }
   }, [lessonId, taskIdx, sub?.id])   // eslint-disable-line react-hooks/exhaustive-deps
 

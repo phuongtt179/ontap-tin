@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { demDeThi } from '../../data/deThi'
+import { demBaiTongQuan, demCauHoiDangCho } from '../../data/hoiThayCo'
+import { layBuoiDangMo, layIdBuoiTrongNgay, demLuotDiemDanh } from '../../data/diemDanh'
+import { layDiemThiDeXepHang, layDiemLuyenTapDeXepHang, demLuotLamBaiTuLuc } from '../../data/baiLam'
+import { gomDiemTheoEm } from '../../domain/xepHang'
 import { demHocSinh, layHocSinhChoDuyet, layTenCacHs } from '../../data/hoSo'
 import { demCauHoi } from '../../data/cauHoi'
 import { layGhiDanh, layLopCuaCacHs } from '../../data/ghiDanh'
@@ -52,7 +56,7 @@ export default function TeacherDashboard() {
 
   // 3 số đếm bài nộp gộp trong 1 lần quét (rpc dem_bai_tong_quan)
   async function layDemBai() {
-    const { data, error } = await supabase.rpc('dem_bai_tong_quan')
+    const { data, error } = await demBaiTongQuan()
     if (error) { coLoi.current = true; return {} }
     return data || {}
   }
@@ -60,7 +64,7 @@ export default function TeacherDashboard() {
   async function fetchAiAlert(demBai) {
     const [dem, { count }] = await Promise.all([
       demBai,
-      supabase.from('student_questions').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      demCauHoiDangCho(),
     ])
     setAiAlert({ ungraded: dem.chua_cham || 0, unreviewed: dem.ai_chua_duyet || 0, questions: count || 0 })
   }
@@ -68,7 +72,7 @@ export default function TeacherDashboard() {
   async function fetchStats() {
     const [q, e, s] = await Promise.all([
       demCauHoi(),
-      supabase.from('exams').select('id', { count: 'exact', head: true }),
+      demDeThi(),
       demHocSinh(),
     ])
     setStats({ questions: q.count ?? 0, exams: e.count ?? 0, students: s.count ?? 0 })
@@ -84,8 +88,7 @@ export default function TeacherDashboard() {
       layHocSinhChoDuyet(),
       layGhiDanh({ daDuyet: false }),
       demBai,
-      supabase.from('attendance_sessions').select('id, grade, class_name, opened_at')
-        .is('closed_at', null),
+      layBuoiDangMo(),
     ])
     const pendingUserIds = new Set([
       ...(pendingProfileUsers || []).map(p => p.id),
@@ -93,13 +96,7 @@ export default function TeacherDashboard() {
     ])
     const pendingStudents = pendingUserIds.size
 
-    let openAttendees = 0
-    if (!sessErr && openSessions?.length > 0) {
-      const { count } = await supabase.from('attendance_records')
-        .select('id', { count: 'exact', head: true })
-        .in('session_id', openSessions.map(s => s.id))
-      openAttendees = count || 0
-    }
+    const openAttendees = sessErr ? 0 : await demLuotDiemDanh((openSessions || []).map(s => s.id))
 
     setActions({
       pendingStudents: pendingStudents ?? 0,
@@ -114,60 +111,28 @@ export default function TeacherDashboard() {
     const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0)
     const since = startOfDay.toISOString()
 
-    const [
-      { data: todaySessions },
-      { count: examToday },
-      { count: practiceToday },
-    ] = await Promise.all([
-      supabase.from('attendance_sessions').select('id').eq('session_date', todayStr),
-      supabase.from('exam_sessions').select('id', { count: 'exact', head: true }).gte('started_at', since),   // exam_sessions không có cột created_at (từng lỗi 400)
-      supabase.from('quiz_sessions').select('id', { count: 'exact', head: true }).gte('created_at', since),
-    ])
-
-    let attended = 0
-    if (todaySessions?.length > 0) {
-      const { count } = await supabase.from('attendance_records')
-        .select('id', { count: 'exact', head: true })
-        .in('session_id', todaySessions.map(s => s.id))
-      attended = count || 0
-    }
-
-    setTodayData({ attended, active: (examToday || 0) + (practiceToday || 0) })
+    const [idBuoi, active] = await Promise.all([layIdBuoiTrongNgay(todayStr), demLuotLamBaiTuLuc(since)])
+    setTodayData({ attended: await demLuotDiemDanh(idBuoi), active })
   }
 
+  /** tên + lớp của các em có lượt làm bài → xếp hạng (domain/xepHang: chỉ tính lượt có điểm) */
   async function buildRanking(sessions) {
     if (!sessions?.length) return []
-    const userIds = [...new Set(sessions.map(s => s.user_id))]
-    const [{ data: profiles }, { data: enrollments }] = await Promise.all([
-      layTenCacHs(userIds),
-      layLopCuaCacHs(userIds, { chiDaDuyet: true }),
-    ])
-    const pm = {}; profiles?.forEach(p => { pm[p.id] = p })
-    const em = {}; enrollments?.forEach(e => { if (!em[e.user_id]) em[e.user_id] = e })
-    const map = {}
-    sessions.forEach(s => {
-      const p = pm[s.user_id]; const e = em[s.user_id]
-      if (!map[s.user_id]) {
-        map[s.user_id] = { full_name: p?.full_name || '—', class_name: e?.class_name || e?.grade || '—', scores: [] }
-      }
-      map[s.user_id].scores.push(s.score)
-    })
-    return Object.values(map).map(u => ({
-      ...u,
-      count: u.scores.length,
-      avg: Math.round(u.scores.reduce((a, b) => a + b, 0) / u.scores.length * 10) / 10,
-      best: Math.max(...u.scores),
-    }))
+    const ids = [...new Set(sessions.map(s => s.user_id))]
+    const [{ data: ten }, { data: lop }] = await Promise.all([layTenCacHs(ids), layLopCuaCacHs(ids, { chiDaDuyet: true })])
+    const lopCua = {}
+    ;(lop || []).forEach(e => { if (!lopCua[e.user_id]) lopCua[e.user_id] = e.class_name || e.grade })
+    return gomDiemTheoEm(sessions, Object.fromEntries((ten || []).map(p => [p.id, p.full_name])), lopCua)
   }
 
   async function fetchExamRanking() {
-    const { data } = await supabase.from('exam_sessions').select('user_id, score')
+    const { data } = await layDiemThiDeXepHang()
     const ranked = await buildRanking(data)
     setExamRanking(ranked.sort((a, b) => b.avg - a.avg))
   }
 
   async function fetchPracticeRanking() {
-    const { data, error } = await supabase.from('quiz_sessions').select('user_id, score')
+    const { data, error } = await layDiemLuyenTapDeXepHang()
     if (error) { setPracticeRanking([]); return }
     const ranked = await buildRanking(data)
     setPracticeRanking(ranked.sort((a, b) => b.count - a.count))

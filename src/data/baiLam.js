@@ -99,3 +99,22 @@ export function suaLuotThi(sessionId, thayDoi) {
 export function xoaLuotThi(sessionId) {
   return supabase.from('exam_sessions').delete().eq('id', sessionId)
 }
+
+/** điểm mọi lượt thi ĐÃ CÓ ĐIỂM (xếp hạng trang tổng quan) */
+export function layDiemThiDeXepHang() {
+  return supabase.from('exam_sessions').select('user_id, score').not('score', 'is', null).limit(20000)
+}
+
+/** điểm mọi lượt luyện tập (xếp hạng trang tổng quan) */
+export function layDiemLuyenTapDeXepHang() {
+  return supabase.from('quiz_sessions').select('user_id, score').not('score', 'is', null).limit(20000)
+}
+
+/** số lượt thi + luyện tập bắt đầu từ mốc giờ (chỉ đếm) */
+export async function demLuotLamBaiTuLuc(tuLuc) {
+  const [thi, luyen] = await Promise.all([
+    supabase.from('exam_sessions').select('id', { count: 'exact', head: true }).gte('started_at', tuLuc),   // exam_sessions không có created_at
+    supabase.from('quiz_sessions').select('id', { count: 'exact', head: true }).gte('created_at', tuLuc),
+  ])
+  return (thi.count || 0) + (luyen.count || 0)
+}
