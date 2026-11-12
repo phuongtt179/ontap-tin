@@ -18,6 +18,17 @@ export async function uploadImage(file) {
   return data.secure_url
 }
 
+// Upload âm thanh (Cloudinary xếp audio vào nhóm video)
+export async function uploadAudio(file) {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('upload_preset', UPLOAD_PRESET)
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, { method: 'POST', body: fd })
+  if (!res.ok) throw new Error('Upload âm thanh thất bại')
+  const data = await res.json()
+  return data.secure_url
+}
+
 // Upload any file type — dùng /raw để file luôn accessible trực tiếp (PDF, docx, sb3...)
 export async function uploadFile(file) {
   const fd = new FormData()
