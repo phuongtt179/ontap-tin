@@ -5,37 +5,11 @@ import MatchingLines from '../../ui/MatchingLines'
 import { ArrowUp, ArrowDown } from 'lucide-react'
 import { xaoTron } from '../../../utils/xaoTron'
 import { CodeBlock, CodeBlockWithBlanks } from '../../ui/CodeBlock'
+import { tachChoTrong } from '../../../domain/dinhDangCauHoi'
 
 /* ── DragWordInput ─────────────────────────────────────────── */
 export function DragWordInput({ q, value, onChange, disabled }) {
-  const tokens = useMemo(() => {
-    const result = []; let blankIdx = 0
-    const codeBlockRe = /```(\w*)\n?([\s\S]*?)```/g
-    let last = 0, m
-    function pushText(txt) {
-      txt.split('___').forEach((seg, i, arr) => {
-        if (seg) result.push({ type: 'text', content: seg })
-        if (i < arr.length - 1) result.push({ type: 'blank', index: blankIdx++ })
-      })
-    }
-    while ((m = codeBlockRe.exec(q.question)) !== null) {
-      if (m.index > last) pushText(q.question.slice(last, m.index))
-      const code = m[2].replace(/\n$/, '')
-      if (code.includes('___')) {
-        const segs = code.split('___')
-        result.push({ type: 'code-with-blanks', lang: m[1] || '', segs, startIdx: blankIdx })
-        blankIdx += segs.length - 1
-      } else {
-        result.push({ type: 'code', lang: m[1] || '', content: code })
-      }
-      last = m.index + m[0].length
-    }
-    if (last < q.question.length) pushText(q.question.slice(last))
-    return result
-  }, [q.id, q.question])
-
-  const blankCount = tokens.filter(t => t.type === 'blank').length +
-    tokens.filter(t => t.type === 'code-with-blanks').reduce((a, t) => a + t.segs.length - 1, 0)
+  const { tokens, soCho: blankCount } = useMemo(() => tachChoTrong(q.question), [q.question])
 
   const wordBank = useMemo(() => xaoTron(q.options || []), [q.id])
   const [filled, setFilled] = useState(() =>
@@ -120,34 +94,7 @@ export function MatchingInput({ q, value, onChange, disabled }) {
 
 /* ── FillBlankInput ─────────────────────────────────────────── */
 export function FillBlankInput({ q, value, onChange, disabled }) {
-  const tokens = useMemo(() => {
-    const result = []; let blankIdx = 0
-    const codeBlockRe = /```(\w*)\n?([\s\S]*?)```/g
-    let last = 0, m
-    function pushText(txt) {
-      txt.split('___').forEach((seg, i, arr) => {
-        if (seg) result.push({ type: 'text', content: seg })
-        if (i < arr.length - 1) result.push({ type: 'blank', index: blankIdx++ })
-      })
-    }
-    while ((m = codeBlockRe.exec(q.question)) !== null) {
-      if (m.index > last) pushText(q.question.slice(last, m.index))
-      const code = m[2].replace(/\n$/, '')
-      if (code.includes('___')) {
-        const segs = code.split('___')
-        result.push({ type: 'code-with-blanks', lang: m[1] || '', segs, startIdx: blankIdx })
-        blankIdx += segs.length - 1
-      } else {
-        result.push({ type: 'code', lang: m[1] || '', content: code })
-      }
-      last = m.index + m[0].length
-    }
-    if (last < q.question.length) pushText(q.question.slice(last))
-    return result
-  }, [q.id, q.question])
-
-  const blankCount = tokens.filter(t => t.type === 'blank').length +
-    tokens.filter(t => t.type === 'code-with-blanks').reduce((a, t) => a + t.segs.length - 1, 0)
+  const { tokens, soCho: blankCount } = useMemo(() => tachChoTrong(q.question), [q.question])
 
   const vals = useMemo(() => {
     const arr = value ? value.split(',') : []
