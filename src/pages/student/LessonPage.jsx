@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
 import { layCauHoiTheoIds } from '../../data/cauHoi'
 import { layLopCuaEm } from '../../data/ghiDanh'
 import { buildWeaknessProfile } from '../../utils/weakness'
@@ -13,11 +12,15 @@ import RewardModal from '../../components/student/RewardModal'
 import { updateStreak } from '../../utils/updateStreak'
 import { NGUONG_DOI_QUA_MAC_DINH } from '../../domain/sticker'
 import AskTutorModal from '../../components/student/AskTutorModal'
-import { topicKeyOf } from '../../utils/lessonSteps'
 import { parseTasks } from '../../domain/baiThucHanh'
 import { trangThaiBuoc } from '../../domain/tienDoBaiHoc'
 import { layTieuChiGanDay } from '../../data/baiNop'
-import { layBaiHocTheoId, layDanhSachBai } from '../../data/baiHoc'
+import { layBaiHocTheoId, layDanhSachBai, emDuocXemBai, layBaiGiangWeb } from '../../data/baiHoc'
+import { layMoKhoaCuaLop, layNguongDoiQua, layMoTaKhoaChoAi, layDonViCuaKhoa } from '../../data/khoaHoc'
+import { layTienDoBai, demBaiHoanThanh, luuTienDo } from '../../data/tienDo'
+import { demTraLoiChuaXem } from '../../data/hoiThayCo'
+import { thuongStickerMotLan } from '../../data/hoSo'
+import { baiDaMoChoLop, loTrinhKhoa } from '../../domain/moKhoaBai'
 import BanDoBaiThucHanh from '../../components/student/baiHoc/BanDoBaiThucHanh'
 import ChiTietBaiThucHanh from '../../components/student/baiHoc/ChiTietBaiThucHanh'
 import { useBaiThucHanh } from '../../hooks/useBaiThucHanh'
@@ -53,49 +56,26 @@ export default function LessonPage() {
   const [courseRoadmap, setCourseRoadmap] = useState('')   // lộ trình khóa (cho AI trả lời câu hỏi chương trình)
   const wasCompleted = useRef(false)
   const [pptxMarking, setPptxMarking] = useState(false)
-    const [webSlides, setWebSlides] = useState(null)   // bài giảng web (lesson_slides) – có thì hiện thay PPTX
+  const [webSlides, setWebSlides] = useState(null)   // bài giảng web (lesson_slides) – có thì hiện thay PPTX
 
   async function loadAll() {
     setLoading(true)
-    // 1. Fetch lesson + student grade + threshold
+    // 1. Bài học — kiểm tra lại quyền vào bài Ở ĐÂY (học sinh có thể vào thẳng URL: link AI gợi ý, gõ tay, bookmark…),
+    //    không tin việc trang Con đường đã ẩn nút. Quy tắc mở khoá theo lớp: domain/moKhoaBai.js
     const { data: lessonData } = await layBaiHocTheoId(id)
     if (!lessonData) { toast.error('Không tìm thấy bài học'); navigate(-1); return }
-    if (lessonData.restricted_audience) {
-      const { data: visRow } = await supabase.from('lesson_visibility')
-        .select('id').eq('lesson_id', id).eq('user_id', user.id).maybeSingle()
-      if (!visRow) { toast.error('Bài học này chưa mở cho em'); navigate(-1); return }
+    if (lessonData.restricted_audience && !(await emDuocXemBai(id, user.id))) {
+      toast.error('Bài học này chưa mở cho em'); navigate(-1); return
     }
-    if (lessonData.has_slides) {
-      supabase.from('lesson_slides').select('slides').eq('lesson_id', id).maybeSingle()
-        .then(({ data }) => setWebSlides(data?.slides?.length ? data.slides : null))
-    } else setWebSlides(null)
-
-    // Chặn truy cập bài bị KHOÁ (chưa publish, hoặc đã publish nhưng chủ đề/
-    // bài chưa được mở cho LỚP của học sinh) — trang con đường bài học chỉ
-    // ẩn nút bấm ở giao diện, không chặn được nếu học sinh vào thẳng URL
-    // (vd qua link AI trợ giảng gợi ý, gõ tay, bookmark...). Đây là điểm
-    // chặn THẬT SỰ — phải kiểm tra lại độc lập, không tin UI trước đó.
+    if (lessonData.has_slides) layBaiGiangWeb(id).then(setWebSlides)
+    else setWebSlides(null)
     if (!lessonData.is_published) {
       toast.error('Bài học này chưa được mở'); navigate(-1); return
     }
     const { data: enrollRow } = await layLopCuaEm(user.id, lessonData.grade)
-    const className = enrollRow?.class_name || null
-    let topicUnlockSet = null   // null = không thuộc lớp nào -> không giới hạn
-    let lessonUnlockSet = null
-    if (className) {
-      const [{ data: topicUnlockRows }, { data: lessonUnlockRows }] = await Promise.all([
-        supabase.from('class_topic_unlock').select('topic')
-          .eq('grade', lessonData.grade).eq('class_name', className),
-        supabase.from('class_lesson_unlock').select('lesson_id')
-          .eq('grade', lessonData.grade).eq('class_name', className),
-      ])
-      topicUnlockSet = new Set((topicUnlockRows || []).map(r => r.topic))
-      lessonUnlockSet = new Set((lessonUnlockRows || []).map(r => r.lesson_id))
-      const topicOpen = topicUnlockSet.has(topicKeyOf(lessonData))
-      const lessonOpen = lessonUnlockSet.has(lessonData.id)
-      if (!topicOpen || !lessonOpen) {
-        toast.error('Bài học này chưa được mở cho lớp của em'); navigate(-1); return
-      }
+    const moKhoa = await layMoKhoaCuaLop(lessonData.grade, enrollRow?.class_name || null)   // null = không thuộc lớp nào
+    if (!baiDaMoChoLop(lessonData, moKhoa)) {
+      toast.error('Bài học này chưa được mở cho lớp của em'); navigate(-1); return
     }
 
     setLesson(lessonData)
@@ -104,48 +84,17 @@ export default function LessonPage() {
     const grade = lessonData.grade || null
     setStudentGrade(grade)
     if (grade) {
-      const { data: cfgData } = await supabase.from('reward_configs').select('sticker_threshold').eq('grade', grade).maybeSingle()
-      if (cfgData?.sticker_threshold) setStickerThreshold(cfgData.sticker_threshold)
+      const nguong = await layNguongDoiQua(grade)
+      if (nguong) setStickerThreshold(nguong)
+      // Cho AI (không chờ): mô tả khoá + lộ trình — chỉ bài đã mở cho lớp
+      layMoTaKhoaChoAi(grade).then(setCourseScope)
+      Promise.all([layDonViCuaKhoa(grade), layDanhSachBai(grade, { xuatBan: true })])
+        .then(([donVi, bai]) => setCourseRoadmap(loTrinhKhoa(donVi.data || [], bai.data || [], moKhoa)))
     }
+    demBaiHoanThanh(user.id).then(({ count }) => setLessonsCompleted(count || 0))
+    if (!STUDENT_AI_DIRECT) demTraLoiChuaXem(user.id, id).then(({ count }) => setNewAnswers(count || 0))
 
-    // 1b. Mô tả khóa cho AI + số bài đã hoàn thành (ước lượng trình độ)
-    if (lessonData.grade) {
-      supabase.from('grades').select('ai_scope').eq('value', lessonData.grade).maybeSingle()
-        .then(({ data }) => setCourseScope(data?.ai_scope || ''))
-
-      // Lộ trình khóa: đơn vị (sort_order) → bài (order) — cho AI trả lời câu hỏi chương trình học.
-      // CHỈ lấy bài đã mở khoá cho lớp — không để AI biết/gợi ý tên bài học
-      // sinh chưa được mở (xem cùng lý do ở useLearnData.js).
-      Promise.all([
-        supabase.from('units').select('id, name, sort_order').eq('grade', lessonData.grade).order('sort_order'),
-        layDanhSachBai(lessonData.grade, { xuatBan: true }),
-      ]).then(([uRes, lRes]) => {
-        const us = uRes.data || []
-        const ls = (lRes.data || []).filter(l =>
-          topicUnlockSet == null || (topicUnlockSet.has(topicKeyOf(l)) && lessonUnlockSet.has(l.id)))
-        const lines = []
-        us.forEach(u => {
-          const titles = ls.filter(l => l.unit_id === u.id).map(l => l.title)
-          if (titles.length) lines.push(`• ${u.name}: ${titles.join(', ')}`)
-        })
-        const noUnit = ls.filter(l => !l.unit_id).map(l => l.title)
-        if (noUnit.length) lines.push(`• Bài khác: ${noUnit.join(', ')}`)
-        setCourseRoadmap(lines.join('\n'))
-      })
-    }
-    supabase.from('lesson_progress').select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id).eq('completed', true)
-      .then(({ count }) => setLessonsCompleted(count || 0))
-
-    if (!STUDENT_AI_DIRECT) {
-      supabase.from('student_questions').select('id', { count: 'exact', head: true })
-        .eq('student_id', user.id).eq('lesson_id', id).eq('status', 'answered').is('seen_at', null)
-        .then(({ count }) => setNewAnswers(count || 0))
-    }
-
-    // Hồ sơ lỗi hay gặp của chính em (từ bảng điểm AI các bài gần đây) → gia sư gợi ý đúng chỗ em hay vướng.
-    // Lỗi truy vấn không ảnh hưởng gì tới trang học: chỉ đơn giản là không có hồ sơ.
-    // Chỉ gia sư AI trực tiếp mới dùng — đang tắt thì không tải (tốn ~10% thời gian SQL phía học sinh).
+    // Hồ sơ lỗi hay gặp (bảng điểm AI các bài gần đây) — chỉ gia sư AI trực tiếp dùng; lỗi thì chỉ là không có hồ sơ.
     if (STUDENT_AI_DIRECT) {
       layTieuChiGanDay(user.id)
         .then(({ data }) => setWeaknessProfile(buildWeaknessProfile(data)))
@@ -158,11 +107,10 @@ export default function LessonPage() {
       setQuestions(qData || [])
     }
 
-        // 3. Fetch progress
-    const { data: progData } = await supabase.from('lesson_progress')
-      .select('*').eq('user_id', user.id).eq('lesson_id', id).maybeSingle()
+    // 3. Tiến độ
+    const { data: progData } = await layTienDoBai(user.id, id)
     setProgress(progData || null)
-        wasCompleted.current = !!progData?.completed // đánh dấu để không hiện modal lại
+    wasCompleted.current = !!progData?.completed // đánh dấu để không hiện modal lại
 
     // 4. Bài nộp thực hành của em
     await th.napBaiNop(lessonData)
@@ -173,7 +121,7 @@ export default function LessonPage() {
   // Thưởng sticker "nộp bài" / "đạt bài kiểm tra" qua máy chủ: mỗi bài chỉ thưởng ĐÚNG 1 LẦN dù mở bao nhiêu tab
   // (máy chủ tự kiểm tra đã nộp/đã đạt thật chưa và tự tính số sticker — xem migration_sticker_once.sql)
   async function awardOnce(kind, taskIdx, reasonFn) {
-    const { data, error } = await supabase.rpc('award_sticker_once', { p_kind: kind, p_lesson: id, p_task: taskIdx ?? 0 })
+    const { data, error } = await thuongStickerMotLan(kind, id, taskIdx ?? 0)
     if (error) { toast.error('Không cộng được sticker: ' + error.message); return false }
     if (!data?.awarded) return false
     setStickerModal({ stickerCount: data.sticker_count, stickerTotal: data.sticker_total, threshold: stickerThreshold, reason: reasonFn(data.count), count: data.count })
@@ -199,10 +147,7 @@ export default function LessonPage() {
     const current = progress || {}
     const newData = { ...current, ...updates, user_id: user.id, lesson_id: id }
     const completed = trangThaiBuoc(lesson, newData).hoanThanh
-    const { data, error } = await supabase.from('lesson_progress').upsert(
-      { ...newData, completed, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id,lesson_id' }
-    ).select().single()
+    const { data, error } = await luuTienDo({ ...newData, completed, updated_at: new Date().toISOString() })
     if (!error && data) {
       setProgress(data)
       if (completed) wasCompleted.current = true

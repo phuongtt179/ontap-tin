@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { laySticker } from '../data/hoSo'
 import { NGUONG_DOI_QUA_MAC_DINH } from '../domain/sticker'
-import { topicKeyOf } from '../utils/lessonSteps'
+import { layMoKhoaCuaLop } from '../data/khoaHoc'
+import { loTrinhKhoa } from '../domain/moKhoaBai'
 import { layDanhSachBai } from '../data/baiHoc'
 
 // Bóc loadData() + các useMemo dẫn xuất của LearnPage.jsx ra hook riêng — hành vi giữ nguyên 100%.
@@ -40,7 +41,7 @@ export function useLearnData(user, selectedGrade, className) {
     const [
       { data: topicsData }, { data: lessonsData }, { data: lockedData }, { data: progressData },
       { data: unitsData }, { data: profData }, { data: cfgData }, { data: scopeData }, { data: visData },
-      { data: topicUnlockRows }, { data: lessonUnlockRows },
+      moKhoa,
     ] = await Promise.all([
       supabase.from('topics').select('*').in('grade', [selectedGrade, 'all']),
       // Chỉ cột cần vẽ con đường — KHÔNG tải đề thực hành / ghi chú AI (vài trăm KB mỗi lần mở trang)
@@ -52,12 +53,7 @@ export function useLearnData(user, selectedGrade, className) {
       supabase.from('reward_configs').select('sticker_threshold').eq('grade', selectedGrade).maybeSingle(),
       supabase.from('grades').select('ai_scope').eq('value', selectedGrade).maybeSingle(),
       supabase.from('lesson_visibility').select('lesson_id').eq('user_id', user.id),
-      className
-        ? supabase.from('class_topic_unlock').select('topic').eq('grade', selectedGrade).eq('class_name', className)
-        : Promise.resolve({ data: null }),
-      className
-        ? supabase.from('class_lesson_unlock').select('lesson_id, created_at').eq('grade', selectedGrade).eq('class_name', className)
-        : Promise.resolve({ data: null }),
+      layMoKhoaCuaLop(selectedGrade, className),
     ])
     setCourseScope(scopeData?.ai_scope || '')
     // Bài học giới hạn người xem (restricted_audience) chỉ hiện nếu có tên mình trong danh sách
@@ -66,10 +62,8 @@ export function useLearnData(user, selectedGrade, className) {
     const visibleLocked = (lockedData || []).filter(l => !l.restricted_audience || allowedIds.has(l.id))
     setLessons(visibleLessons)
     setLockedLessons(visibleLocked)
-    setUnlockedTopics(className ? new Set((topicUnlockRows || []).map(r => r.topic)) : null)
-    setUnlockedLessonMap(className
-      ? new Map((lessonUnlockRows || []).map(r => [r.lesson_id, r.created_at]))
-      : null)
+    setUnlockedTopics(moKhoa?.chuDe ?? null)
+    setUnlockedLessonMap(moKhoa?.bai ?? null)
     setUnits(unitsData || [])
     setTopics((topicsData || []).sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true })))
     const map = {}
@@ -98,20 +92,10 @@ export function useLearnData(user, selectedGrade, className) {
   // publish, khiến AI biết và có thể gợi ý/link tên bài học sinh chưa được
   // mở, học sinh bấm vào nút "Vào học" trong câu trả lời AI là truy cập được
   // luôn (né qua UI khoá của con đường bài học).
-  const courseRoadmap = useMemo(() => {
-    const noRestriction = unlockedTopics == null || unlockedLessonMap == null
-    const unlockedForAi = noRestriction
-      ? lessons
-      : lessons.filter(l => unlockedTopics.has(topicKeyOf(l)) && unlockedLessonMap.has(l.id))
-    const lines = []
-    units.forEach(u => {
-      const titles = unlockedForAi.filter(l => l.unit_id === u.id).map(l => l.title)
-      if (titles.length) lines.push(`• ${u.name}: ${titles.join(', ')}`)
-    })
-    const noUnit = unlockedForAi.filter(l => !l.unit_id).map(l => l.title)
-    if (noUnit.length) lines.push(`• Bài khác: ${noUnit.join(', ')}`)
-    return lines.join('\n')
-  }, [units, lessons, unlockedTopics, unlockedLessonMap])
+  const courseRoadmap = useMemo(
+    () => loTrinhKhoa(units, lessons, unlockedTopics && unlockedLessonMap ? { chuDe: unlockedTopics, bai: unlockedLessonMap } : null),
+    [units, lessons, unlockedTopics, unlockedLessonMap]
+  )
 
   const lessonsCompleted = useMemo(
     () => lessons.filter(l => progressMap[l.id]?.completed).length,

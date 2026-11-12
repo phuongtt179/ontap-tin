@@ -69,3 +69,10 @@ export function ghiStickerNeuChuaDoi(userId, cu, soMoi, tongMoi) {
   return supabase.from(BANG).update({ sticker_count: soMoi, sticker_total: tongMoi })
     .eq('id', userId).eq('sticker_count', cu).select('sticker_count, sticker_total')
 }
+
+// ───────── sticker do máy chủ tự tính (học sinh) ─────────
+
+/** thưởng sticker "nộp bài" / "đạt quiz" 1 lần mỗi bài — máy chủ tự kiểm tra đã nộp / đạt thật chưa (sql/2026-10-13_sticker_once.sql) */
+export function thuongStickerMotLan(kind, lessonId, taskIdx = 0) {
+  return supabase.rpc('award_sticker_once', { p_kind: kind, p_lesson: lessonId, p_task: taskIdx })
+}

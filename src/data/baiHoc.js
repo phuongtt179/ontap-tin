@@ -16,6 +16,18 @@ export function layBaiHocTheoId(id) {
   return supabase.from(BANG).select('*').eq('id', id).single()
 }
 
+/** bài giới hạn người xem: em có tên trong danh sách không (lesson_visibility) */
+export async function emDuocXemBai(lessonId, userId) {
+  const { data } = await supabase.from('lesson_visibility').select('id').eq('lesson_id', lessonId).eq('user_id', userId).maybeSingle()
+  return !!data
+}
+
+/** các trang bài giảng web của bài (lesson_slides) — null nếu chưa có */
+export async function layBaiGiangWeb(lessonId) {
+  const { data } = await supabase.from('lesson_slides').select('slides').eq('lesson_id', lessonId).maybeSingle()
+  return data?.slides?.length ? data.slides : null
+}
+
 /** tên bài (chế độ Dạy) */
 export function layTenBaiHoc(id) {
   return supabase.from(BANG).select('id, title, grade').eq('id', id).single()
