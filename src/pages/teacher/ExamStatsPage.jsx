@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { layTenLopCuaKhoa } from '../../data/khoaHoc'
 import { layTenCacHs } from '../../data/hoSo'
 import { layCauHoiKemDapAn } from '../../data/cauHoi'
 import { layGhiDanh } from '../../data/ghiDanh'
@@ -148,8 +149,7 @@ export default function ExamStatsPage() {
   useEffect(() => {
     setFilterClass('')
     if (!filterGrade) return
-    supabase.from('classes').select('name').eq('grade', filterGrade).order('name')
-      .then(({ data }) => setClasses(data?.map(c => c.name) || []))
+    layTenLopCuaKhoa(filterGrade).then(setClasses)
   }, [filterGrade])
 
   useEffect(() => { if (filterGrade) fetchData() }, [filterGrade, filterClass])

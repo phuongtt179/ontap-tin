@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { layTenLopCuaKhoa } from '../../data/khoaHoc'
+import { layChuDe } from '../../data/chuDe'
 import { locCauHoi, layCauHoiKemDapAn } from '../../data/cauHoi'
 import { layLopCuaCacHs } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
@@ -84,8 +86,7 @@ function ExamFormModal({ exam, onClose, onDone }) {
   const [loadingQ, setLoadingQ] = useState(false)
 
   useEffect(() => {
-    supabase.from('classes').select('name').eq('grade', form.grade).order('name')
-      .then(({ data }) => setClasses(data?.map(c => c.name) || []))
+    layTenLopCuaKhoa(form.grade).then(setClasses)
   }, [form.grade])
 
   useEffect(() => {
@@ -95,7 +96,7 @@ function ExamFormModal({ exam, onClose, onDone }) {
       setQuestions(data || [])
       setLoadingQ(false)
     })
-    supabase.from('topics').select('name').in('grade', [form.grade, 'all']).order('name')
+    layChuDe([form.grade, 'all'])
       .then(({ data }) => setTopics(data?.map(t => t.name) || []))
   }, [step, form.grade, filterTopic, filterDiff])
 

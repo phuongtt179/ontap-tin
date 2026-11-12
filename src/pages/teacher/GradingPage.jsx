@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Loader2, Bot, Check, ExternalLink, ClipboardCheck, User, BookOpen } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { layTenLopCuaKhoa } from '../../data/khoaHoc'
 import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import { MUC, CAC_MUC, mucCua, mucTuDiem } from '../../utils/muc'
@@ -155,7 +155,7 @@ export default function GradingPage() {
   useEffect(() => {
     if (!grade) return
     lsSet('chamGrade', grade); setLop(''); setBaiId(''); setHsId(''); setSubs(null)
-    supabase.from('classes').select('name').eq('grade', grade).order('name').then(({ data }) => setLops((data || []).map(c => c.name)))
+    layTenLopCuaKhoa(grade).then(setLops)
     // xếp theo Chủ đề → Đơn vị → thứ tự bài, giống trang Học bài (không chỉ theo cột order — order chỉ là thứ tự trong đơn vị)
     layBaiThucHanhTheoKhoa(grade).then(({ baiHoc, donVi }) => {
       setBaiHocs(nhomBaiTheoChuDe(baiHoc, donVi))

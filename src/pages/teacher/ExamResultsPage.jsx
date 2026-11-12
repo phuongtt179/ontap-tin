@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { layTenLopCuaKhoa } from '../../data/khoaHoc'
 import { layTenCacHs } from '../../data/hoSo'
 import { layLopCuaCacHs } from '../../data/ghiDanh'
 import { layCauHoiKemDapAn } from '../../data/cauHoi'
@@ -88,12 +89,12 @@ export default function ExamResultsPage() {
     const { data: qData } = await layCauHoiKemDapAn(examData.question_ids)
     const ordered = qData || []
 
-    const { data: classData } = await supabase.from('classes').select('name').eq('grade', examData.grade).order('name')
+    const tenLop = await layTenLopCuaKhoa(examData.grade)
 
     setExam(examData)
     setSessions((sessionData || []).map(s => ({ ...s, profile: profileMap[s.user_id] })))
     setQuestions(ordered)
-    setClasses(classData?.map(c => c.name) || [])
+    setClasses(tenLop)
     setLoading(false)
   }
 

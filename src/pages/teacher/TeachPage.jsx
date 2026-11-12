@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
+import { layTenLopCuaKhoa } from '../../data/khoaHoc'
 import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { adjustStickerCount } from '../../utils/stickerAward'
 import SlidePlayer from '../../components/slides/SlidePlayer.jsx'
@@ -156,8 +157,7 @@ export default function TeachPage() {
       ])
       if (!l) { toast.error('Không tìm thấy bài học'); return }
       setLesson(l); setDs(s?.slides || [])
-      const { data: c } = await supabase.from('classes').select('name').eq('grade', l.grade).order('name')
-      setLops((c || []).map(x => x.name))
+      setLops(await layTenLopCuaKhoa(l.grade))
     })()
   }, [id])
   useEffect(() => {

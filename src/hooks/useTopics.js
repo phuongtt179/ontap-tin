@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { layChuDe } from '../data/chuDe'
 
 export function useTopics() {
   const [topics, setTopics] = useState([])
@@ -8,11 +8,8 @@ export function useTopics() {
   useEffect(() => { fetch() }, [])
 
   async function fetch() {
-    const { data } = await supabase.from('topics').select('*')
-    const sorted = (data || []).sort((a, b) =>
-      a.name.localeCompare(b.name, 'vi', { numeric: true })
-    )
-    setTopics(sorted)
+    const { data } = await layChuDe()   // đã xếp theo tên
+    setTopics(data || [])
     setLoading(false)
   }
 

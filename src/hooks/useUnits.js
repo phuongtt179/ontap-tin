@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { layDonVi } from '../data/chuDe'
 
 export function useUnits(grade, topic) {
   const [units, setUnits] = useState([])
@@ -12,13 +12,7 @@ export function useUnits(grade, topic) {
 
   async function fetch() {
     setLoading(true)
-    const { data } = await supabase
-      .from('units')
-      .select('*')
-      .eq('grade', grade)
-      .eq('topic', topic)
-      .order('sort_order')
-      .order('name')
+    const { data } = await layDonVi(grade, topic)
     setUnits(data || [])
     setLoading(false)
   }
@@ -38,13 +32,7 @@ export function useUnitsByGrade(grade) {
 
   async function fetch() {
     setLoading(true)
-    const { data } = await supabase
-      .from('units')
-      .select('*')
-      .eq('grade', grade)
-      .order('topic')
-      .order('sort_order')
-      .order('name')
+    const { data } = await layDonVi(grade)
     setUnits(data || [])
     setLoading(false)
   }

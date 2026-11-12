@@ -9,6 +9,11 @@ export function layTienDoBai(userId, lessonId) {
   return supabase.from(BANG).select('*').eq('user_id', userId).eq('lesson_id', lessonId).maybeSingle()
 }
 
+/** tiến độ của em ở mọi bài (ít dòng: 1 dòng / bài đã học) */
+export function layTienDoCuaEm(userId) {
+  return supabase.from(BANG).select('*').eq('user_id', userId).limit(5000)
+}
+
 /** số bài em đã hoàn thành (chỉ đếm, không tải dòng) */
 export function demBaiHoanThanh(userId) {
   return supabase.from(BANG).select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('completed', true)

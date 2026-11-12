@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { layCacKhoa } from '../data/khoaHoc'
 
 export function useGrades() {
   const [grades, setGrades] = useState([])
@@ -8,7 +8,7 @@ export function useGrades() {
   useEffect(() => { fetch() }, [])
 
   async function fetch() {
-    const { data } = await supabase.from('grades').select('value').order('value')
+    const { data } = await layCacKhoa()
     setGrades(data?.map(g => g.value) || [])
     setLoading(false)
   }

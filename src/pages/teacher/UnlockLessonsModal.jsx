@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { layChuDe } from '../../data/chuDe'
+import { layMoKhoaCuaLop, datMoChuDe, datMoBai } from '../../data/khoaHoc'
 import toast from 'react-hot-toast'
 import { X, Lock, Unlock, Check } from 'lucide-react'
 import { layDanhSachBai } from '../../data/baiHoc'
@@ -33,11 +34,10 @@ export default function UnlockLessonsModal({ cls, onClose }) {
     // khoá — trước đây chỉ lấy bài đã publish nên chủ đề nào chưa publish
     // bài nào sẽ biến mất khỏi popup dù đã tồn tại (thấy được ở trang Chủ đề).
     // Ô tick mở bài thì vẫn chỉ hiện bài ĐÃ publish (chưa publish không có gì để mở).
-    const [{ data: topicsData }, { data: allLessonsData }, { data: topicUnlockRows }, { data: lessonUnlockRows }] = await Promise.all([
-      supabase.from('topics').select('name').in('grade', [cls.grade, 'all']),
+    const [{ data: topicsData }, { data: allLessonsData }, moKhoa] = await Promise.all([
+      layChuDe([cls.grade, 'all']),
       layDanhSachBai(cls.grade),
-      supabase.from('class_topic_unlock').select('topic').eq('grade', cls.grade).eq('class_name', cls.name),
-      supabase.from('class_lesson_unlock').select('lesson_id').eq('grade', cls.grade).eq('class_name', cls.name),
+      layMoKhoaCuaLop(cls.grade, cls.name),
     ])
 
     const byTopicAll = {}
@@ -56,8 +56,8 @@ export default function UnlockLessonsModal({ cls, onClose }) {
     const order = allKeys.map(k => ({ key: k, label: k === '__no_topic__' ? 'Chưa phân loại' : k }))
     setTopicOrder(order)
 
-    setUnlockedTopics(new Set((topicUnlockRows || []).map(r => r.topic)))
-    setUnlockedLessons(new Set((lessonUnlockRows || []).map(r => r.lesson_id)))
+    setUnlockedTopics(moKhoa.chuDe)
+    setUnlockedLessons(new Set(moKhoa.bai.keys()))
     setSelectedTopic(prev => (prev && byTopicAll[prev]) ? prev : (order[0]?.key ?? null))
     setLoading(false)
   }
@@ -68,15 +68,8 @@ export default function UnlockLessonsModal({ cls, onClose }) {
       nextOpen ? s.add(topicKey) : s.delete(topicKey)
       return s
     })
-    if (nextOpen) {
-      const { error } = await supabase.from('class_topic_unlock')
-        .insert({ grade: cls.grade, class_name: cls.name, topic: topicKey })
-      if (error && error.code !== '23505') toast.error('Lỗi mở chủ đề: ' + error.message)
-    } else {
-      const { error } = await supabase.from('class_topic_unlock')
-        .delete().eq('grade', cls.grade).eq('class_name', cls.name).eq('topic', topicKey)
-      if (error) toast.error('Lỗi khoá chủ đề: ' + error.message)
-    }
+    const { error } = await datMoChuDe(cls.grade, cls.name, topicKey, nextOpen)
+    if (error) toast.error((nextOpen ? 'Lỗi mở chủ đề: ' : 'Lỗi khoá chủ đề: ') + error.message)
   }
 
   async function toggleLesson(lessonId, nextOpen) {
@@ -85,15 +78,8 @@ export default function UnlockLessonsModal({ cls, onClose }) {
       nextOpen ? s.add(lessonId) : s.delete(lessonId)
       return s
     })
-    if (nextOpen) {
-      const { error } = await supabase.from('class_lesson_unlock')
-        .insert({ grade: cls.grade, class_name: cls.name, lesson_id: lessonId })
-      if (error && error.code !== '23505') toast.error('Lỗi mở bài: ' + error.message)
-    } else {
-      const { error } = await supabase.from('class_lesson_unlock')
-        .delete().eq('grade', cls.grade).eq('class_name', cls.name).eq('lesson_id', lessonId)
-      if (error) toast.error('Lỗi khoá bài: ' + error.message)
-    }
+    const { error } = await datMoBai(cls.grade, cls.name, lessonId, nextOpen)
+    if (error) toast.error((nextOpen ? 'Lỗi mở bài: ' : 'Lỗi khoá bài: ') + error.message)
   }
 
   const currentLessons = selectedTopic ? (lessonsByTopic[selectedTopic] || []) : []

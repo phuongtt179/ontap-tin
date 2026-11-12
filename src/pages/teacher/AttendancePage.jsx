@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
+import { layCacLop } from '../../data/khoaHoc'
 import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { useAuth } from '../../context/AuthContext'
 import { useGrades } from '../../hooks/useGrades'
@@ -96,7 +97,7 @@ export default function AttendancePage() {
   }, [filterGrade, filterClass])
 
   async function fetchClasses() {
-    const { data } = await supabase.from('classes').select('name, grade').order('grade').order('name')
+    const { data } = await layCacLop()
     setClasses(data || [])
   }
 

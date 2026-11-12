@@ -86,10 +86,6 @@ export function xoaCauHoi(id) {
   return supabase.from(BANG).delete().eq('id', id)
 }
 
-export function doiKhoaCuaCauHoi(khoaCu, khoaMoi) {
-  return supabase.from(BANG).update({ grade: khoaMoi }).eq('grade', khoaCu)
-}
-
 export function doiChuDeCuaCauHoi(grade, chuDeCu, chuDeMoi) {
   return supabase.from(BANG).update({ topic: chuDeMoi }).eq('topic', chuDeCu).eq('grade', grade)
 }

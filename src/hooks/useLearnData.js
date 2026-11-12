@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
-import { supabase } from '../lib/supabase'
 import { laySticker } from '../data/hoSo'
+import { layChuDe, layDonViCuaKhoa } from '../data/chuDe'
+import { layTienDoCuaEm } from '../data/tienDo'
 import { NGUONG_DOI_QUA_MAC_DINH } from '../domain/sticker'
-import { layMoKhoaCuaLop } from '../data/khoaHoc'
+import { layMoKhoaCuaLop, layNguongDoiQua, layMoTaKhoaChoAi } from '../data/khoaHoc'
 import { loTrinhKhoa } from '../domain/moKhoaBai'
-import { layDanhSachBai } from '../data/baiHoc'
+import { layDanhSachBai, layBaiEmDuocXem } from '../data/baiHoc'
 
 // Bóc loadData() + các useMemo dẫn xuất của LearnPage.jsx ra hook riêng — hành vi giữ nguyên 100%.
 // `className`: lớp học sinh đang thuộc (cho khoá đang chọn) — dùng để lấy đúng
@@ -40,24 +41,23 @@ export function useLearnData(user, selectedGrade, className) {
     setLoading(true)
     const [
       { data: topicsData }, { data: lessonsData }, { data: lockedData }, { data: progressData },
-      { data: unitsData }, { data: profData }, { data: cfgData }, { data: scopeData }, { data: visData },
+      { data: unitsData }, { data: profData }, nguong, moTaKhoa, allowedIds,
       moKhoa,
     ] = await Promise.all([
-      supabase.from('topics').select('*').in('grade', [selectedGrade, 'all']),
+      layChuDe([selectedGrade, 'all']),
       // Chỉ cột cần vẽ con đường — KHÔNG tải đề thực hành / ghi chú AI (vài trăm KB mỗi lần mở trang)
       layDanhSachBai(selectedGrade, { xuatBan: true }),
       layDanhSachBai(selectedGrade, { xuatBan: false }),
-      supabase.from('lesson_progress').select('*').eq('user_id', user.id),
-      supabase.from('units').select('*').eq('grade', selectedGrade).order('sort_order').order('name'),
+      layTienDoCuaEm(user.id),
+      layDonViCuaKhoa(selectedGrade),
       laySticker(user.id),
-      supabase.from('reward_configs').select('sticker_threshold').eq('grade', selectedGrade).maybeSingle(),
-      supabase.from('grades').select('ai_scope').eq('value', selectedGrade).maybeSingle(),
-      supabase.from('lesson_visibility').select('lesson_id').eq('user_id', user.id),
+      layNguongDoiQua(selectedGrade),
+      layMoTaKhoaChoAi(selectedGrade),
+      layBaiEmDuocXem(user.id),
       layMoKhoaCuaLop(selectedGrade, className),
     ])
-    setCourseScope(scopeData?.ai_scope || '')
+    setCourseScope(moTaKhoa)
     // Bài học giới hạn người xem (restricted_audience) chỉ hiện nếu có tên mình trong danh sách
-    const allowedIds = new Set((visData || []).map(v => v.lesson_id))
     const visibleLessons = (lessonsData || []).filter(l => !l.restricted_audience || allowedIds.has(l.id))
     const visibleLocked = (lockedData || []).filter(l => !l.restricted_audience || allowedIds.has(l.id))
     setLessons(visibleLessons)
@@ -65,13 +65,13 @@ export function useLearnData(user, selectedGrade, className) {
     setUnlockedTopics(moKhoa?.chuDe ?? null)
     setUnlockedLessonMap(moKhoa?.bai ?? null)
     setUnits(unitsData || [])
-    setTopics((topicsData || []).sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true })))
+    setTopics(topicsData || [])   // đã xếp theo tên
     const map = {}
     ;(progressData || []).forEach(p => { map[p.lesson_id] = p })
     setProgressMap(map)
     setStickerCount(profData?.sticker_count ?? 0)
     setStreakDays(profData?.streak_days ?? 0)
-    setStickerThreshold(cfgData?.sticker_threshold ?? NGUONG_DOI_QUA_MAC_DINH)
+    setStickerThreshold(nguong ?? NGUONG_DOI_QUA_MAC_DINH)
     setLoading(false)
   }
 

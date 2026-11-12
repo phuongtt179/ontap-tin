@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { layTenLopCuaKhoa } from '../../data/khoaHoc'
 import { layGhiDanh } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import { ShieldCheck, RefreshCw, BookOpenText, MessagesSquare, Lightbulb, MessageCircleQuestion, BookMarked } from 'lucide-react'
@@ -35,7 +36,7 @@ export default function AiToolsPage() {
   useEffect(() => { try { localStorage.setItem('aiLocKhoa', grade); localStorage.setItem('aiLocLop', lop) } catch { /* bỏ qua */ } }, [grade, lop])
   useEffect(() => {
     if (!grade) { setLops([]); return }
-    supabase.from('classes').select('name').eq('grade', grade).order('name').then(({ data }) => setLops((data || []).map(c => c.name)))
+    layTenLopCuaKhoa(grade).then(setLops)
   }, [grade])
   useEffect(() => {
     if (!lop) { setHsLop(null); return }

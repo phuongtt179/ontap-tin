@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
-import { doiKhoaCuaCauHoi } from '../../data/cauHoi'
-import { layGhiDanh, doiKhoaCuaGhiDanh, xoaGhiDanhCuaKhoa } from '../../data/ghiDanh'
+import { layGhiDanh } from '../../data/ghiDanh'
+import { layCacKhoa, layCacLop, themKhoa, doiTenKhoa, xoaKhoa, luuMoTaKhoaChoAi } from '../../data/khoaHoc'
 import { Users, School, ChevronRight, Plus, Trash2, Loader2, Pencil, Check, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
-import { doiKhoaCuaBaiHoc } from '../../data/baiHoc'
 
 const COLOR_SCHEMES = [
   { color: 'border-blue-200 bg-blue-50', text: 'text-blue-700', btn: 'bg-blue-600 hover:bg-blue-700' },
@@ -40,8 +38,8 @@ export default function GradesPage() {
   async function fetchAll() {
     if (!daTai.current) { daTai.current = true; setLoading(true) }
     const [gradeRes, classRes, enrollRes] = await Promise.all([
-      supabase.from('grades').select('value, ai_scope').order('value'),
-      supabase.from('classes').select('grade'),
+      layCacKhoa(),
+      layCacLop(),
       layGhiDanh(),
     ])
     const gradeList = gradeRes.data?.map(g => g.value) || []
@@ -62,7 +60,7 @@ export default function GradesPage() {
     if (!val) return
     if (grades.includes(val)) { toast.error(`Khoá học "${val}" đã tồn tại`); return }
     setSaving(true)
-    const { error } = await supabase.from('grades').insert({ value: val })
+    const { error } = await themKhoa(val)
     setSaving(false)
     if (error) toast.error('Thêm thất bại: ' + error.message)
     else { toast.success(`Đã thêm khoá học "${val}"`); setNewValue(''); setAdding(false); fetchAll() }
@@ -73,19 +71,10 @@ export default function GradesPage() {
     if (!val || val === oldValue) { setEditGrade(null); return }
     if (grades.includes(val)) { toast.error(`Khoá học "${val}" đã tồn tại`); return }
     setSaving(true)
-    // Update grades table
-    const { error } = await supabase.from('grades').update({ value: val }).eq('value', oldValue)
+    // đổi tên khoá + mọi bảng gắn với khoá (danh sách bảng: data/khoaHoc.js)
+    const { error, loiBang } = await doiTenKhoa(oldValue, val)
     if (error) { toast.error('Đổi tên thất bại: ' + error.message); setSaving(false); return }
-    // Cascade update tất cả bảng liên quan
-    await Promise.all([
-      supabase.from('classes').update({ grade: val }).eq('grade', oldValue),
-      doiKhoaCuaGhiDanh(oldValue, val),
-      doiKhoaCuaCauHoi(oldValue, val),
-      supabase.from('exams').update({ grade: val }).eq('grade', oldValue),
-      doiKhoaCuaBaiHoc(oldValue, val),
-      supabase.from('topics').update({ grade: val }).eq('grade', oldValue),
-      supabase.from('units').update({ grade: val }).eq('grade', oldValue),
-    ])
+    if (loiBang.length) toast.error('Chưa đổi được khoá ở: ' + loiBang.join(', '))
     setSaving(false)
     setEditGrade(null)
     toast.success(`Đã đổi tên thành "${val}"`)
@@ -95,7 +84,7 @@ export default function GradesPage() {
   async function saveScope(value) {
     setSavingScope(true)
     const val = scopeVal.trim()
-    const { error } = await supabase.from('grades').update({ ai_scope: val || null }).eq('value', value)
+    const { error } = await luuMoTaKhoaChoAi(value, val)
     setSavingScope(false)
     if (error) { toast.error('Lưu thất bại: ' + error.message); return }
     setAiScopes(prev => ({ ...prev, [value]: val }))
@@ -112,15 +101,10 @@ export default function GradesPage() {
     ].filter(Boolean).join('\n')
     if (!confirm(msg)) return
     // Xóa ca học, enrollment, bài học/câu hỏi/đề thi liên quan, rồi mới xóa grade
-    const { error } = await supabase.from('grades').delete().eq('value', value)
+    const { error } = await xoaKhoa(value)   // xoá cả lớp + ghi danh của khoá (không có khoá ngoại)
     if (error) {
       toast.error('Xóa thất bại: ' + error.message)
     } else {
-      // Xóa cascading data (classes và enrollments không có FK → xóa thủ công)
-      await Promise.all([
-        supabase.from('classes').delete().eq('grade', value),
-        xoaGhiDanhCuaKhoa(value),
-      ])
       toast.success(`Đã xóa khoá học "${value}"`)
       fetchAll()
     }

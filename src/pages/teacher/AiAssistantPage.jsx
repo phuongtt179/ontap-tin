@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { layCacLop } from '../../data/khoaHoc'
 import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { useAuth } from '../../context/AuthContext'
 import { useGrades } from '../../hooks/useGrades'
@@ -125,7 +126,7 @@ export default function AiAssistantPage() {
   const bottomRef = useRef(null)
 
   useEffect(() => {
-    supabase.from('classes').select('name, grade').order('grade').order('name')
+    layCacLop()
       .then(({ data }) => setClasses(data || []))
   }, [])
 

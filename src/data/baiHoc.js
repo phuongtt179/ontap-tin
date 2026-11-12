@@ -16,6 +16,12 @@ export function layBaiHocTheoId(id) {
   return supabase.from(BANG).select('*').eq('id', id).single()
 }
 
+/** id các bài giới hạn người xem mà em có tên trong danh sách → Set */
+export async function layBaiEmDuocXem(userId) {
+  const { data } = await supabase.from('lesson_visibility').select('lesson_id').eq('user_id', userId).limit(5000)
+  return new Set((data || []).map(v => v.lesson_id))
+}
+
 /** bài giới hạn người xem: em có tên trong danh sách không (lesson_visibility) */
 export async function emDuocXemBai(lessonId, userId) {
   const { data } = await supabase.from('lesson_visibility').select('id').eq('lesson_id', lessonId).eq('user_id', userId).maybeSingle()
@@ -127,11 +133,6 @@ export function capNhatBaiHoc(id, thayDoi) {
 
 export function xoaBaiHoc(id) {
   return supabase.from(BANG).delete().eq('id', id)
-}
-
-/** đổi tên khoá → chuyển mọi bài sang tên mới */
-export function doiKhoaCuaBaiHoc(khoaCu, khoaMoi) {
-  return supabase.from(BANG).update({ grade: khoaMoi }).eq('grade', khoaCu)
 }
 
 /** đổi tên chủ đề trong 1 khoá → chuyển mọi bài sang tên mới */

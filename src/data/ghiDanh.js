@@ -90,10 +90,3 @@ export function tuChoiGhiDanhCuaHs(userId) {
   return supabase.from(BANG).delete().eq('user_id', userId).eq('is_approved', false)
 }
 
-export function doiKhoaCuaGhiDanh(khoaCu, khoaMoi) {
-  return supabase.from(BANG).update({ grade: khoaMoi }).eq('grade', khoaCu)
-}
-
-export function xoaGhiDanhCuaKhoa(grade) {
-  return supabase.from(BANG).delete().eq('grade', grade)
-}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
+import { layChuDe } from '../../data/chuDe'
 import { layKhoaCuaEm } from '../../data/ghiDanh'
 import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
@@ -229,7 +230,7 @@ export default function NotesPage() {
     if (!grades.length) return
 
     const [{ data: topicData }, { data: lessonData }] = await Promise.all([
-      supabase.from('topics').select('name, grade').in('grade', grades),
+      layChuDe(grades),
       layBaiDaXuatBanCuaCacKhoa(grades),
     ])
 
