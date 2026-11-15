@@ -116,3 +116,23 @@ describe('chấm từng em', () => {
     ['chỉ chữ', { text_content: 'bài làm' }, 'bài làm'],
   ])('tệp nộp: %s', (_, sub, mau) => expect(renderToString(<TepBaiNop sub={{ submitted_at: LUC, ...sub }} />)).toContain(mau))
 })
+
+import DongBaiCham from './DongBaiCham'
+import GradingPage from '../../../pages/teacher/GradingPage'
+describe('trang Chấm bài (/teacher/grading)', () => {
+  it('trang dựng được khi chưa chọn gì', () =>
+    expect(renderToString(<MemoryRouter><GradingPage /></MemoryRouter>)).toContain('Chấm bài'))
+  it.each(BAI_NOP.a.concat(BAI_NOP.b))('thẻ chấm 1 bài: có tệp → nút Xem bài + Tải về ($id)', sub => {
+    const html = renderToString(<DongBaiCham sub={sub} tieuDe="Bài 1" taskDef={{}} onDoi={khong} />)
+    expect(html).toContain('Xem bài')
+    expect(html).toContain('Tải về')
+  })
+  it('thẻ chấm: chỉ chữ → không có nút Xem bài', () =>
+    expect(renderToString(<DongBaiCham sub={{ id: 'x', submitted_at: LUC, text_content: 'em gõ' }} tieuDe="B" taskDef={{}} onDoi={khong} />)).not.toContain('Xem bài'))
+  it('khung xem chiTep: không lặp giờ nộp / chữ em gõ', () => {
+    const html = renderToString(<TepBaiNop sub={{ submitted_at: LUC, file_url: 'https://x.test/a.pptx', text_content: 'em gõ' }} chiTep />)
+    expect(html).toContain('officeapps')
+    expect(html).not.toContain('Nộp lúc')
+    expect(html).not.toContain('em gõ')
+  })
+})

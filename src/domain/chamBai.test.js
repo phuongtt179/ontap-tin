@@ -69,3 +69,27 @@ describe('trang chấm bài của giáo viên', () => {
       .toEqual({ tong: 2, hoanThanh: 1, video: 2, quiz: null, thucHanh: 1 })
   })
 })
+
+import { nhomBaiNopTheoMuc, goiYCua, mucBanDau } from './chamBai'
+describe('trang Chấm bài — theo học sinh', () => {
+  const nhom = [
+    { topic: 'CĐ A', lessons: [{ id: 'a1', title: 'A1' }, { id: 'a2', title: 'A2' }] },
+    { topic: 'CĐ B', lessons: [{ id: 'b1', title: 'B1' }] },
+  ]
+  const s = (id, lesson_id, task_index) => ({ id, lesson_id, content_json: { task_index } })
+  it('xếp theo chủ đề → bài theo chương trình → phần, không theo giờ nộp; bỏ bài chưa nộp', () => {
+    const kq = nhomBaiNopTheoMuc([s(1, 'b1', 0), s(2, 'a2', 1), s(3, 'a2', 0)], nhom)
+    expect(kq.map(g => g.topic)).toEqual(['CĐ A', 'CĐ B'])
+    expect(kq[0].bai.map(b => b.lesson.id)).toEqual(['a2'])
+    expect(kq[0].bai[0].subs.map(x => x.id)).toEqual([3, 2])
+  })
+  it('bài không có trong danh sách → "Bài khác" ở cuối', () => {
+    const kq = nhomBaiNopTheoMuc([s(1, 'x', 0), s(2, 'a1', 0)], nhom, { x: { id: 'x', title: 'X' } })
+    expect(kq.map(g => g.topic)).toEqual(['CĐ A', 'Bài khác'])
+    expect(kq[1].bai[0].lesson.title).toBe('X')
+  })
+  it('nộp lại (chưa duyệt, điểm đã xoá) → không lấy gợi ý AI của bản cũ', () => {
+    expect(goiYCua({ reviewed_at: null, score: null, ai_score: 9, graded_by: 'ai' })).toBe(null)
+    expect(mucBanDau({ reviewed_at: null, score: null, muc: 'T' })).toBe('')
+  })
+})

@@ -82,3 +82,40 @@ export function thongKeLop(hocSinh, tienDo, bainop, { coVideo, coQuiz, coThucHan
     thucHanh: coThucHanh ? dem(s => (bainop[s.id] || []).length >= soPhan) : null,
   }
 }
+
+// ── Trang Chấm bài (/teacher/grading) ──
+
+/** học sinh nộp lại: điểm + nhận xét đã xoá nhưng ai_score / ai_breakdown còn của BẢN CŨ → không dùng làm gợi ý cho bản mới */
+export const nhapCu = sub => !sub.reviewed_at && sub.score == null
+/** mức AI gợi ý (T/H/C) hoặc null */
+export const goiYCua = sub => (!nhapCu(sub) && (sub.graded_by === 'ai' || sub.ai_score != null) ? mucTuDiem(sub.ai_score ?? sub.score) : null)
+/** bài đã có nháp AI (bảng tiêu chí) chờ duyệt */
+export const coNhapCua = sub => !nhapCu(sub) && (sub.graded_by === 'ai' || sub.ai_breakdown?.length > 0)
+/** mức chọn sẵn khi mở bài */
+export const mucBanDau = sub => (nhapCu(sub) ? '' : sub.muc || mucCua(sub) || '')
+
+/**
+ * Bài nộp của 1 học sinh → xếp theo mục giống "Theo bài": Chủ đề → bài học (thứ tự chương trình) → phần thực hành.
+ * nhomBai = kết quả nhomBaiTheoChuDe (domain/thuTuBaiHoc). Bài nộp thuộc bài không có trong nhomBai → nhóm "Bài khác" ở cuối.
+ * Trả [{ topic, bai: [{ lesson, subs }] }], bỏ chủ đề / bài không có bài nộp.
+ */
+export function nhomBaiNopTheoMuc(subs, nhomBai, lessonMap = {}) {
+  const theoBai = new Map()
+  for (const s of subs || []) {
+    if (!theoBai.has(s.lesson_id)) theoBai.set(s.lesson_id, [])
+    theoBai.get(s.lesson_id).push(s)
+  }
+  const xep = ds => ds.sort((a, b) => phanCua(a) - phanCua(b))
+  const ketQua = []
+  for (const g of nhomBai || []) {
+    const bai = g.lessons.filter(l => theoBai.has(l.id)).map(l => {
+      const ds = xep(theoBai.get(l.id)); theoBai.delete(l.id); return { lesson: l, subs: ds }
+    })
+    if (bai.length) ketQua.push({ topic: g.topic, bai })
+  }
+  if (theoBai.size) ketQua.push({
+    topic: 'Bài khác',
+    bai: [...theoBai].map(([id, ds]) => ({ lesson: lessonMap[id] || { id, title: 'Bài học' }, subs: xep(ds) })),
+  })
+  return ketQua
+}

@@ -14,12 +14,13 @@ function BieuTuong({ loai }) {
   return <File size={18} className="text-gray-400 shrink-0" />
 }
 
-export default function TepBaiNop({ sub, cao = 480 }) {
+// chiTep: chỉ hiện tệp (nơi đã hiện giờ nộp + chữ em gõ ở chỗ khác — trang Chấm bài)
+export default function TepBaiNop({ sub, cao = 480, chiTep = false }) {
   const url = sub.file_url
   const loai = loaiTep(url)
   return (
     <div className="space-y-2">
-      <p className="text-xs text-gray-400">Nộp lúc {new Date(sub.submitted_at).toLocaleString('vi-VN')}</p>
+      {!chiTep && <p className="text-xs text-gray-400">Nộp lúc {new Date(sub.submitted_at).toLocaleString('vi-VN')}</p>}
       {url && (
         <div className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
           {loai.anh && <img src={url} alt="" className="w-full max-h-64 object-contain bg-white border-b border-gray-200" />}
@@ -44,7 +45,7 @@ export default function TepBaiNop({ sub, cao = 480 }) {
         </div>
       )}
       {loai.sb3 && url && <Sb3Viewer url={url} />}
-      {sub.text_content && (
+      {!chiTep && sub.text_content && (
         <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 whitespace-pre-wrap border">{sub.text_content}</div>
       )}
     </div>

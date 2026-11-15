@@ -65,9 +65,12 @@ export function layBaiNopDeChamTheoBai(lessonId, userIds) {
   return supabase.from(BANG).select(COT_CHAM).eq('lesson_id', lessonId).in('user_id', userIds)
 }
 
-/** trang Chấm bài — theo học sinh: 100 bài gần nhất */
-export function layBaiNopDeChamTheoHs(userId) {
-  return supabase.from(BANG).select(COT_CHAM).eq('user_id', userId).order('submitted_at', { ascending: false }).limit(100)
+/** trang Chấm bài — theo học sinh: bài em nộp CHỈ trong khoá đang chọn (em học nhiều khoá không lẫn bài khoá khác), tối đa 500 bài gần nhất */
+export async function layBaiNopDeChamTheoHs(userId, grade) {
+  const { data, error } = await supabase.from(BANG).select(COT_CHAM + ',lessons!inner(grade)')
+    .eq('user_id', userId).eq('lessons.grade', grade)
+    .order('submitted_at', { ascending: false }).limit(500)
+  return { data: (data || []).map(({ lessons, ...s }) => s), error }   // eslint-disable-line no-unused-vars
 }
 
 /** đã nộp / đã duyệt chưa — trang Trợ lý giáo viên */
