@@ -5,6 +5,7 @@ import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import toast from 'react-hot-toast'
 import { Trash2, AlertTriangle, Search, X, BookOpen, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { useGrades } from '../../hooks/useGrades'
+import { xepTheoLopRoiTen } from '../../domain/ten'
 
 const COLOR_BG = {
   yellow: 'bg-yellow-100 border-yellow-300',
@@ -92,9 +93,7 @@ export default function StudentNotesPage() {
         grade: e.grade,
       }
     })
-    const studentList = Object.values(studentMap).sort((a, b) =>
-      (a.class_name || '').localeCompare(b.class_name || '') || a.full_name.localeCompare(b.full_name)
-    )
+    const studentList = Object.values(studentMap).sort(xepTheoLopRoiTen)
     setStudents(studentList)
 
     // Classes dropdown

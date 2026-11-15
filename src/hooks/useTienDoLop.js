@@ -9,6 +9,7 @@ import { layHocSinhKemHoSo } from '../data/ghiDanh'
 import { layBaiNopCuaLop, layDauVetBaiNop } from '../data/baiNop'
 import { layTienDoCuaLop, layDauVetTienDo } from '../data/tienDo'
 import { gomTheoHocSinh } from '../domain/chamBai'
+import { xepTheoLopRoiTen } from '../domain/ten'
 
 export function useTienDoLop(lessonId) {
   const navigate = useNavigate()
@@ -42,7 +43,7 @@ export function useTienDoLop(lessonId) {
         full_name: e.profiles?.full_name || '',
         class_name: e.class_name,
         grade: e.grade,
-      })).sort((a, b) => (a.class_name || '').localeCompare(b.class_name || '') || a.full_name.localeCompare(b.full_name))
+      })).sort(xepTheoLopRoiTen)
       idsRef.current = hs.map(s => s.id)
       if (hs.length) {
         const { td, bn } = await taiTienDoVaBaiNop(idsRef.current)

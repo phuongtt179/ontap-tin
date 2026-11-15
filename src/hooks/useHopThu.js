@@ -6,6 +6,7 @@ import { layHocSinhDaDuyet, layTenCacHs } from '../data/hoSo'
 import { layGhiDanh, layLopCuaCacHs } from '../data/ghiDanh'
 import { layHopThu, layTinMoi, layNhatKyAi, danhDauDaDoc, guiTinGiaoVien, guiTinNhieuEm, xoaTin } from '../data/tinNhan'
 import { gomHoiThoai, themTinMoi, boTin, locHoiThoai } from '../domain/hoiThoai'
+import { xepTheoLopRoiTen } from '../domain/ten'
 
 /** tên + lớp của các em → { id: { id, full_name, class_name } } */
 async function layHocSinhCuaTin(ids) {
@@ -89,7 +90,7 @@ export function useHopThu() {
     Promise.all([layHocSinhDaDuyet(), layGhiDanh()]).then(([{ data: hs }, { data: ghiDanh }]) => {
       const lopCua = Object.fromEntries((ghiDanh || []).map(e => [e.user_id, e.class_name]))
       setAllStudents((hs || []).map(p => ({ ...p, class_name: lopCua[p.id] || '' }))
-        .sort((a, b) => (a.class_name || '').localeCompare(b.class_name || '') || a.full_name.localeCompare(b.full_name)))
+        .sort(xepTheoLopRoiTen))
     })
   }, [showNew, allStudents.length])
 

@@ -1,4 +1,5 @@
 // Quy tắc trang Học sinh của giáo viên: đọc danh sách dán vào, ghép hồ sơ + ghi danh, lọc, chờ duyệt. Hàm thuần.
+import { xepTheoLopRoiTen } from './ten.js'
 
 /** tên đăng nhập hợp lệ: chữ không dấu, số, _ và . */
 export const TEN_DANG_NHAP_HOP_LE = /^[a-zA-Z0-9_.]+$/
@@ -59,7 +60,7 @@ export function ghepGhiDanh(hoSo, ghiDanh) {
 export function locTheoKhoaLop(hocSinh, { khoa = '', lop = '' } = {}) {
   return hocSinh
     .filter(s => (!khoa || s.enrollments.some(e => e.grade === khoa)) && (!lop || s.enrollments.some(e => e.class_name === lop)))
-    .sort((a, b) => (a.class_name || '').localeCompare(b.class_name || '') || a.full_name.localeCompare(b.full_name))
+    .sort(xepTheoLopRoiTen)
 }
 
 /** chờ duyệt: tài khoản chưa duyệt hoặc còn ghi danh chưa duyệt; còn lại là đã duyệt */

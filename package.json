@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:quyen": "vitest run --dir tests/that --exclude _khong_co_"
+    "test:quyen": "vitest run --dir tests/that --exclude _khong_co_",
+    "danh-muc": "node scripts/danh-muc-ham.mjs"
   },
   "dependencies": {
     "@fontsource/baloo-2": "^5.3.0",
@@ -52,6 +53,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "jscpd": "^4.3.0",
     "tailwindcss": "^4.2.1",
     "vite": "^7.3.1",
     "vitest": "^3.2.7"

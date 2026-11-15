@@ -17,12 +17,11 @@ import DongBaiCham from '../../components/teacher/chamBai/DongBaiCham'
 import { nhomBaiTheoChuDe } from '../../domain/thuTuBaiHoc'
 import { layBaiThucHanhTheoKhoa, layDeThucHanhTheoIds } from '../../data/baiHoc'
 import { layBaiNopDeChamTheoBai, layBaiNopDeChamTheoHs } from '../../data/baiNop'
+import { coChua, xepTheoTenGoi } from '../../domain/ten'
 
 const lsGet = k => { try { return localStorage.getItem(k) || '' } catch { return '' } }
 const lsSet = (k, v) => { try { localStorage.setItem(k, v) } catch { /* trình duyệt chặn */ } }
 const SEL = 'border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300'
-const taskIdx = sub => Number(phanCua(sub))
-const boDau = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd')
 
 export default function GradingPage() {
   const { grades } = useGrades()
@@ -56,7 +55,7 @@ export default function GradingPage() {
   useEffect(() => {
     if (!grade) return
     layHocSinhKemHoSo({ grade, lop }).then(({ data }) => setHss((data || []).map(e => ({ id: e.user_id, ten: e.profiles.full_name || '(chưa có tên)', lop: e.class_name }))
-      .sort((a, b) => a.ten.split(' ').pop().localeCompare(b.ten.split(' ').pop(), 'vi'))))
+      .sort((a, b) => xepTheoTenGoi(a.ten, b.ten))))
   }, [grade, lop])
 
   // tải bài nộp
@@ -88,12 +87,12 @@ export default function GradingPage() {
   const hien = useMemo(() => {
     let ds = (subs || []).filter(s => !chuaDuyet || !s.reviewed_at)
     if (locMuc) ds = ds.filter(s => { const g = goiYCua(s); return locMuc === 'none' ? !g : g === locMuc })
-    if (cach === 'bai' && timTen.trim()) ds = ds.filter(s => boDau(tenHs[s.user_id]).includes(boDau(timTen.trim())))
+    if (cach === 'bai' && timTen.trim()) ds = ds.filter(s => coChua(tenHs[s.user_id], timTen))
     if (cach === 'hs' && locBai) ds = ds.filter(s => s.lesson_id === locBai)
-    if (cach === 'bai') ds = ds.sort((a, b) => (tenHs[a.user_id] || '').split(' ').pop().localeCompare((tenHs[b.user_id] || '').split(' ').pop(), 'vi') || taskIdx(a) - taskIdx(b))
+    if (cach === 'bai') ds = ds.sort((a, b) => xepTheoTenGoi(tenHs[a.user_id], tenHs[b.user_id]) || phanCua(a) - phanCua(b))
     return ds
   }, [subs, chuaDuyet, cach, tenHs, locMuc, timTen, locBai])
-  const taskDefCua = sub => parseTasks(lessonMap[sub.lesson_id]?.practice_instructions)[taskIdx(sub)] || {}
+  const taskDefCua = sub => parseTasks(lessonMap[sub.lesson_id]?.practice_instructions)[phanCua(sub)] || {}
   const doi = moi => setSubs(prev => prev.map(s => (s.id === moi.id ? moi : s)))
   const canGoiY = hien.filter(s => !s.reviewed_at && !coNhapCua(s))
   const coGoiY = hien.filter(s => !s.reviewed_at && s.graded_by === 'ai' && mucTuDiem(s.score))

@@ -1,5 +1,6 @@
 // Quy tắc chấm bài thực hành. Hàm thuần: không gọi mạng, không giao diện. Dùng cả ở trang web lẫn máy chủ (api/).
 import { CAC_MUC, mucCua, mucTuDiem, DIEM_DAI_DIEN } from '../utils/muc.js'
+import { xepTheoLopRoiTen } from './ten.js'
 
 /**
  * Kết quả AI chấm 1 bài ({ score, comment, breakdown, ai_suspect, ai_suspect_reason })
@@ -16,7 +17,7 @@ export function capNhatTuKetQuaAi(r, luc = new Date().toISOString()) {
 // ── Trang chấm bài thực hành của giáo viên (/teacher/lessons/:id/submissions) ──
 
 /** bài nộp thuộc phần thực hành thứ mấy (bài cũ không ghi → phần 0) */
-export const phanCua = sub => sub?.content_json?.task_index ?? 0
+export const phanCua = sub => Number(sub?.content_json?.task_index ?? 0)
 
 /** bài nộp của phần thứ i trong danh sách bài nộp của 1 học sinh */
 export const baiCuaPhan = (subs, i) => (subs || []).find(s => phanCua(s) === i)
@@ -68,7 +69,7 @@ export function locVaXepHocSinh(hocSinh, { lop = '', tim = '' } = {}, bainop = {
   return hocSinh
     .filter(s => (!lop || s.class_name === lop) && (!t || s.full_name.toLowerCase().includes(t)))
     .sort((a, b) => ((bainop[b.id] || []).length - (bainop[a.id] || []).length)
-      || (a.class_name || '').localeCompare(b.class_name || '') || a.full_name.localeCompare(b.full_name))
+      || xepTheoLopRoiTen(a, b))
 }
 
 /** số liệu các thẻ tổng kết; mục bài không có → null */

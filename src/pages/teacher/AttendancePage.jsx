@@ -6,6 +6,7 @@ import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { useAuth } from '../../context/AuthContext'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
+import { xepTheoLopRoiTen } from '../../domain/ten'
 import {
   CheckSquare, Clock, Users, X, Loader2,
   CheckCircle2, XCircle, PlayCircle, StopCircle,
@@ -52,9 +53,7 @@ export default function AttendancePage() {
       username: e.profiles.username,
       class_name: e.class_name,
     }))
-    studs.sort((a, b) =>
-      (a.class_name || '').localeCompare(b.class_name || '') || a.full_name.localeCompare(b.full_name)
-    )
+    studs.sort(xepTheoLopRoiTen)
     setStudents(studs)
 
     // Records

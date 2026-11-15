@@ -10,6 +10,7 @@ import { anonymizeSnapshot, maskNames, unmaskNames } from '../../utils/anonymize
 import { apiFetch } from '../../lib/apiFetch'
 import { layTrangThaiDuyet } from '../../data/baiNop'
 import { layDanhSachBai } from '../../data/baiHoc'
+import { soKhop } from '../../domain/ten'
 
 const SUGGESTIONS = [
   'Lớp KN46 tiến độ làm bài mới nhất thế nào?',
@@ -19,26 +20,18 @@ const SUGGESTIONS = [
   'Còn bao nhiêu bài nộp chưa chấm?',
 ]
 
-// Chuẩn hoá để so khớp gần đúng: bỏ dấu tiếng Việt, bỏ khoảng trắng/dấu câu, viết hoa.
-// Nhờ vậy "lớp kn 46", "KN-46", "lop kn46" đều khớp được với tên lớp "KN46".
-const DIACRITICS_RE = new RegExp('[̀-ͯ]', 'g')
-function normalizeForMatch(s) {
-  return (s || '')
-    .normalize('NFD').replace(DIACRITICS_RE, '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
-}
+// So khớp gần đúng tên lớp / khoá dùng soKhop (domain/ten): "lớp kn 46", "KN-46" đều khớp "KN46".
 
 // Tìm lớp được nhắc trong câu hỏi, khớp gần đúng với tên lớp.
 function findMentionedClasses(text, classes) {
-  const norm = normalizeForMatch(text)
-  return classes.filter(c => c.name && norm.includes(normalizeForMatch(c.name)))
+  const norm = soKhop(text)
+  return classes.filter(c => c.name && norm.includes(soKhop(c.name)))
 }
 
 // Tìm khoá (grade) được nhắc trong câu hỏi, khớp gần đúng với tên khoá.
 function findMentionedGrades(text, gradeValues) {
-  const norm = normalizeForMatch(text)
-  return gradeValues.filter(g => g && norm.includes(normalizeForMatch(g)))
+  const norm = soKhop(text)
+  return gradeValues.filter(g => g && norm.includes(soKhop(g)))
 }
 
 // Chỉ lấy danh sách bài học của cả khoá — dùng khi câu hỏi không nhắm vào 1 lớp cụ thể
