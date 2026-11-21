@@ -4,16 +4,19 @@
 > **Trước khi viết hàm mới:** tìm ở đây (Ctrl+F theo việc cần làm) — có rồi thì dùng lại, gần giống thì mở rộng hàm cũ.
 > Mô tả lấy từ chú thích ngay trên mỗi hàm trong mã. Hàm thiếu mô tả ghi ⚠.
 
-Tổng: **381** hàm / hằng · thiếu mô tả: **66**
+Tổng: **386** hàm / hằng · thiếu mô tả: **65**
 
 ## src/domain/ — Quy tắc nghiệp vụ (hàm thuần, có kiểm tra tự động)
 
 ### baiThucHanh.js — Đề thực hành của một bài học — cột lessons.practice_instructions. Có 2 dạng lưu: (1) chuỗi JSON mảng [{ instructions, ... }, ...] khi bài có nhiều bài tập; (2) chuỗi thường (bài cũ, chỉ 1 đề). Hàm DUY NHẤT để đọc — dùng cả ở trang web lẫn máy chủ (api/). Hàm thuần: không gọi mạng, không giao diện.
 
 - `parseTasks(instructions)` — chuỗi practice_instructions → mảng bài tập (luôn có ít nhất 1 phần tử)
-- `baiCoNoiDung(t)` — bài tập có nội dung thật (đề, tiêu chí hoặc tệp đề) — bài trống không lưu
+- `hocLieuCua(t)` — học liệu kèm bài tập (tệp mẫu, ảnh, âm thanh để học sinh tải về dùng) → [{ url, ten }] hợp lệ
+- `TOI_DA_MB_HOC_LIEU` *(hằng)* — dung lượng tối đa 1 tệp học liệu (MB) — giới hạn tải lên của gói Cloudinary miễn phí
+- `tepCuaBaiTap(t)` — mọi tệp của 1 bài tập: tệp đề + học liệu
+- `baiCoNoiDung(t)` — bài tập có nội dung thật (đề, tiêu chí, tệp đề hoặc học liệu) — bài trống không lưu
 - `tieuChiThanhChu(rubric)` — tiêu chí chấm AI soạn lỡ trả dạng object { tiêu chí: điểm } → chữ đọc được
-- `tepKhongConDung(baiCu, pptxMoi, baiTapMoi = [])` — Tệp trên Cloudinary không còn bài nào dùng sau khi sửa bài (thay bài giảng / gỡ tệp đề) → nên xoá. @param baiCu { pptx_url, practice_instructions } · @param pptxMoi · @param baiTapMoi [{ instruction_file_url }]
+- `tepKhongConDung(baiCu, pptxMoi, baiTapMoi = [])` — Tệp trên Cloudinary không còn bài nào dùng sau khi sửa bài (thay bài giảng / gỡ tệp đề) → nên xoá. @param baiCu { pptx_url, practice_instructions } · @param pptxMoi · @param baiTapMoi [{ instruction_file_url, hoc_lieu }]
 
 ### cayNoiDung.js — Quy tắc cây nội dung (chủ đề → đơn vị → tiêu đề nhỏ) của giáo viên. Hàm thuần.
 
@@ -588,9 +591,10 @@ Tổng: **381** hàm / hằng · thiếu mô tả: **66**
 
 ### cloudinary.js
 
-- `uploadImage(file)` — ⚠ chưa có mô tả
+- `uploadImage(file)` — tải ảnh lên Cloudinary → đường dẫn https
 - `uploadAudio(file)` — Upload âm thanh (Cloudinary xếp audio vào nhóm video)
 - `uploadFile(file)` — Upload any file type — dùng /raw để file luôn accessible trực tiếp (PDF, docx, sb3...)
+- `uploadHocLieu(file)` — tải 1 tệp học liệu lên đúng nhóm (ảnh / âm thanh / tệp khác giữ nguyên) → { url, ten } — ten là tên gốc để học sinh tải về
 - `deleteFile(url)` — Xóa file trên Cloudinary (best-effort — không chặn luồng nếu lỗi)
 
 ### maDangNhap.js
@@ -601,6 +605,10 @@ Tổng: **381** hàm / hằng · thiếu mô tả: **66**
 
 - `NOI_DU_LIEU` *(hằng)* — ⚠ chưa có mô tả
 - `supabase` *(hằng)* — ⚠ chưa có mô tả
+
+### taiVe.js — Tải tệp trên mạng về máy với đúng tên gốc (học liệu bài học). Thẻ <a download> không đổi được tên khi tệp nằm ở trang khác (Cloudinary), nên tải về dạng blob rồi lưu; lỗi thì mở tệp ở tab mới.
+
+- `luuTepVeMay(url, ten)` — tải tệp ở url về máy, đặt tên `ten`; không tải được thì mở tab mới để em tự lưu
 
 ## api/ — Máy chủ Vercel — chỉ tệp dùng chung `_*.js`
 

@@ -1,12 +1,14 @@
 // Hiển thị tệp học sinh đã nộp (biểu tượng theo loại tệp, xem ảnh / mã / tải về).
-import { FileText, FileImage, File, Code } from 'lucide-react'
+import { FileText, FileImage, File, Code, Music } from 'lucide-react'
 import CodeViewer from '../../ui/CodeViewer'
 import { loaiTep, tenTep, linkXemOffice } from '../../../domain/tepNop'
 
 /* ── FileIcon ──────────────────────────────────────────────── */
+/** biểu tượng theo loại tệp (url hoặc tên tệp) */
 export function FileIcon({ url, size = 20 }) {
-  const ext = (url || '').split('.').pop().toLowerCase()
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return <FileImage size={size} className="text-blue-400" />
+  const { duoi: ext, anh, amThanh } = loaiTep(url)
+  if (anh) return <FileImage size={size} className="text-blue-400" />
+  if (amThanh) return <Music size={size} className="text-pink-500" />
   if (ext === 'docx' || ext === 'doc') return <FileText size={size} className="text-blue-600" />
   if (ext === 'pptx' || ext === 'ppt') return <FileText size={size} className="text-orange-500" />
   if (ext === 'sb3') return <File size={size} className="text-yellow-500" />

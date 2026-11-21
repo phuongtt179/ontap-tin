@@ -80,6 +80,8 @@ describe('form bài học', () => {
   it('soạn 1 bài: có tệp đề / chưa có', () => {
     expect(ve(<TaskEditor index={0} task={form.practice_tasks[1]} onChange={khong} onRemove={khong} />)).toContain('de.pptx')
     expect(ve(<TaskEditor index={0} task={{}} onChange={khong} onRemove={null} />)).toContain('Upload file Word / PPTX')
+    expect(ve(<TaskEditor index={0} task={{}} onChange={khong} onRemove={null} />)).toContain('Thêm học liệu')
+    expect(ve(<TaskEditor index={0} task={{ hoc_lieu: [{ url: 'https://x.test/z9.wav', ten: 'tieng-meo.wav' }] }} onChange={khong} onRemove={null} />)).toContain('tieng-meo.wav')
   })
   it('chọn học sinh xem', () => {
     expect(ve(<ChonHocSinhXem roster={[{ id: 's1', full_name: 'An' }, { id: 's2', full_name: 'Bình' }]} chon={['s1']} onDoi={khong} />)).toMatch(/Đã chọn (<!-- -->)?1(<!-- -->)? học sinh/)

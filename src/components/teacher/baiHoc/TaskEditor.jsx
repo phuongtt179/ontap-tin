@@ -1,4 +1,4 @@
-// Soạn 1 bài thực hành trong form bài học: đề (markdown, dán bảng từ Word/Excel), tiêu chí chấm (chỉ AI đọc), tệp đề.
+// Soạn 1 bài thực hành trong form bài học: đề (markdown, dán bảng từ Word/Excel), tiêu chí chấm (chỉ AI đọc), tệp đề, học liệu tải về.
 import { useState, useRef } from 'react'
 import toast from 'react-hot-toast'
 import JSZip from 'jszip'
@@ -7,6 +7,7 @@ import MarkdownContent from '../../ui/MarkdownContent'
 import { uploadFile } from '../../../lib/cloudinary'
 import { generateSb3Text } from '../../../utils/sb3Text'
 import { loaiTep, tenTep, linkXemOffice } from '../../../domain/tepNop'
+import HocLieuEditor from './HocLieuEditor'
 
 export default function TaskEditor({ index, task, onChange, onRemove, autoFocus }) {
   const [tab, setTab] = useState('edit')
@@ -156,6 +157,8 @@ export default function TaskEditor({ index, task, onChange, onRemove, autoFocus 
             )}
             <input ref={fileRef} type="file" accept=".doc,.docx,.ppt,.pptx,.pdf" className="hidden" onChange={handleFileUpload} />
           </div>
+
+          <HocLieuEditor hocLieu={task.hoc_lieu} onChange={hoc_lieu => onChange({ ...task, hoc_lieu })} />
         </div>
       ) : (
         <div className="px-4 py-3 min-h-[80px] bg-white space-y-3">

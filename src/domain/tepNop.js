@@ -17,7 +17,8 @@ export function loaiTep(url) {
   const ppt = ['ppt', 'pptx'].includes(duoi)
   return {
     duoi, word, ppt, office: word || ppt,
-    anh: ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(duoi),
+    anh: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(duoi),
+    amThanh: ['mp3', 'wav', 'ogg', 'm4a', 'aac'].includes(duoi),
     sb3: duoi === 'sb3',
     pdf: duoi === 'pdf',
     code: duoi === 'py' || duoi === 'txt',

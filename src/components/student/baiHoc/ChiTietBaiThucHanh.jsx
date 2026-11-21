@@ -10,6 +10,7 @@ import PyTestStatus from '../PyTestStatus'
 import RaSoatLoi from '../RaSoatLoi'
 import { FileIcon, SubmittedFile } from './TepDaNop'
 import { MAU_BAI } from './mauBai'
+import HocLieuBaiTap from './HocLieuBaiTap'
 import { loaiTep, linkXemOffice } from '../../../domain/tepNop'
 
 export default function ChiTietBaiThucHanh({
@@ -81,6 +82,8 @@ export default function ChiTietBaiThucHanh({
               })()}
             </div>
           )}
+
+          <HocLieuBaiTap task={task} />
 
           {/* Hỏi trợ giảng về bài thực hành này */}
           <button onClick={onHoiTroGiang}

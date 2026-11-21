@@ -47,6 +47,16 @@ describe('chi tiết 1 bài thực hành', () => {
     dangNop={false} dangNopLai={false} dangChamAi={false} lessonId="L1" {...onAll} {...props} />)
 
   it('chưa nộp → ô chọn tệp + nút nộp', () => expect(ve({})).toContain('Bấm để chọn file nộp bài'))
+  it('có học liệu → ảnh xem trước, âm thanh nghe thử, nút tải về đúng tên gốc', () => {
+    const html = ve({ task: { instructions: 'Làm thiệp', hoc_lieu: [
+      { url: 'https://x.test/a1b2.png', ten: 'nen-thiep.png' }, { url: 'https://x.test/c3.mp3', ten: 'nhac.mp3' }, { url: 'https://x.test/d4.docx', ten: 'mau.docx' }] } })
+    expect(html).toContain('Học liệu')
+    expect(html).toContain('nen-thiep.png')
+    expect(html).toContain('<img')
+    expect(html).toContain('<audio')
+    expect(html.match(/Tải về/g).length).toBe(3 * html.match(/📦 Học liệu/g).length)  // máy tính + điện thoại cùng dựng
+  })
+  it('không có học liệu → không hiện khung học liệu', () => expect(ve({})).not.toContain('Học liệu'))
   it('đã chọn tệp → hiện tên tệp', () => expect(ve({ file: { name: 'meo.sb3', size: 2048 } })).toContain('meo.sb3'))
   it('đang nộp', () => expect(ve({ file: { name: 'a.py', size: 10 }, dangNop: true })).toContain('Đang nộp'))
   it('đã chấm → mức + nhận xét + tiêu chí', () => {
