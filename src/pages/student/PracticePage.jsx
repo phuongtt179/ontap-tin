@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { layCauHoiLuyenTap } from '../../data/cauHoi'
 import { useAuth } from '../../context/AuthContext'
 import { useTopics } from '../../hooks/useTopics'
 import { useSelectedGrade } from '../../hooks/useEnrollments'
@@ -31,11 +31,7 @@ export default function PracticePage() {
 
   async function startPractice() {
     setLoading(true)
-    let query = supabase.from('questions').select('*').eq('grade', selectedGrade)
-    if (config.topics.length > 0) query = query.in('topic', config.topics)
-    if (config.difficulty) query = query.eq('difficulty', config.difficulty)
-
-    const { data, error } = await query
+    const { data, error } = await layCauHoiLuyenTap(selectedGrade, { topics: config.topics, difficulty: config.difficulty })
     if (error || !data?.length) {
       toast.error('Không tìm thấy câu hỏi phù hợp')
       setLoading(false)

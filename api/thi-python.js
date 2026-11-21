@@ -6,19 +6,17 @@
 //   quá giờ của từng test, không thấy input, output.
 import pg from 'pg'
 import { requireUser } from './_auth.js'
+import { TOI_DA_LAN, GIAY_MOI_TEST, DO_DAI_TOI_DA, chamLanNop, loiKhongDuocNop } from '../src/domain/chamPython.js'
 
 export const config = { maxDuration: 60 }
 
-const TOI_DA_LAN = 10
-const GIAY_MOI_TEST = 2
 const COMPILER = 'cpython-3.12.7'
-const GIA_HAN_PHUT = 2   // nộp trễ tối đa 2 phút sau khi hết giờ (mạng chậm)
 
 let pool
 const db = () => (pool ||= new pg.Pool({ connectionString: process.env.CHAM_THI_DATABASE_URL, max: 1 }))
 
 // Chạy tất cả test trong 1 lần gọi Wandbox: mỗi test là 1 tiến trình con, tối đa 2 giây, chạy song song 4 test
-function chuongTrinhChay(code, inputs) {
+export function chuongTrinhChay(code, inputs) {
   const b64 = s => Buffer.from(s, 'utf8').toString('base64')
   return `import subprocess, sys, json, base64
 from concurrent.futures import ThreadPoolExecutor
@@ -38,9 +36,6 @@ print("@@KQ@@" + json.dumps(kq))
 `
 }
 
-// So kết quả: bỏ khoảng trắng cuối mỗi dòng và dòng trống cuối bài (giống cách chấm thông thường)
-const chuan = s => String(s ?? '').replace(/\r\n/g, '\n').split('\n').map(l => l.replace(/\s+$/, '')).join('\n').replace(/\n+$/, '')
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
   const user = await requireUser(req, res)
@@ -50,7 +45,7 @@ export default async function handler(req, res) {
   const { session_id, code } = req.body || {}
   const ma = String(code ?? '')
   if (!session_id || !ma.trim()) return res.status(400).json({ error: 'thieu_bai' })
-  if (ma.length > 20000) return res.status(400).json({ error: 'bai_qua_dai' })
+  if (ma.length > DO_DAI_TOI_DA) return res.status(400).json({ error: 'bai_qua_dai' })
 
   const c = await db().connect()
   let lan = null
@@ -60,13 +55,11 @@ export default async function handler(req, res) {
     const { rows: [bt] } = await c.query(
       `select s.id, s.user_id, s.submitted_at, s.started_at, s.practical_lan, e.practical_type, e.time_limit, e.id exam_id
        from public.exam_sessions s join public.exams e on e.id = s.exam_id where s.id = $1 for update of s`, [session_id])
-    if (!bt || bt.user_id !== user.id) { await c.query('rollback'); return res.status(403).json({ error: 'forbidden' }) }
-    if (bt.practical_type !== 'python') { await c.query('rollback'); return res.status(400).json({ error: 'khong_phai_de_python' }) }
-    if (bt.submitted_at) { await c.query('rollback'); return res.status(400).json({ error: 'da_nop_bai' }) }
-    if (bt.time_limit && bt.started_at && Date.now() > new Date(bt.started_at).getTime() + (bt.time_limit + GIA_HAN_PHUT) * 60000) {
-      await c.query('rollback'); return res.status(400).json({ error: 'het_gio' })
+    const loi = loiKhongDuocNop(bt, user.id)
+    if (loi) {
+      await c.query('rollback')
+      return res.status(loi === 'forbidden' ? 403 : loi === 'het_luot' ? 429 : 400).json({ error: loi })
     }
-    if (bt.practical_lan >= TOI_DA_LAN) { await c.query('rollback'); return res.status(429).json({ error: 'het_luot' }) }
     lan = bt.practical_lan + 1
     await c.query('update public.exam_sessions set practical_lan = $2 where id = $1', [session_id, lan])
     await c.query('commit')
@@ -88,15 +81,7 @@ export default async function handler(req, res) {
     } catch { ketQuaChay = null }
     if (!Array.isArray(ketQuaChay) || ketQuaChay.length !== tests.length) throw Object.assign(new Error('may_cham_loi'), { maLoi: 'may_cham_loi' })
 
-    const tong = tests.reduce((x, t) => x + Number(t.diem), 0)
-    let duoc = 0
-    const ket_qua = tests.map((t, i) => {
-      const k = ketQuaChay[i]
-      const trang_thai = k.tle ? 'qua_gio' : k.rc !== 0 ? 'loi' : chuan(k.out) === chuan(t.expected) ? 'dung' : 'sai'
-      if (trang_thai === 'dung') duoc += Number(t.diem)
-      return { stt: i + 1, trang_thai }
-    })
-    const diem = Math.round((duoc / tong) * 10 * 100) / 100   // thang 10
+    const { ket_qua, diem } = chamLanNop(tests, ketQuaChay)   // thang 10
 
     await c.query('begin')
     await c.query('insert into public.exam_nop_python (session_id, user_id, lan, code, ket_qua, diem) values ($1, $2, $3, $4, $5, $6)',

@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '../../lib/supabase'
+import { layDeThiChoEm } from '../../data/deThi'
+import { batDauLuotThi, nopBaiThi, demLuotThiCuaEm } from '../../data/baiLam'
+import { layCauHoiTheoIds } from '../../data/cauHoi'
+import { diemTuDong } from '../../domain/dapAn'
 import { useAuth } from '../../context/AuthContext'
 import { useSelectedGradeContext } from '../../context/SelectedGradeContext'
 import { useExamGuard } from '../../context/ExamGuardContext'
@@ -101,36 +104,18 @@ function ExamWithPractical({ exam, questions, sessionId, attemptNumber, onFinish
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function normalizeAnswer(type, ans, correct) {
-    if (!ans) return false
-    if (type === 'matching') {
-      const norm = s => s?.split(',').map(p => p.trim()).sort().join(',')
-      return norm(ans) === norm(correct)
-    }
-    return ans.toString().toLowerCase() === (correct || '').toString().toLowerCase()
-  }
-
   async function handleSubmit(autoSubmit = false) {
     if (submitted.current) return
     submitted.current = true
     setSubmitting(true)
 
-    let correct = 0
-    questions.forEach((q, i) => {
-      if (normalizeAnswer(q.type, answers[i], q.correct_answer)) correct++
-    })
-    const theoryScore = questions.length > 0 ? Math.round((correct / questions.length) * 10 * 10) / 10 : 0
+    const { soDung: correct, diem: theoryScore } = diemTuDong(questions, answers)
 
     try {
       // Cập nhật dòng đã ghi sẵn lúc bắt đầu làm (không insert dòng mới) — xem
       // migration_exam_session_start.sql.
-      await supabase.from('exam_sessions').update({
-        correct,
-        score: theoryScore,
-        answers,
-        submitted_at: new Date().toISOString(),
-        practical_content: practicalContent || null,
-      }).eq('id', sessionId)
+      const { error } = await nopBaiThi(sessionId, { correct, score: theoryScore, answers, practical_content: practicalContent || null })
+      if (error) throw error
       toast.success(autoSubmit ? 'Hết giờ — đã tự động nộp bài!' : 'Đã nộp bài thành công!')
     } catch {
       toast.error('Nộp bài thất bại')
@@ -244,27 +229,8 @@ export default function StudentExamsPage() {
   async function loadExams() {
     setLoading(true)
     const className = selectedEnrollment?.class_name
-    let q = supabase.from('exams').select('*').eq('is_active', true).eq('grade', selectedGrade)
-    if (className) {
-      q = q.or(`class_names.is.null,class_names.cs.{"${className}"}`)
-    } else {
-      q = q.is('class_names', null)
-    }
-    const { data: examData } = await q.order('created_at', { ascending: false })
-
-    if (examData?.length > 0) {
-      const { data: sessionData } = await supabase
-        .from('exam_sessions')
-        .select('exam_id')
-        .eq('user_id', user.id)
-        .in('exam_id', examData.map(e => e.id))
-
-      const map = {}
-      ;(sessionData || []).forEach(s => {
-        map[s.exam_id] = (map[s.exam_id] || 0) + 1
-      })
-      setAttemptsMap(map)
-    }
+    const { data: examData } = await layDeThiChoEm(selectedGrade, className)
+    if (examData?.length > 0) setAttemptsMap(await demLuotThiCuaEm(user.id, examData.map(e => e.id)))
 
     setExams(examData || [])
     setLoading(false)
@@ -276,17 +242,15 @@ export default function StudentExamsPage() {
     }
     let questions = []
     if (exam.question_ids?.length) {
-      const { data, error } = await supabase.from('questions').select('*').in('id', exam.question_ids)
+      const { data, error } = await layCauHoiTheoIds(exam.question_ids)
       if (error || !data) { toast.error('Không tải được câu hỏi'); return }
-      questions = exam.question_ids.map(id => data.find(q => q.id === id)).filter(Boolean)
+      questions = data
     }
     // Ghi nhận NGAY lúc bắt đầu làm (chưa biết điểm/đáp án, cập nhật sau lúc nộp) để tính
     // đúng "đã làm mấy lần" kể cả khi học sinh đóng hẳn tab/trình duyệt giữa chừng — không
     // phụ thuộc việc có nộp xong hay không (xem migration_exam_session_start.sql).
     const attemptNumber = (attemptsMap[exam.id] || 0) + 1
-    const { data: session, error: sessionErr } = await supabase.from('exam_sessions').insert({
-      exam_id: exam.id, user_id: user.id, total: questions.length, attempt_number: attemptNumber,
-    }).select().single()
+    const { data: session, error: sessionErr } = await batDauLuotThi({ examId: exam.id, userId: user.id, total: questions.length, attemptNumber })
     if (sessionErr || !session) { toast.error('Không bắt đầu được đề thi, thử lại nhé'); return }
     setActiveExam({ exam, questions, sessionId: session.id, attemptNumber })
   }

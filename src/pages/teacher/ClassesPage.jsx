@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { layLopDayDu, themLop, suaLop, xoaLop } from '../../data/khoaHoc'
+import { layGhiDanh } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, Check, X, Users, Unlock } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import UnlockLessonsModal from './UnlockLessonsModal'
+import { layBaiDaXuatBanCuaCacKhoa } from '../../data/baiHoc'
 
 export default function ClassesPage() {
   const { canDelete } = useAuth()
@@ -35,9 +37,7 @@ export default function ClassesPage() {
   const daTai = useRef(null)
   async function fetchClasses() {
     if (daTai.current !== filterGrade) { daTai.current = filterGrade; setLoading(true) }
-    let q = supabase.from('classes').select('*').order('grade').order('name')
-    if (filterGrade) q = q.eq('grade', filterGrade)
-    const { data, error } = await q
+    const { data, error } = await layLopDayDu(filterGrade)
     if (error) { toast.error('Lỗi tải lớp học'); setLoading(false); return }
 
     setClasses(data || [])
@@ -46,10 +46,8 @@ export default function ClassesPage() {
     if (data?.length) {
       const classGrades = [...new Set(data.map(c => c.grade))]
       const [{ data: enrollments }, { data: lessonsData }] = await Promise.all([
-        supabase.from('student_enrollments').select('class_name')
-          .eq('is_approved', true).in('class_name', data.map(c => c.name)),
-        supabase.from('lessons').select('grade')
-          .eq('is_published', true).in('grade', classGrades),
+        layGhiDanh({ cacLop: data.map(c => c.name) }),
+        layBaiDaXuatBanCuaCacKhoa(classGrades),
       ])
       const counts = {}
       enrollments?.forEach(e => { counts[e.class_name] = (counts[e.class_name] || 0) + 1 })
@@ -67,7 +65,7 @@ export default function ClassesPage() {
 
   async function handleAdd() {
     if (!newName.trim()) return
-    const { error } = await supabase.from('classes').insert({ name: newName.trim(), grade: newGrade })
+    const { error } = await themLop({ name: newName.trim(), grade: newGrade })
     if (error) {
       if (error.message.includes('unique') || error.code === '23505') toast.error('Tên lớp đã tồn tại')
       else if (error.message.includes('check') || error.code === '23514') toast.error('Khối không hợp lệ — cần xóa CHECK constraint trong DB')
@@ -82,7 +80,7 @@ export default function ClassesPage() {
 
   async function handleUpdate(id) {
     if (!editName.trim()) return
-    const { error } = await supabase.from('classes').update({ name: editName.trim(), grade: editGrade }).eq('id', id)
+    const { error } = await suaLop(id, { name: editName.trim(), grade: editGrade })
     if (error) toast.error('Cập nhật thất bại')
     else { toast.success('Đã cập nhật'); setEditId(null); fetchClasses() }
   }
@@ -93,7 +91,7 @@ export default function ClassesPage() {
       ? `Lớp "${name}" có ${count} học sinh. Xóa lớp sẽ không xóa học sinh. Tiếp tục?`
       : `Xóa lớp "${name}"?`
     if (!confirm(msg)) return
-    const { error } = await supabase.from('classes').delete().eq('id', id)
+    const { error } = await xoaLop(id)
     if (error) toast.error('Xóa thất bại')
     else { toast.success('Đã xóa lớp'); fetchClasses() }
   }

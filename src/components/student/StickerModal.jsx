@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
+import { NGUONG_DOI_QUA_MAC_DINH } from '../../domain/sticker'
 
 // ── Confetti pieces ──────────────────────────────────────────────
 const COLORS = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff922b','#cc5de8','#f06595','#20c997']
@@ -43,7 +44,7 @@ const STICKER_SETS = ['⭐', '🌟', '🏅', '🎖️', '💎', '🔥', '🦋', 
 export default function StickerModal({
   stickerCount = 1,
   stickerTotal = 1,
-  threshold = 50,
+  threshold = NGUONG_DOI_QUA_MAC_DINH,
   reason = 'Hoàn thành bài học',
   count = 1,
   onClose,

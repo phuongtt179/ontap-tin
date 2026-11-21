@@ -1,0 +1,97 @@
+// Tầng dữ liệu — bảng profiles (hồ sơ: tên, vai trò, sticker, chuỗi ngày học…). Mỗi hàm trả { data, error } như supabase.
+// Học sinh KHÔNG tự sửa được vai trò / sticker / chuỗi ngày (trigger trên Neon, xem sql/2026-10-13_secure_profiles.sql);
+// sticker của học sinh được cộng qua hàm máy chủ (award_sticker_once, record_activity), không qua đây.
+import { supabase } from '../lib/supabase'
+
+const BANG = 'profiles'
+const GIOI_HAN = 5000
+
+// ───────── đọc ─────────
+
+/** hồ sơ đầy đủ của người đang đăng nhập (dùng khi đăng nhập) */
+export function layHoSo(userId) {
+  return supabase.from(BANG).select('*').eq('id', userId).maybeSingle()
+}
+
+/** sticker + chuỗi ngày học của 1 học sinh */
+export function laySticker(userId) {
+  return supabase.from(BANG).select('sticker_count, sticker_total, streak_days, streak_max').eq('id', userId).single()
+}
+
+/** tên của một nhóm người — gắn tên vào bài nộp, tin nhắn, bài thi… (lớp: xem layLopCuaCacHs ở data/ghiDanh.js) */
+export function layTenCacHs(ids) {
+  return supabase.from(BANG).select('id, full_name').in('id', ids).order('full_name')
+}
+
+/** trang Học sinh: mọi tài khoản học sinh (khoá / lớp lấy từ ghi danh, data/ghiDanh.js) */
+export function layTatCaHocSinh() {
+  return supabase.from(BANG).select('id, full_name, username, is_approved').eq('role', 'student').order('full_name').limit(GIOI_HAN)
+}
+
+/** học sinh đã duyệt (soạn tin nhắn mới) */
+export function layHocSinhDaDuyet() {
+  return supabase.from(BANG).select('id, full_name').eq('role', 'student').eq('is_approved', true).order('full_name').limit(GIOI_HAN)
+}
+
+/** học sinh đang chờ duyệt tài khoản */
+export function layHocSinhChoDuyet() {
+  return supabase.from(BANG).select('id').eq('role', 'student').eq('is_approved', false)
+}
+
+export function demHocSinh() {
+  return supabase.from(BANG).select('id', { count: 'exact', head: true }).eq('role', 'student')
+}
+
+export function layTroGiang() {
+  return supabase.from(BANG).select('id, full_name, username, created_at').eq('role', 'assistant').order('created_at', { ascending: false })
+}
+
+/** tên đăng nhập nào trong danh sách đã có người dùng (nhập học sinh hàng loạt) */
+export function timTenDangNhapDaCo(usernames) {
+  return supabase.from(BANG).select('username').in('username', usernames)
+}
+
+// ───────── ghi (giáo viên) ─────────
+
+/** sửa tên, duyệt tài khoản, cảnh báo ghi chép… (RLS + trigger chặn cột không được phép) */
+export function capNhatHoSo(id, thayDoi) {
+  return supabase.from(BANG).update(thayDoi).eq('id', id)
+}
+
+// ───────── sticker: đọc rồi ghi có khoá (giáo viên cộng / trừ khi duyệt, hoàn quà) ─────────
+
+export function docSoSticker(userId) {
+  return supabase.from(BANG).select('sticker_count, sticker_total').eq('id', userId).single()
+}
+
+/** ghi số sticker mới CHỈ KHI sticker_count vẫn = `cu` (có người ghi xen giữa thì 0 dòng → gọi lại) */
+export function ghiStickerNeuChuaDoi(userId, cu, soMoi, tongMoi) {
+  return supabase.from(BANG).update({ sticker_count: soMoi, sticker_total: tongMoi })
+    .eq('id', userId).eq('sticker_count', cu).select('sticker_count, sticker_total')
+}
+
+// ───────── sticker do máy chủ tự tính (học sinh) ─────────
+
+/** thưởng sticker "nộp bài" / "đạt quiz" 1 lần mỗi bài — máy chủ tự kiểm tra đã nộp / đạt thật chưa (sql/2026-10-13_sticker_once.sql) */
+export function thuongStickerMotLan(kind, lessonId, taskIdx = 0) {
+  return supabase.rpc('award_sticker_once', { p_kind: kind, p_lesson: lessonId, p_task: taskIdx })
+}
+
+/** ghi nhận em vừa học hôm nay (hàm máy chủ record_activity: chuỗi ngày + sticker mốc, có khoá chống cộng trùng) */
+export function ghiHoatDongHomNay() {
+  return supabase.rpc('record_activity')
+}
+
+/** bảng xếp hạng lớp của em (hàm máy chủ get_class_leaderboard) */
+export function layBangXepHangLop() {
+  return supabase.rpc('get_class_leaderboard')
+}
+
+// cột tên của từng bảng (trước 12/11 câu hỏi lấy nhầm cột title → tab "Câu hỏi" của trang Trợ giảng luôn lỗi, trống)
+const BANG_TRO_GIANG_SOAN = { topics: 'name', questions: 'question', lessons: 'title' }
+/** nội dung 1 trợ giảng đã soạn (chủ đề / câu hỏi / bài học), mới trước — tên trả về ở cột chung `ten` */
+export function layNoiDungTroGiangSoan(bang, userId) {
+  const cot = BANG_TRO_GIANG_SOAN[bang]
+  if (!cot) throw new Error('bảng không hợp lệ: ' + bang)
+  return supabase.from(bang).select(`id, ten:${cot}, grade, created_at`).eq('created_by', userId).order('created_at', { ascending: false }).limit(1000)
+}

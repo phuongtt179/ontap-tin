@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { layQuaChoEm, doiQua } from '../../data/phanThuong'
 import { X, Gift, CheckCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -24,13 +24,7 @@ export default function RewardModal({ stickerCount, threshold, grade, onClose, o
   }, [])
 
   async function loadRewards() {
-    let query = supabase.from('reward_items').select('*').eq('is_active', true).order('sticker_cost')
-    if (grade) {
-      query = query.or(`grade.is.null,grade.eq.${grade}`)
-    } else {
-      query = query.is('grade', null)
-    }
-    const { data } = await query
+    const { data } = await layQuaChoEm(grade)
     setRewards(data || [])
     setLoading(false)
   }
@@ -45,7 +39,7 @@ export default function RewardModal({ stickerCount, threshold, grade, onClose, o
       // tay) — đây chính là nguyên nhân từng gây "mất sticker" khi trừ theo
       // kiểu ghi đè tuyệt đối bằng số cũ.
       // Máy chủ (redeem_reward) tự lấy giá quà, kiểm tra đủ sticker, trừ và tạo yêu cầu trong cùng 1 giao dịch
-      const { data, error } = await supabase.rpc('redeem_reward', { p_item: selected.id })
+      const { data, error } = await doiQua(selected.id)
       if (error) throw error
       if (!data?.ok) {
         toast.error(data?.reason === 'insufficient' ? 'Sticker của bạn vừa thay đổi, không đủ để đổi quà này nữa' : 'Món quà này hiện không đổi được')

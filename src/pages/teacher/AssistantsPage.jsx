@@ -1,61 +1,9 @@
 import { useState, useEffect } from 'react'
-import { supabase, NOI_DU_LIEU } from '../../lib/supabase'
-import { maDangNhap } from '../../lib/maDangNhap'
+import { layNoiDungTroGiangSoan } from '../../data/hoSo'
+import { layTroGiang, capNhatHoSo } from '../../data/hoSo'
+import { taoTaiKhoan, suaTaiKhoan, xoaTaiKhoan } from '../../data/taiKhoan'
 import toast from 'react-hot-toast'
 import { UserPlus, Trash2, Loader2, Eye, EyeOff, Pencil, Check, X, BookOpen, ClipboardList, Tags, FileText, ChevronLeft } from 'lucide-react'
-
-async function adminCreateUser(email, password, metadata) {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const res = await fetch(`${supabaseUrl}/functions/v1/create-user`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${await maDangNhap()}`, 'x-du-lieu': NOI_DU_LIEU,
-      'apikey': anonKey,
-    },
-    body: JSON.stringify({ email, password, metadata }),
-  })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error || data.message || 'Lỗi tạo tài khoản')
-  return data.user
-}
-
-async function adminDeleteUser(userId) {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const res = await fetch(`${supabaseUrl}/functions/v1/delete-user`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${await maDangNhap()}`, 'x-du-lieu': NOI_DU_LIEU,
-      'apikey': anonKey,
-    },
-    body: JSON.stringify({ userId }),
-  })
-  if (!res.ok) {
-    const data = await res.json()
-    throw new Error(data.error || 'Lỗi xóa tài khoản')
-  }
-}
-
-async function adminUpdateUser(userId, updates) {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const res = await fetch(`${supabaseUrl}/functions/v1/update-user`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${await maDangNhap()}`, 'x-du-lieu': NOI_DU_LIEU,
-      'apikey': anonKey,
-    },
-    body: JSON.stringify({ userId, ...updates }),
-  })
-  if (!res.ok) {
-    const data = await res.json()
-    throw new Error(data.error || 'Lỗi cập nhật mật khẩu')
-  }
-}
 
 const CONTENT_TABS = [
   { key: 'topics',    label: 'Chủ đề',   icon: <Tags size={14} /> },
@@ -74,17 +22,11 @@ function AssistantContentPanel({ assistant, onBack }) {
   async function fetchData(type) {
     setLoading(true)
     setData([])
-    const col = type === 'topics' ? 'name' : 'title'
-    const { data: rows } = await supabase
-      .from(type)
-      .select(`id, ${col}, grade, created_at`)
-      .eq('created_by', assistant.id)
-      .order('created_at', { ascending: false })
+    const { data: rows } = await layNoiDungTroGiangSoan(type, assistant.id)
     setData(rows || [])
     setLoading(false)
   }
 
-  const nameKey = tab === 'topics' ? 'name' : 'title'
 
   return (
     <div>
@@ -122,7 +64,7 @@ function AssistantContentPanel({ assistant, onBack }) {
           {data.map(row => (
             <div key={row.id} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-4 py-2.5">
               <div>
-                <div className="text-sm text-gray-800">{row[nameKey]}</div>
+                <div className="text-sm text-gray-800">{row.ten}</div>
                 {row.grade && <span className="text-xs text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded mt-0.5 inline-block">{row.grade}</span>}
               </div>
               <div className="text-xs text-gray-400 shrink-0 ml-3">
@@ -156,11 +98,7 @@ export default function AssistantsPage() {
 
   async function fetchAssistants() {
     setLoading(true)
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, username, created_at')
-      .eq('role', 'assistant')
-      .order('created_at', { ascending: false })
+    const { data } = await layTroGiang()
     setAssistants(data || [])
     setLoading(false)
   }
@@ -183,9 +121,9 @@ export default function AssistantsPage() {
     if (editForm.password && editForm.password.length < 6) { toast.error('Mật khẩu ít nhất 6 ký tự'); return }
     setEditSaving(true)
     try {
-      const { error } = await supabase.from('profiles').update({ full_name: editForm.full_name.trim() }).eq('id', editId)
+      const { error } = await capNhatHoSo(editId, { full_name: editForm.full_name.trim() })
       if (error) throw new Error(error.message)
-      if (editForm.password) await adminUpdateUser(editId, { password: editForm.password })
+      if (editForm.password) await suaTaiKhoan(editId, { password: editForm.password })
       toast.success('Đã cập nhật')
       cancelEdit()
       fetchAssistants()
@@ -204,7 +142,7 @@ export default function AssistantsPage() {
     if (form.password.length < 6) { toast.error('Mật khẩu ít nhất 6 ký tự'); return }
     setSaving(true)
     try {
-      await adminCreateUser(form.email.trim(), form.password, { full_name: form.full_name.trim(), role: 'assistant' })
+      await taoTaiKhoan(form.email.trim(), form.password, { full_name: form.full_name.trim(), role: 'assistant' })
       toast.success('Đã tạo tài khoản trợ giảng')
       setForm({ full_name: '', email: '', password: '' })
       setShowForm(false)
@@ -219,7 +157,7 @@ export default function AssistantsPage() {
   async function handleDelete(a) {
     if (!confirm(`Xóa tài khoản trợ giảng "${a.full_name}"? Hành động này không thể hoàn tác.`)) return
     try {
-      await adminDeleteUser(a.id)
+      await xoaTaiKhoan(a.id)
       toast.success('Đã xóa tài khoản')
       fetchAssistants()
     } catch (err) {

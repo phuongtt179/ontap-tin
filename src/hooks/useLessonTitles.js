@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { layTieuDe } from '../data/chuDe'
 
 export function useLessonTitles(unitId) {
   const [lessonTitles, setLessonTitles] = useState([])
@@ -12,12 +12,7 @@ export function useLessonTitles(unitId) {
 
   async function fetch() {
     setLoading(true)
-    const { data } = await supabase
-      .from('lesson_titles')
-      .select('*')
-      .eq('unit_id', unitId)
-      .order('sort_order')
-      .order('name')
+    const { data } = await layTieuDe(unitId)
     setLessonTitles(data || [])
     setLoading(false)
   }

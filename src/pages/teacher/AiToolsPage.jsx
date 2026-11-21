@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { layTongQuanCongCuAi } from '../../data/hoiThayCo'
+import { layTenLopCuaKhoa } from '../../data/khoaHoc'
+import { layGhiDanh } from '../../data/ghiDanh'
 import { useGrades } from '../../hooks/useGrades'
 import { ShieldCheck, RefreshCw, BookOpenText, MessagesSquare, Lightbulb, MessageCircleQuestion, BookMarked } from 'lucide-react'
 import QuestionsTab from '../../components/teacher/aiTools/QuestionsTab'
@@ -34,18 +36,16 @@ export default function AiToolsPage() {
   useEffect(() => { try { localStorage.setItem('aiLocKhoa', grade); localStorage.setItem('aiLocLop', lop) } catch { /* bỏ qua */ } }, [grade, lop])
   useEffect(() => {
     if (!grade) { setLops([]); return }
-    supabase.from('classes').select('name').eq('grade', grade).order('name').then(({ data }) => setLops((data || []).map(c => c.name)))
+    layTenLopCuaKhoa(grade).then(setLops)
   }, [grade])
   useEffect(() => {
     if (!lop) { setHsLop(null); return }
-    let q = supabase.from('student_enrollments').select('user_id').eq('class_name', lop).eq('is_approved', true)
-    if (grade) q = q.eq('grade', grade)
-    q.then(({ data }) => setHsLop((data || []).map(e => e.user_id)))
+    layGhiDanh({ grade, lop }).then(({ data }) => setHsLop((data || []).map(e => e.user_id)))
   }, [grade, lop])
   const loc = { grade: grade || null, lop: lop || null, hsLop }
 
   const loadSummary = useCallback(() => {
-    supabase.rpc('ai_tools_summary', { p_grade: grade || null, p_class: lop || null }).then(({ data }) => setSummary(data || null))
+    layTongQuanCongCuAi(grade, lop).then(({ data }) => setSummary(data || null))
   }, [grade, lop])
   useEffect(() => { loadSummary() }, [loadSummary])
   // Duyệt liên tiếp nhiều bài: chờ ngừng tay 5 giây mới đếm lại 1 lần, không đếm lại sau từng bài

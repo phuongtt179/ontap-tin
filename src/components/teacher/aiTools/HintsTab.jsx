@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../../../lib/supabase'
+import { demCauThieuGoiY, layCauThieuGoiY, capNhatCauHoi } from '../../../data/cauHoi'
 import { useGrades } from '../../../hooks/useGrades'
 import toast from 'react-hot-toast'
 import { Loader2, Sparkles, Save } from 'lucide-react'
@@ -29,14 +29,11 @@ export default function HintsTab() {
   const [busy, setBusy] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const missing = q => q.or('hint.is.null,hint.eq.').neq('type', 'essay')
-
   const load = useCallback(async () => {
     if (!grade) return
     const [{ count }, { data }] = await Promise.all([
-      missing(supabase.from('questions').select('id', { count: 'exact', head: true }).eq('grade', grade)),
-      missing(supabase.from('questions').select('id, type, question, options, match_options, correct_answer').eq('grade', grade))
-        .order('created_at', { ascending: false }).limit(BATCH),
+      demCauThieuGoiY(grade),
+      layCauThieuGoiY(grade, BATCH),
     ])
     setTotal(count ?? 0); setQuestions(data || []); setDrafts({})
   }, [grade])
@@ -66,7 +63,7 @@ export default function HintsTab() {
     const entries = Object.entries(drafts).filter(([, h]) => h.trim())
     if (!entries.length) return
     setSaving(true)
-    const results = await Promise.all(entries.map(([id, hint]) => supabase.from('questions').update({ hint: hint.trim() }).eq('id', id)))
+    const results = await Promise.all(entries.map(([id, hint]) => capNhatCauHoi(id, { hint: hint.trim() })))
     setSaving(false)
     const failed = results.filter(r => r.error).length
     if (failed) toast.error(`${failed} câu lưu thất bại`)

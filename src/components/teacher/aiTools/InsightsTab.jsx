@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../../lib/supabase'
+import { layCauHoiAiTheoBai } from '../../../data/tinNhan'
+import { layTenCacHs } from '../../../data/hoSo'
 import { useGrades } from '../../../hooks/useGrades'
 import { maskNames, unmaskNames } from '../../../utils/anonymize'
 import toast from 'react-hot-toast'
 import { Loader2, Sparkles, ShieldAlert, Lightbulb } from 'lucide-react'
 import { apiFetch } from '../../../lib/apiFetch'
+import { layDanhSachBai } from '../../../data/baiHoc'
 
 const PERIODS = { 30: '30 ngày', 90: '90 ngày', 0: 'Toàn bộ' }
 const MODE_LABEL = { quiz: 'Trắc nghiệm', practice: 'Thực hành', theory: 'Lý thuyết' }
@@ -25,7 +27,7 @@ export default function InsightsTab() {
 
   useEffect(() => {
     if (!grade) return
-    supabase.from('lessons').select('id, title').eq('grade', grade).eq('is_published', true).order('order')
+    layDanhSachBai(grade, { xuatBan: true })
       .then(({ data }) => setLessons(data || []))
   }, [grade])
 
@@ -33,15 +35,11 @@ export default function InsightsTab() {
     setLoading(true); setResult(null)
     const ids = lessonId === 'all' ? lessons.map(l => l.id) : [lessonId]
     if (!ids.length) { setMsgs([]); setLoading(false); return }
-    let q = supabase.from('messages').select('id, student_id, content, created_at, context')
-      .eq('channel', 'ai').eq('sender_role', 'student').in('context->>lessonId', ids)
-      .order('created_at', { ascending: false }).limit(300)
-    if (days) q = q.gte('created_at', new Date(Date.now() - days * 864e5).toISOString())
-    const { data, error } = await q
+    const { data, error } = await layCauHoiAiTheoBai(ids, days)
     if (error) { toast.error('Không tải được câu hỏi'); setLoading(false); return }
     const studentIds = [...new Set((data || []).map(m => m.student_id))]
     const { data: profs } = studentIds.length
-      ? await supabase.from('profiles').select('id, full_name').in('id', studentIds) : { data: [] }
+      ? await layTenCacHs(studentIds) : { data: [] }
     const nameOf = Object.fromEntries((profs || []).map(p => [p.id, p.full_name]))
     setMsgs((data || []).map(m => ({ ...m, name: nameOf[m.student_id] || '?' })))
     setLoading(false)

@@ -1,11 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { Navigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { layTienDoCuaCacHs } from '../../data/tienDo'
+import { layCacLop } from '../../data/khoaHoc'
+import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { useAuth } from '../../context/AuthContext'
 import { useGrades } from '../../hooks/useGrades'
 import { Sparkles, Send, Loader2 } from 'lucide-react'
 import { anonymizeSnapshot, maskNames, unmaskNames } from '../../utils/anonymize'
 import { apiFetch } from '../../lib/apiFetch'
+import { layTrangThaiDuyet } from '../../data/baiNop'
+import { layDanhSachBai } from '../../data/baiHoc'
+import { soKhop } from '../../domain/ten'
 
 const SUGGESTIONS = [
   'Lớp KN46 tiến độ làm bài mới nhất thế nào?',
@@ -15,36 +20,24 @@ const SUGGESTIONS = [
   'Còn bao nhiêu bài nộp chưa chấm?',
 ]
 
-// Chuẩn hoá để so khớp gần đúng: bỏ dấu tiếng Việt, bỏ khoảng trắng/dấu câu, viết hoa.
-// Nhờ vậy "lớp kn 46", "KN-46", "lop kn46" đều khớp được với tên lớp "KN46".
-const DIACRITICS_RE = new RegExp('[̀-ͯ]', 'g')
-function normalizeForMatch(s) {
-  return (s || '')
-    .normalize('NFD').replace(DIACRITICS_RE, '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
-}
+// So khớp gần đúng tên lớp / khoá dùng soKhop (domain/ten): "lớp kn 46", "KN-46" đều khớp "KN46".
 
 // Tìm lớp được nhắc trong câu hỏi, khớp gần đúng với tên lớp.
 function findMentionedClasses(text, classes) {
-  const norm = normalizeForMatch(text)
-  return classes.filter(c => c.name && norm.includes(normalizeForMatch(c.name)))
+  const norm = soKhop(text)
+  return classes.filter(c => c.name && norm.includes(soKhop(c.name)))
 }
 
 // Tìm khoá (grade) được nhắc trong câu hỏi, khớp gần đúng với tên khoá.
 function findMentionedGrades(text, gradeValues) {
-  const norm = normalizeForMatch(text)
-  return gradeValues.filter(g => g && norm.includes(normalizeForMatch(g)))
+  const norm = soKhop(text)
+  return gradeValues.filter(g => g && norm.includes(soKhop(g)))
 }
 
 // Chỉ lấy danh sách bài học của cả khoá — dùng khi câu hỏi không nhắm vào 1 lớp cụ thể
 // (vd: "khoá KN-TIỂU HỌC có những bài nào").
 async function buildCourseSnapshot(grade, classesInGrade) {
-  const { data: lessonData, error } = await supabase
-    .from('lessons')
-    .select('title, "order"')
-    .eq('grade', grade).eq('is_published', true)
-    .order('order')
+  const { data: lessonData, error } = await layDanhSachBai(grade, { xuatBan: true })
   if (error) throw error
   return {
     generatedAt: new Date().toISOString(),
@@ -57,19 +50,12 @@ async function buildCourseSnapshot(grade, classesInGrade) {
 
 // Gom dữ liệu tiến độ của lớp thành 1 khối JSON gọn để gửi cho AI trả lời.
 async function buildSnapshot(grade, className) {
-  const { data: enrollData, error: enrollErr } = await supabase
-    .from('student_enrollments')
-    .select('user_id, profiles!inner(id, full_name)')
-    .eq('grade', grade).eq('class_name', className).eq('is_approved', true)
+  const { data: enrollData, error: enrollErr } = await layHocSinhKemHoSo({ grade, lop: className })
   if (enrollErr) throw enrollErr
   const roster = (enrollData || []).map(e => ({ id: e.user_id, name: e.profiles.full_name }))
   const userIds = roster.map(s => s.id)
 
-  const { data: lessonData, error: lessonErr } = await supabase
-    .from('lessons')
-    .select('id, title, "order"')
-    .eq('grade', grade).eq('is_published', true)
-    .order('order')
+  const { data: lessonData, error: lessonErr } = await layDanhSachBai(grade, { xuatBan: true })
   if (lessonErr) throw lessonErr
   const lessons = lessonData || []
   const lessonIds = lessons.map(l => l.id)
@@ -78,8 +64,8 @@ async function buildSnapshot(grade, className) {
   let progress = [], submissions = []
   if (userIds.length && lessonIds.length) {
     const [{ data: pData }, { data: sData }] = await Promise.all([
-      supabase.from('lesson_progress').select('user_id, lesson_id, completed, quiz_passed, practice_submitted, updated_at').in('user_id', userIds).in('lesson_id', lessonIds),
-      supabase.from('lesson_submissions').select('user_id, reviewed_at').in('user_id', userIds).in('lesson_id', lessonIds),
+      layTienDoCuaCacHs(userIds, lessonIds),
+      layTrangThaiDuyet(userIds, lessonIds),
     ])
     progress = pData || []
     submissions = sData || []
@@ -133,7 +119,7 @@ export default function AiAssistantPage() {
   const bottomRef = useRef(null)
 
   useEffect(() => {
-    supabase.from('classes').select('name, grade').order('grade').order('name')
+    layCacLop()
       .then(({ data }) => setClasses(data || []))
   }, [])
 

@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { layGhiChuCuaCacHs, xoaGhiChu } from '../../data/ghiChu'
+import { capNhatHoSo } from '../../data/hoSo'
+import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import toast from 'react-hot-toast'
 import { Trash2, AlertTriangle, Search, X, BookOpen, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { useGrades } from '../../hooks/useGrades'
+import { xepTheoLopRoiTen } from '../../domain/ten'
 
 const COLOR_BG = {
   yellow: 'bg-yellow-100 border-yellow-300',
@@ -20,9 +23,7 @@ function WarnModal({ student, onClose, onSave }) {
 
   async function handleSave() {
     setSaving(true)
-    const { error } = await supabase.from('profiles')
-      .update({ notes_warning: msg.trim() || null })
-      .eq('id', student.id)
+    const { error } = await capNhatHoSo(student.id, { notes_warning: msg.trim() || null })
     setSaving(false)
     if (error) { toast.error('Lưu thất bại'); return }
     toast.success(msg.trim() ? 'Đã gửi cảnh báo' : 'Đã xóa cảnh báo')
@@ -79,12 +80,7 @@ export default function StudentNotesPage() {
     setLoading(true)
 
     // Lấy danh sách học sinh (filter theo grade/class nếu có)
-    let enrollQ = supabase.from('student_enrollments')
-      .select('user_id, class_name, grade, profiles(id, full_name, notes_warning)')
-      .eq('is_approved', true)
-    if (filterGrade) enrollQ = enrollQ.eq('grade', filterGrade)
-    if (filterClass) enrollQ = enrollQ.eq('class_name', filterClass)
-    const { data: enrollData } = await enrollQ
+    const { data: enrollData } = await layHocSinhKemHoSo({ grade: filterGrade, lop: filterClass })
 
     const studentMap = {}
     ;(enrollData || []).forEach(e => {
@@ -97,9 +93,7 @@ export default function StudentNotesPage() {
         grade: e.grade,
       }
     })
-    const studentList = Object.values(studentMap).sort((a, b) =>
-      (a.class_name || '').localeCompare(b.class_name || '') || a.full_name.localeCompare(b.full_name)
-    )
+    const studentList = Object.values(studentMap).sort(xepTheoLopRoiTen)
     setStudents(studentList)
 
     // Classes dropdown
@@ -110,9 +104,7 @@ export default function StudentNotesPage() {
     const ids = studentList.map(s => s.id)
     if (ids.length === 0) { setNotes([]); setLoading(false); return }
 
-    const { data: notesData } = await supabase
-      .from('student_notes').select('*').in('user_id', ids)
-      .order('updated_at', { ascending: false })
+    const { data: notesData } = await layGhiChuCuaCacHs(ids)
 
     const enriched = (notesData || []).map(n => ({
       ...n,
@@ -125,7 +117,7 @@ export default function StudentNotesPage() {
 
   async function handleDelete(note) {
     if (!confirm(`Xóa ghi chú của "${note.student?.full_name}"?`)) return
-    const { error } = await supabase.from('student_notes').delete().eq('id', note.id)
+    const { error } = await xoaGhiChu(note.id)
     if (error) { toast.error('Xóa thất bại'); return }
     toast.success('Đã xóa ghi chú')
     setNotes(prev => prev.filter(n => n.id !== note.id))

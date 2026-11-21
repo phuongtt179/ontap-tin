@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '../../lib/supabase'
+import { ghiNhatKyAi } from '../../data/tinNhan'
 import { X, Sparkles, Loader2, Send, BookOpen } from 'lucide-react'
 import { STUDENT_AI_DIRECT } from '../../lib/aiMode'
 import MediatedAskModal from './MediatedAskModal'
@@ -63,10 +63,7 @@ function DirectTutorModal({ open, onClose, mode = 'theory', context = {}, studen
       // Lưu mọi lần hỏi AI (kênh 'ai') để giáo viên xem lại — KHÔNG lưu đáp án/hint
       const { correctAnswer, hint, courseRoadmap, aiContext, courseScope, lessonsCompleted, studentName, weaknessProfile, ...safeContext } = context
       const ctxPayload = { ...safeContext, mode }
-      supabase.from('messages').insert([
-        { student_id: studentId, sender_role: 'student', channel: 'ai', content: q, context: ctxPayload, is_read: true },
-        { student_id: studentId, sender_role: 'ai', channel: 'ai', content: data.answer, context: ctxPayload, is_read: true },
-      ]).then(() => {})
+      ghiNhatKyAi(studentId, q, data.answer, ctxPayload).then(() => {})
     } catch {
       toast.error('Có lỗi xảy ra, em thử lại nhé')
     } finally {

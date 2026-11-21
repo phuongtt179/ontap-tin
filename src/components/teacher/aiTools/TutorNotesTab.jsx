@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '../../../lib/supabase'
 import { useGrades } from '../../../hooks/useGrades'
 import { extractSlideText } from '../../../utils/slideText'
 import toast from 'react-hot-toast'
 import { Loader2, Sparkles, Save, Square } from 'lucide-react'
 import { apiFetch } from '../../../lib/apiFetch'
+import { layBaiCoFileBaiGiang, capNhatBaiHoc } from '../../../data/baiHoc'
 
 async function draftNotes(lesson) {
   const isPdf = lesson.pptx_url.split('?')[0].toLowerCase().endsWith('.pdf')
@@ -36,8 +36,7 @@ export default function TutorNotesTab() {
 
   useEffect(() => {
     if (!grade) return
-    supabase.from('lessons').select('id, title, grade, topic, pptx_url, ai_context, ai_tutor_notes')
-      .eq('grade', grade).eq('is_published', true).not('pptx_url', 'is', null).order('order')
+    layBaiCoFileBaiGiang(grade)
       .then(({ data }) => setLessons(data || []))
   }, [grade])
 
@@ -62,7 +61,7 @@ export default function TutorNotesTab() {
   async function save(l, text) {
     setBusy(b => ({ ...b, [l.id]: 'save' }))
     const value = text.trim() || null
-    const { error } = await supabase.from('lessons').update({ ai_tutor_notes: value }).eq('id', l.id)
+    const { error } = await capNhatBaiHoc(l.id, { ai_tutor_notes: value })
     setBusy(b => ({ ...b, [l.id]: null }))
     if (error) { toast.error('Lưu thất bại: ' + error.message); return false }
     setLessons(ls => ls.map(x => x.id === l.id ? { ...x, ai_tutor_notes: value } : x))

@@ -1,7 +1,9 @@
 import { apiFetch } from './apiFetch'
+import { loaiTep } from '../domain/tepNop'
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 
+/** tải ảnh lên Cloudinary → đường dẫn https */
 export async function uploadImage(file) {
   const formData = new FormData()
   formData.append('file', file)
@@ -14,6 +16,17 @@ export async function uploadImage(file) {
 
   if (!res.ok) throw new Error('Upload ảnh thất bại')
 
+  const data = await res.json()
+  return data.secure_url
+}
+
+// Upload âm thanh (Cloudinary xếp audio vào nhóm video)
+export async function uploadAudio(file) {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('upload_preset', UPLOAD_PRESET)
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, { method: 'POST', body: fd })
+  if (!res.ok) throw new Error('Upload âm thanh thất bại')
   const data = await res.json()
   return data.secure_url
 }
@@ -32,6 +45,13 @@ export async function uploadFile(file) {
   if (!res.ok) throw new Error('Upload thất bại')
   const data = await res.json()
   return data.secure_url
+}
+
+/** tải 1 tệp học liệu lên đúng nhóm (ảnh / âm thanh / tệp khác giữ nguyên) → { url, ten } — ten là tên gốc để học sinh tải về */
+export async function uploadHocLieu(file) {
+  const { anh, amThanh } = loaiTep(file.name)
+  const url = anh ? await uploadImage(file) : amThanh ? await uploadAudio(file) : await uploadFile(file)
+  return { url, ten: file.name }
 }
 
 // Xóa file trên Cloudinary (best-effort — không chặn luồng nếu lỗi)

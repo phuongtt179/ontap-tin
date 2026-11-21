@@ -4,6 +4,8 @@
 // ⚠ 27/10/2026: ĐÃ GỠ lịch pg_cron (cạn Disk IO gói nano) — endpoint không còn được gọi; giáo viên tự bấm chấm.
 import { gradeTasks } from './_gradeCore.js'
 import { prepareTasks } from '../src/utils/gradePrep.js'
+import { parseTasks } from '../src/domain/baiThucHanh.js'
+import { capNhatTuKetQuaAi } from '../src/domain/chamBai.js'
 
 export const config = { maxDuration: 60 }
 
@@ -13,15 +15,6 @@ const TIME_BUDGET_MS = 40 * 1000     // quá thời gian này thì không nhận
 const MIN_AGE_MS = 3 * 60 * 1000     // chừa 3 phút cho trình duyệt học sinh tự chấm trước
 const MAX_AGE_DAYS = 14
 const MAX_ATTEMPTS = 3               // bài lỗi mãi (file hỏng…) thử tối đa 3 lần rồi bỏ qua
-
-function parseTasks(instructions) {
-  if (!instructions) return [{ instructions: '' }]
-  try {
-    const arr = JSON.parse(instructions)
-    if (Array.isArray(arr) && arr.length > 0) return arr
-  } catch { /* không phải JSON → coi cả chuỗi là 1 đề */ }
-  return [{ instructions }]
-}
 
 // Đề rỗng → AI không có gì để đối chiếu (từng cho 10 điểm bài gõ "1") → không chấm, để giáo viên chấm
 const isEmptyTask = t => !t || t.optional || !String(t.instructions || '').trim() || String(t.instructions).trim() === '[]'
@@ -76,11 +69,7 @@ export default async function handler(req, res) {
       // Chỉ ghi khi bài vẫn chưa ai chấm (giáo viên/trình duyệt có thể đã chấm trong lúc chờ)
       await db(`lesson_submissions?id=eq.${sub.id}&score=is.null&graded_by=is.null`, {
         method: 'PATCH',
-        body: JSON.stringify({
-          score: result.score, ai_score: result.score, teacher_comment: result.comment, graded_by: 'ai',
-          ai_graded_at: new Date().toISOString(), ai_breakdown: result.breakdown || null,
-          ai_suspect: !!result.ai_suspect, ai_suspect_reason: result.ai_suspect_reason || null,
-        }),
+        body: JSON.stringify(capNhatTuKetQuaAi(result)),
       })
       out.graded++
     } catch (e) {

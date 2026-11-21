@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { ChevronRight, X, Send, Loader2, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { supabase } from '../../../lib/supabase'
+import { ghiNhatKyAi } from '../../../data/tinNhan'
 import { topicKeyOf } from '../../../utils/lessonSteps'
 import { apiFetch } from '../../../lib/apiFetch'
 
@@ -63,10 +63,7 @@ export default function AssistantBubble({
         return
       }
       setChatMsgs([...newMsgs, { role: 'ai', content: data.answer }])
-      supabase.from('messages').insert([
-        { student_id: user.id, sender_role: 'student', channel: 'ai', content: q, context: { from: 'home', grade: selectedGrade }, is_read: true },
-        { student_id: user.id, sender_role: 'ai', channel: 'ai', content: data.answer, context: { from: 'home', grade: selectedGrade }, is_read: true },
-      ]).then(() => {})
+      ghiNhatKyAi(user.id, q, data.answer, { from: 'home', grade: selectedGrade }).then(() => {})
     } catch {
       toast.error('Có lỗi xảy ra, con thử lại nhé')
     } finally {

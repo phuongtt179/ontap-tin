@@ -13,7 +13,7 @@ import { computePoints } from '../../components/student/learningPath/pathGeometr
 import { decorateLessons } from '../../utils/lessonSteps'
 import RewardModal from '../../components/student/RewardModal'
 import AchievementsModal from '../../components/student/AchievementsModal'
-import { supabase } from '../../lib/supabase'
+import { layLanNhanQuaGanNhat } from '../../data/phanThuong'
 
 // ── Full learning map: MỘT con đường duy nhất nối hết bài đầu → cuối,
 //    chạy NGANG (lò xo nằm ngang), cuộn sang phải ──
@@ -95,12 +95,10 @@ export default function LearnPage() {
   useEffect(() => {
     if (!user?.id) return
     async function checkRewardNotif() {
-      const { data } = await supabase.from('reward_requests')
-        .select('fulfilled_at').eq('student_id', user.id).eq('status', 'fulfilled')
-        .not('fulfilled_at', 'is', null).order('fulfilled_at', { ascending: false }).limit(1)
-      if (!data?.length) return
+      const lanCuoi = await layLanNhanQuaGanNhat(user.id)
+      if (!lanCuoi) return
       const lastSeen = localStorage.getItem(`rewards_seen_${user.id}`)
-      if (!lastSeen || new Date(data[0].fulfilled_at) > new Date(lastSeen)) setRewardNotif(true)
+      if (!lastSeen || new Date(lanCuoi) > new Date(lastSeen)) setRewardNotif(true)
     }
     checkRewardNotif()
   }, [user?.id])

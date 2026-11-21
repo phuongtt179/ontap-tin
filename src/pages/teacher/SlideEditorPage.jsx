@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { ArrowLeft, Save, Sparkles, Eye, Play, Code2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Loader2, ListChecks, Upload, X, FileUp, FileImage } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { layBaiGiangDeSua, luuBaiGiang } from '../../data/baiHoc'
+import { layCauHoiTomTat } from '../../data/cauHoi'
 import { apiFetch } from '../../lib/apiFetch'
 import { uploadImage } from '../../lib/cloudinary'
 import { useAuth } from '../../context/AuthContext'
@@ -14,6 +15,7 @@ import { docChuFile, pdfThanhAnh } from '../../utils/slideText'
 import SlidePlayer from '../../components/slides/SlidePlayer.jsx'
 import { TEN_ICON } from '../../components/slides/Icon.jsx'
 import { LOAI_SLIDE, LOAI_KHOI, MAU, TEN_MAU, TRUONG_SLIDE, TRUONG_KHOI, SLIDE_MOI, KHOI_MOI, kiemTraBai, lamSachBai, cauHoiThanhSlide } from '../../components/slides/slideModel.js'
+import { layNguonAiCuaBai } from '../../data/baiHoc'
 
 const sao = x => JSON.parse(JSON.stringify(x))
 const doiCho = (a, i, j) => { if (j < 0 || j >= a.length) return a; const b = a.slice(); [b[i], b[j]] = [b[j], b[i]]; return b }
@@ -139,7 +141,7 @@ function AiSoan({ lesson, bai, setBai, onMoi }) {
     const thucHanh = tasks.filter(t => !t.optional && String(t.instructions || '').trim()).map((t, i) => `Bài thực hành ${i + 1}: ${String(t.instructions).replace(/\[test[^\n]*\]/gi, '').trim()}`).join('\n\n')
     const sourceText = [lesson.description, lesson.ai_context, lesson.ai_tutor_notes, thucHanh].filter(s => String(s || '').trim()).join('\n\n')
     const { data: qs } = lesson.question_ids?.length
-      ? await supabase.from('questions').select('question, type, options, correct_answer').in('id', lesson.question_ids)
+      ? await layCauHoiTomTat(lesson.question_ids)
       : { data: [] }
     const questions = (qs || []).map(q => q.question + (q.options?.length ? ' | ' + q.options.map(o => o.key + '. ' + o.text).join(' ') : '') + ' (đáp án: ' + q.correct_answer + ')')
     const r = await goiAI({ action: 'slide_script', lessonTitle: lesson.title, grade: lesson.grade, topic: lesson.topic, sourceText, questions, extra: yc, slideNguon: nguon?.chu })
@@ -253,7 +255,7 @@ function ChonCauHoi({ lesson, onChon, onDong }) {
   const [qs, setQs] = useState(null), [chon, setChon] = useState(new Set())
   useEffect(() => {
     if (!lesson.question_ids?.length) { setQs([]); return }
-    supabase.from('questions').select('id, question, type, options, correct_answer, hint').in('id', lesson.question_ids)
+    layCauHoiTomTat(lesson.question_ids)
       .then(({ data }) => setQs((data || []).filter(q => q.type === 'multiple_choice' || q.type === 'true_false')))
   }, [lesson.question_ids])
   return (
@@ -289,8 +291,8 @@ export default function SlideEditorPage() {
   useEffect(() => {
     (async () => {
       const [{ data: l, error }, { data: s }] = await Promise.all([
-        supabase.from('lessons').select('id, title, grade, topic, description, ai_context, ai_tutor_notes, practice_instructions, question_ids').eq('id', id).single(),
-        supabase.from('lesson_slides').select('slides, kich_ban').eq('lesson_id', id).maybeSingle(),
+        layNguonAiCuaBai(id),
+        layBaiGiangDeSua(id).then(data => ({ data })),
       ])
       if (error || !l) { toast.error('Không tìm thấy bài học'); return }
       setLesson(l)
@@ -309,7 +311,7 @@ export default function SlideEditorPage() {
 
   async function luuBai() {
     setLuu(true)
-    const { error } = await supabase.from('lesson_slides').upsert({ lesson_id: id, slides: ds, kich_ban: bai.kich_ban || null, updated_at: new Date().toISOString(), updated_by: user?.id })
+    const { error } = await luuBaiGiang({ lessonId: id, slides: ds, kichBan: bai.kich_ban, userId: user?.id })
     setLuu(false)
     if (error) { toast.error('Lưu thất bại: ' + error.message); return false }
     setDoi(false); toast.success('Đã lưu bài giảng'); return true

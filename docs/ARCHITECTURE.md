@@ -1,6 +1,6 @@
 # Architecture — Chi tiết kỹ thuật
 
-Đọc file này khi cần hiểu luồng xử lý cụ thể. Cập nhật lần cuối: 10/11/2026.
+Đọc file này khi cần hiểu luồng xử lý cụ thể. Cập nhật lần cuối: 12/11/2026.
 
 ## Sơ đồ tổng thể (từ 07/11/2026)
 
@@ -15,6 +15,40 @@ Trình duyệt (React, Vercel)
 ```
 Quay lại dùng Supabase cho dữ liệu: xem `docs/CHUYEN_NHA_NEON.md`.
 Thay đổi cấu trúc cơ sở dữ liệu: xem `sql/README.md`.
+
+## 3 tầng trong trang web (từ 12/11/2026 — không còn ngoại lệ)
+
+```
+Giao diện   src/pages/ · src/components/ · src/hooks/   — hiển thị + nhận thao tác; hook gom tải dữ liệu / thao tác của 1 trang
+   │  gọi hàm có tên (layX / luuX / xoaX …)
+Dữ liệu     src/data/      — CHỈ nơi này gọi supabase.from / supabase.rpc; chọn sẵn cột, có giới hạn dòng
+   │  dùng quy tắc
+Nghiệp vụ   src/domain/    — hàm thuần (không mạng, không giao diện), có test; vài tệp dùng chung với api/
+```
+`src/khongGoiThangDb.test.js` đỏ nếu trang / thành phần / hook nào gọi thẳng cơ sở dữ liệu. Đăng nhập (`supabase.auth`) ở
+`context/AuthContext.jsx` không tính — đó là tầng xác thực.
+
+| src/data/ | bảng / hàm máy chủ |
+|---|---|
+| `baiHoc.js` | lessons, lesson_visibility, lesson_slides |
+| `baiLam.js` | exam_sessions, quiz_sessions, exam_nop_python (lượt thi / luyện tập) |
+| `baiNop.js` | lesson_submissions (+ hàm ra_soat_dem) |
+| `cauHoi.js` | questions |
+| `chuDe.js` | topics, units, lesson_titles (+ sửa chủ đề kéo theo bài học / câu hỏi / đơn vị) |
+| `deThi.js` | exams, exam_tests |
+| `diemDanh.js` | attendance_sessions, attendance_records |
+| `ghiChu.js` | student_notes |
+| `ghiDanh.js` | student_enrollments |
+| `hoSo.js` | profiles (+ record_activity, get_class_leaderboard) |
+| `hoiDapMau.js` | lesson_faq |
+| `hoiThayCo.js` | student_questions, student_question_drafts (+ ai_tools_summary, ai_review_queue, dem_bai_tong_quan, impact_stats) |
+| `khoaHoc.js` | grades, classes, class_topic_unlock, class_lesson_unlock, reward_configs (đọc) — đổi tên khoá kéo theo 13 bảng có cột grade |
+| `phanThuong.js` | reward_items, reward_requests, reward_configs (+ redeem_reward) |
+| `taiKhoan.js` | Edge Function create-user / update-user / delete-user |
+| `tienDo.js` | lesson_progress |
+| `tinNhan.js` | messages (chat thầy–trò + nhật ký hỏi AI) |
+
+Thử thật từng nhóm trên Neon (đăng nhập giáo viên + học sinh demo1, tự dọn dòng thử): `tests/that/*.test.js`, chạy `npm run test:quyen`.
 
 ## Tài khoản
 

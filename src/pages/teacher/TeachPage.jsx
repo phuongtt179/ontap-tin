@@ -5,10 +5,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { supabase } from '../../lib/supabase'
+import { layBaiGiangWeb } from '../../data/baiHoc'
+import { layTenLopCuaKhoa } from '../../data/khoaHoc'
+import { layHocSinhKemHoSo } from '../../data/ghiDanh'
 import { adjustStickerCount } from '../../utils/stickerAward'
 import SlidePlayer from '../../components/slides/SlidePlayer.jsx'
 import { beep, ting, fanfare, ring3, moAmThanh } from '../../components/slides/sound.js'
+import { layTenBaiHoc } from '../../data/baiHoc'
 
 const MAU_BUT = ['#ef4444', '#2563eb', '#16a34a', '#facc15', '#111827', '#ffffff']
 const MAU_NHOM = ['#2563eb', '#16a34a', '#ea580c', '#9333ea', '#db2777', '#0891b2', '#ca8a04', '#dc2626']
@@ -149,21 +152,18 @@ export default function TeachPage() {
   useEffect(() => {
     (async () => {
       const [{ data: l }, { data: s }] = await Promise.all([
-        supabase.from('lessons').select('id, title, grade').eq('id', id).single(),
-        supabase.from('lesson_slides').select('slides').eq('lesson_id', id).maybeSingle(),
+        layTenBaiHoc(id),
+        layBaiGiangWeb(id).then(slides => ({ data: { slides } })),
       ])
       if (!l) { toast.error('Không tìm thấy bài học'); return }
       setLesson(l); setDs(s?.slides || [])
-      const { data: c } = await supabase.from('classes').select('name').eq('grade', l.grade).order('name')
-      setLops((c || []).map(x => x.name))
+      setLops(await layTenLopCuaKhoa(l.grade))
     })()
   }, [id])
   useEffect(() => {
     if (!lesson) return
     lsSet('dayLop', lop)
-    let q = supabase.from('student_enrollments').select('user_id, class_name, profiles!inner(id, full_name, is_active)').eq('grade', lesson.grade).eq('is_approved', true)
-    if (lop) q = q.eq('class_name', lop)
-    q.then(({ data }) => setHs((data || []).filter(e => e.profiles.is_active !== false).map(e => ({ id: e.user_id, full_name: e.profiles.full_name || '(chưa có tên)' })).sort((a, b) => tenNgan(a.full_name).localeCompare(tenNgan(b.full_name), 'vi'))))
+    layHocSinhKemHoSo({ grade: lesson.grade, lop }).then(({ data }) => setHs((data || []).filter(e => e.profiles.is_active !== false).map(e => ({ id: e.user_id, full_name: e.profiles.full_name || '(chưa có tên)' })).sort((a, b) => tenNgan(a.full_name).localeCompare(tenNgan(b.full_name), 'vi'))))
   }, [lesson, lop])
 
   const toanManHinh = () => { if (document.fullscreenElement) document.exitFullscreen?.(); else document.documentElement.requestFullscreen?.().catch(() => {}) }

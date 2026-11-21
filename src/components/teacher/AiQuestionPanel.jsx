@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
 import { getLessonSource } from '../../utils/lessonSource'
 import { parseQuestions } from '../../utils/questionParser'
 import { checkParsedQuestions } from '../../utils/questionCheck'
 import toast from 'react-hot-toast'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { apiFetch } from '../../lib/apiFetch'
+import { layBaiKemTaiLieuAi } from '../../data/baiHoc'
 
 const TYPES = [
   ['multiple_choice', 'Trắc nghiệm'], ['true_false', 'Đúng/Sai'], ['fill_blank', 'Điền từ'], ['drag_word', 'Kéo thả'],
@@ -26,8 +26,7 @@ export default function AiQuestionPanel({ grade, difficulty, onText }) {
 
   useEffect(() => {
     if (!grade) return
-    supabase.from('lessons').select('id, title, topic, grade, ai_context, ai_tutor_notes, pptx_url')
-      .eq('grade', grade).order('order')
+    layBaiKemTaiLieuAi(grade)
       .then(({ data }) => { setLessons(data || []); setLessonId('') })
   }, [grade])
 

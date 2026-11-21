@@ -1,18 +1,11 @@
 import { useState, useMemo, useRef, useLayoutEffect, useEffect, useCallback } from 'react'
+import { xaoTron } from '../../utils/xaoTron'
 
 // Câu nối đôi kiểu "nối bằng đường thẳng": bấm 1 ô bên trái rồi bấm 1 ô bên phải để nối (hoặc ngược lại),
 // bấm lại ô đã nối để gỡ. Dùng được cả chuột lẫn màn hình cảm ứng (không dùng kéo-thả HTML5).
 // Đáp án giữ nguyên định dạng cũ "A-1,B-2,..." nên không ảnh hưởng chấm điểm và câu hỏi đã có.
 
 const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ec4899', '#0ea5e9', '#8b5cf6', '#f97316', '#14b8a6']
-
-function shuffle(arr) {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] }
-  // tránh trường hợp xáo xong vẫn y nguyên thứ tự đúng (học sinh khỏi cần nghĩ)
-  if (a.length > 1 && a.every((x, i) => x === arr[i])) a.push(a.shift())
-  return a
-}
 
 function parsePairs(value) {
   const m = new Map()
@@ -27,7 +20,7 @@ export default function MatchingLines({ q, value, onChange, disabled = false, sh
   const left = useMemo(() => q.options || [], [q.options])
   const rightOrig = useMemo(() => q.match_options || [], [q.match_options])
   // Thứ tự cột phải xáo 1 lần khi hiện câu hỏi (component được gắn key theo câu nên mỗi câu xáo riêng)
-  const [right] = useState(() => shuffle(rightOrig))
+  const [right] = useState(() => xaoTron(rightOrig))
   // Cặp đúng theo vị trí: options[i] ↔ match_options[i]
   const correct = useMemo(() => new Map(left.map((o, i) => [o.key, rightOrig[i]?.key])), [left, rightOrig])
 

@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -16,4 +17,6 @@ const ghiVersion = {
 export default defineConfig({
   plugins: [react(), tailwindcss(), ghiVersion],
   define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
+  // npm test: kiểm tra nhanh, không cần mạng. tests/that/ gọi dữ liệu thật → chạy riêng: npm run test:quyen
+  test: { exclude: [...configDefaults.exclude, 'tests/that/**'] },
 })

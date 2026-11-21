@@ -24,7 +24,4 @@ export function mucCua(sub) {
 /** điểm đại diện khi giáo viên đổi mức (giữ cho các báo cáo nội bộ dùng điểm vẫn có số liệu hợp lý) */
 export const DIEM_DAI_DIEN = { T: 9, H: 6.5, C: 3 }
 
-/** sticker thưởng khi giáo viên duyệt: T = 3, H = 1, C = 0 */
-export function stickerTheoMuc(muc) {
-  return { T: 3, H: 1, C: 0 }[muc] ?? 0
-}
+// số sticker theo mức: src/domain/sticker.js (stickerTheoMuc)
