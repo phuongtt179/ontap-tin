@@ -15,6 +15,8 @@ import DeThiFormModal from './DeThiFormModal'
 import BuocThongTinDe from './BuocThongTinDe'
 import BuocChonCauHoiDe from './BuocChonCauHoiDe'
 import ChamThucHanhThi from './ChamThucHanhThi'
+import BaiKyThiModal from './BaiKyThiModal'
+import KyThiPython from '../../student/KyThiPython'
 
 const khong = () => {}
 const FORM = {
@@ -46,5 +48,11 @@ describe('đề thi (giáo viên)', () => {
   ])('chấm thực hành: %s', (_, de, luot) => {
     const html = renderToString(<ChamThucHanhThi exam={{ has_practical: true, ...de }} luot={luot} onCapNhat={khong} />)
     expect(html.length).toBeGreaterThan(0)
+  })
+  it('kỳ thi nhiều bài: cửa sổ Các bài, ô chọn kỳ thi nhiều bài, phần làm bài của học sinh (đang tải)', () => {
+    expect(renderToString(<BaiKyThiModal exam={{ id: 'e', title: 'Kỳ thi 1' }} onClose={khong} />)).toContain('Các bài của kỳ thi')
+    expect(renderToString(<BuocThongTinDe form={{ ...FORM, nhieu_bai: false }} setForm={khong} tests={[]} setTests={khong} />)).toContain('Kỳ thi nhiều bài')
+    expect(renderToString(<BuocThongTinDe form={FORM} setForm={khong} tests={[]} setTests={khong} soBai={5} />)).toContain('Kỳ thi gồm')
+    expect(renderToString(<KyThiPython examId="e" sessionId="s" />)).toContain('animate-spin')
   })
 })

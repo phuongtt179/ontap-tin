@@ -34,6 +34,17 @@ export function chamLanNop(tests, ketQuaChay) {
 }
 
 /**
+ * Điểm thực hành của kỳ thi nhiều bài (thang 10): trung bình có trọng số điểm cao nhất từng bài.
+ * cacBai: [{ id, diem (trọng số) }], diemTheoBai: { [bai_id]: điểm thang 10 } (bài chưa nộp = 0). Làm tròn 2 chữ số.
+ */
+export function diemKyThi(cacBai, diemTheoBai) {
+  const tong = cacBai.reduce((s, b) => s + Number(b.diem), 0)
+  if (tong <= 0) return 0
+  const duoc = cacBai.reduce((s, b) => s + Number(b.diem) * Number(diemTheoBai[b.id] ?? 0), 0)
+  return Math.round((duoc / tong) * 100) / 100
+}
+
+/**
  * Bài thi này có được nộp thêm lần nữa không. Trả về mã lỗi, hoặc null nếu được.
  * @param bt  { user_id, practical_type, submitted_at, started_at, time_limit (phút), practical_lan }
  */

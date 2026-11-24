@@ -1,4 +1,4 @@
-// Tầng dữ liệu — đề thi: exams (đề), exam_tests (test chấm Python, học sinh KHÔNG đọc được).
+// Tầng dữ liệu — đề thi: exams (đề), exam_bai (bài của kỳ thi nhiều bài), exam_tests (test chấm Python, học sinh KHÔNG đọc được).
 // Lượt làm bài (exam_sessions, quiz_sessions, exam_nop_python) ở data/baiLam.js. Mỗi hàm trả { data, error } như supabase.
 import { supabase } from '../lib/supabase'
 
@@ -54,14 +54,43 @@ export function datMoDeThi(id, mo) {
   return supabase.from('exams').update({ is_active: mo }).eq('id', id)
 }
 
-/** test chấm Python của đề (thứ tự) */
-export function layTestPython(examId) {
-  return supabase.from('exam_tests').select('input, expected, diem').eq('exam_id', examId).order('thu_tu').limit(GIOI_HAN)
+/** kỳ thi nhiều bài: các bài (đề bài, trọng số) theo thứ tự. Đề 1 bài kiểu cũ → rỗng */
+export function layBaiCuaKyThi(examId) {
+  return supabase.from('exam_bai').select('id, thu_tu, ten, de_bai, diem').eq('exam_id', examId).order('thu_tu').limit(50)
 }
 
-/** thay toàn bộ test của đề bằng danh sách mới (rỗng = xoá hết). Trả { error } */
+/** thêm (id rỗng) hoặc sửa 1 bài của kỳ thi → { data: { id } } */
+export function luuBaiKyThi(id, duLieu) {
+  return id
+    ? supabase.from('exam_bai').update(duLieu).eq('id', id).select('id').single()
+    : supabase.from('exam_bai').insert(duLieu).select('id').single()
+}
+
+/** xoá 1 bài của kỳ thi (test, điểm từng bài của bài đó xoá theo) */
+export function xoaBaiKyThi(id) {
+  return supabase.from('exam_bai').delete().eq('id', id)
+}
+
+/** test của 1 bài trong kỳ thi (thứ tự) */
+export function layTestCuaBai(baiId) {
+  return supabase.from('exam_tests').select('input, expected, diem').eq('bai_id', baiId).order('thu_tu').limit(GIOI_HAN)
+}
+
+/** thay toàn bộ test của 1 bài bằng danh sách mới. Trả { error } */
+export async function ghiTestCuaBai(examId, baiId, tests) {
+  const xoa = await supabase.from('exam_tests').delete().eq('bai_id', baiId)
+  if (xoa.error || !tests.length) return { error: xoa.error }
+  return supabase.from('exam_tests').insert(tests.map((t, i) => ({ exam_id: examId, bai_id: baiId, thu_tu: i, input: t.input, expected: t.expected, diem: Number(t.diem) || 1 })))
+}
+
+/** test chấm Python của đề (thứ tự) */
+export function layTestPython(examId) {
+  return supabase.from('exam_tests').select('input, expected, diem').eq('exam_id', examId).is('bai_id', null).order('thu_tu').limit(GIOI_HAN)
+}
+
+/** thay toàn bộ test của đề 1 bài bằng danh sách mới (rỗng = xoá hết). Không đụng test của kỳ thi nhiều bài. Trả { error } */
 export async function ghiTestPython(examId, tests) {
-  const xoa = await supabase.from('exam_tests').delete().eq('exam_id', examId)
+  const xoa = await supabase.from('exam_tests').delete().eq('exam_id', examId).is('bai_id', null)
   if (xoa.error || !tests.length) return { error: xoa.error }
   return supabase.from('exam_tests').insert(tests.map((t, i) => ({ exam_id: examId, thu_tu: i, input: t.input, expected: t.expected, diem: Number(t.diem) || 1 })))
 }

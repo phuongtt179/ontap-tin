@@ -21,9 +21,11 @@ const LOI = {
   de_chua_co_test: 'Đề chưa có test, em báo thầy cô nhé.',
   may_cham_loi: 'Máy chấm đang bận, lượt này không bị tính. Em nộp lại sau ít phút nhé.',
   bai_qua_dai: 'Chương trình quá dài.',
+  sai_bai: 'Bài này không thuộc kỳ thi, em tải lại trang nhé.',
 }
 
-export function ThiPython({ sessionId }) {
+// baiId: bài trong kỳ thi nhiều bài (KyThiPython) — mỗi bài 10 lần riêng; null = đề 1 bài kiểu cũ. onCham(kết quả máy chủ) sau mỗi lần chấm
+export function ThiPython({ sessionId, baiId = null, onCham }) {
   const [code, setCode] = useState('')
   const [tenFile, setTenFile] = useState('')
   const [dang, setDang] = useState(false)
@@ -31,8 +33,8 @@ export function ThiPython({ sessionId }) {
 
   useEffect(() => {
     layLanNopPython(sessionId)
-      .then(({ data }) => setCacLan(data || []))
-  }, [sessionId])
+      .then(({ data }) => setCacLan((data || []).filter(l => (l.bai_id ?? null) === baiId)))
+  }, [sessionId, baiId])
 
   const daDung = cacLan.length ? Math.max(...cacLan.map(l => l.lan)) : 0
   const conLai = Math.max(0, TOI_DA_LAN - daDung)
@@ -51,10 +53,11 @@ export function ThiPython({ sessionId }) {
     if (!code.trim()) { toast.error('Em chọn file bài làm trước'); return }
     setDang(true)
     try {
-      const r = await apiFetch('/api/thi-python', { session_id: sessionId, code })
+      const r = await apiFetch('/api/thi-python', baiId ? { session_id: sessionId, bai_id: baiId, code } : { session_id: sessionId, code })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) { toast.error(LOI[d.error] || 'Chưa chấm được, em thử lại nhé'); return }
-      setCacLan(prev => [...prev, { lan: d.lan, ket_qua: d.ket_qua, diem: d.diem }])
+      setCacLan(prev => [...prev, { lan: d.lan, ket_qua: d.ket_qua, diem: d.diem, bai_id: baiId }])
+      onCham?.(d)
       toast.success(`Lần ${d.lan}: ${d.diem} điểm`)
     } catch {
       toast.error('Chưa chấm được, em thử lại nhé')
@@ -79,7 +82,7 @@ export function ThiPython({ sessionId }) {
       </button>
       {caoNhat != null && (
         <div className="rounded-xl border border-green-200 bg-green-50 p-3">
-          <p className="font-bold text-green-800">Điểm thực hành cao nhất: {caoNhat}/10</p>
+          <p className="font-bold text-green-800">{baiId ? 'Điểm cao nhất của bài này' : 'Điểm thực hành cao nhất'}: {caoNhat}/10</p>
           {moiNhat && (
             <div className="mt-2">
               <p className="text-xs text-gray-600 mb-1">Lần {moiNhat.lan} — {moiNhat.diem} điểm:</p>

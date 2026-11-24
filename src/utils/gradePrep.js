@@ -4,6 +4,8 @@
 import JSZip from 'jszip'
 import { generateSb3Text } from './sb3Text.js'
 import { animationLines } from './pptxAnimations.js'
+import { chuanHoaKetQua } from '../domain/chamPython.js'
+import { chayWandbox } from './wandbox.js'
 
 function getFileType(fileUrl, textContent) {
   if (!fileUrl && textContent) return 'text'
@@ -132,14 +134,7 @@ async function runInBrowser(code, stdin) {
 
 async function runOnWandbox(code, stdin) {
   try {
-    const res = await fetch('https://wandbox.org/api/compile.json', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ compiler: 'cpython-3.12.7', code, stdin }),
-      signal: AbortSignal.timeout(20000),
-    })
-    if (!res.ok) return { error: true }
-    const data = await res.json()
+    const data = await chayWandbox({ code, stdin })
     return { stdout: data.program_output || '', stderr: data.program_error || '' }
   } catch {
     return { error: true }
@@ -162,7 +157,8 @@ async function runPythonTest(code, input, expected, points) {
   const r = await runPython(code, stdin)
   if (r.error) return { input, expected, actual: '', passed: false, points, error: true }
   const actual = r.stdout.trim()
-  return { input, expected, actual, passed: actual === exp.trim(), points }
+  // so như máy chấm đề thi: bỏ dấu cách cuối mỗi dòng (print(x, end=" ") vẫn đúng)
+  return { input, expected, actual, passed: chuanHoaKetQua(actual) === chuanHoaKetQua(exp), points }
 }
 
 async function extractContent(fileUrl, textContent, type) {

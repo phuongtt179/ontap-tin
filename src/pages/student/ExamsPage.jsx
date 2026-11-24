@@ -9,7 +9,8 @@ import { useExamGuard } from '../../context/ExamGuardContext'
 import QuizSession from '../../components/student/QuizSession'
 import WordEditor from '../../components/editor/WordEditor'
 import PPTEditor from '../../components/editor/PPTEditor'
-import { ThiPython, ThiScratch } from '../../components/student/ThiThucHanh'
+import { ThiScratch } from '../../components/student/ThiThucHanh'
+import KyThiPython from '../../components/student/KyThiPython'
 import toast from 'react-hot-toast'
 import { Clock, PlayCircle, CheckCircle, Loader2, Send } from 'lucide-react'
 
@@ -194,7 +195,7 @@ function ExamWithPractical({ exam, questions, sessionId, attemptNumber, onFinish
         {exam.practical_type === 'ppt' && (
           <PPTEditor content={practicalContent} onChange={setPracticalContent} />
         )}
-        {exam.practical_type === 'python' && <ThiPython sessionId={sessionId} />}
+        {exam.practical_type === 'python' && <KyThiPython examId={exam.id} sessionId={sessionId} />}
         {exam.practical_type === 'scratch' && <ThiScratch sessionId={sessionId} />}
       </section>
 

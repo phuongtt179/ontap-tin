@@ -9,7 +9,7 @@ const LOAI_THUC_HANH = [
   { value: 'python', label: '🐍 Python' }, { value: 'scratch', label: '🐱 Scratch' },
 ]
 
-export default function BuocThongTinDe({ form, setForm, tests, setTests }) {
+export default function BuocThongTinDe({ form, setForm, tests, setTests, soBai = 0 }) {
   const { grades: GRADES } = useGrades()
   const [classes, setClasses] = useState([])
   useEffect(() => { layTenLopCuaKhoa(form.grade).then(setClasses) }, [form.grade])
@@ -159,7 +159,15 @@ export default function BuocThongTinDe({ form, setForm, tests, setTests }) {
               />
             </div>
 
-            {form.practical_type === 'python' && <KhungTest tests={tests} setTests={setTests} />}
+            {form.practical_type === 'python' && (soBai > 0
+              ? <p className="text-sm text-indigo-700 bg-indigo-50 rounded-lg px-3 py-2">Kỳ thi gồm <b>{soBai} bài</b> Python, mỗi bài có đề và bộ test riêng (đã nhập sẵn). Sửa ở đây không làm thay đổi bài và test.</p>
+              : <>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" checked={!!form.nhieu_bai} onChange={e => setForm(f => ({ ...f, nhieu_bai: e.target.checked }))} />
+                    Kỳ thi nhiều bài (như thi Tin học trẻ): lưu đề xong, bấm nút <b>Các bài</b> ở danh sách để thêm đề và test từng bài
+                  </label>
+                  {!form.nhieu_bai && <KhungTest tests={tests} setTests={setTests} />}
+                </>)}
             {form.practical_type !== 'python' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu chí chấm (cho AI chấm nháp, học sinh không thấy)</label>

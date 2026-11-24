@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { execFileSync } from 'child_process'
-import { chuanHoaKetQua, trangThaiTest, chamLanNop, loiKhongDuocNop, TOI_DA_LAN } from './chamPython'
+import { chuanHoaKetQua, trangThaiTest, chamLanNop, loiKhongDuocNop, diemKyThi, TOI_DA_LAN } from './chamPython'
 import { chuongTrinhChay } from '../../api/thi-python.js'
 
 describe('chuanHoaKetQua — bỏ khoảng trắng cuối dòng, dòng trống cuối bài', () => {
@@ -101,4 +101,15 @@ describe.skipIf(!coPython)('chương trình chấm chạy thật bằng Python',
     const ma = 'x = input()\nprint("\\"${x}\\"" if False else \'5\')'
     expect(chay(ma, ['a\n'])).toEqual([{ rc: 0, out: '5\n' }])
   })
+})
+
+describe('diemKyThi — điểm thực hành kỳ thi nhiều bài', () => {
+  const bai = [{ id: 'a', diem: 100 }, { id: 'b', diem: 100 }, { id: 'c', diem: 100 }, { id: 'd', diem: 100 }, { id: 'e', diem: 100 }]
+  it('chưa nộp bài nào → 0', () => expect(diemKyThi(bai, {})).toBe(0))
+  it('đúng hết 2 bài / 5 bài → 4 điểm', () => expect(diemKyThi(bai, { a: 10, b: 10 })).toBe(4))
+  it('đúng hết cả 5 bài → 10', () => expect(diemKyThi(bai, { a: 10, b: 10, c: 10, d: 10, e: 10 })).toBe(10))
+  it('trọng số khác nhau', () => expect(diemKyThi([{ id: 'a', diem: 1 }, { id: 'b', diem: 3 }], { a: 10, b: 5 })).toBe(6.25))
+  it('làm tròn 2 chữ số', () => expect(diemKyThi(bai.slice(0, 3), { a: 10 })).toBe(3.33))
+  it('không có bài → 0 (không chia cho 0)', () => expect(diemKyThi([], { a: 10 })).toBe(0))
+  it('bỏ qua điểm của bài không thuộc kỳ thi', () => expect(diemKyThi(bai.slice(0, 1), { a: 5, z: 10 })).toBe(5))
 })

@@ -28,6 +28,11 @@ describe('soạn đề', () => {
     expect(loiDeThi({ ...form, has_practical: true }, [{ expected: '3' }])).toBeNull()
     expect(loiDeThi(form)).toBeNull()
   })
+  it('kỳ thi nhiều bài: không cần test chung, nhưng phải giữ thực hành Python', () => {
+    expect(loiDeThi({ ...form, question_ids: [], has_practical: true }, [], 5)).toBeNull()
+    expect(loiDeThi({ ...form, has_practical: false }, [], 5)).toMatch(/nhiều bài/)
+    expect(loiDeThi({ ...form, has_practical: true, practical_type: 'scratch' }, [], 5)).toMatch(/nhiều bài/)
+  })
   it('test hợp lệ: có output mong đợi', () => expect(testHopLe([{ expected: '' }, { expected: 0 }, { expected: 'a' }])).toHaveLength(2))
   it('không thực hành → 100% lý thuyết, xoá cột thực hành', () =>
     expect(duLieuDeThi(form)).toMatchObject({ title: 'Giữa kỳ', class_names: null, time_limit: null, theory_weight: 100, practical_weight: 0,

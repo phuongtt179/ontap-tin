@@ -2,10 +2,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Trash2, BarChart2, Clock, ToggleLeft, ToggleRight, Eye } from 'lucide-react'
+import { Plus, Pencil, Trash2, BarChart2, Clock, ToggleLeft, ToggleRight, Eye, ListOrdered } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { layTatCaDeThi, xoaDeThi, datMoDeThi } from '../../data/deThi'
 import DeThiFormModal from '../../components/teacher/deThi/DeThiFormModal'
+import BaiKyThiModal from '../../components/teacher/deThi/BaiKyThiModal'
 
 /* ── ExamsPage ────────────────────────────────────────────── */
 export default function ExamsPage() {
@@ -15,6 +16,7 @@ export default function ExamsPage() {
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [editExam, setEditExam] = useState(null)
+  const [baiExam, setBaiExam] = useState(null)   // kỳ thi đang mở cửa sổ "Các bài"
 
   useEffect(() => { fetchExams() }, [])
 
@@ -86,6 +88,11 @@ export default function ExamsPage() {
                 <button onClick={() => navigate(`/teacher/exams/${exam.id}/results`)} className="p-2 text-gray-400 hover:text-indigo-600 transition" title="Thống kê kết quả">
                   <BarChart2 size={16} />
                 </button>
+                {exam.has_practical && exam.practical_type === 'python' && (
+                  <button onClick={() => setBaiExam(exam)} className="p-2 text-gray-400 hover:text-indigo-600 transition flex items-center gap-1 text-xs" title="Các bài của kỳ thi (đề + test từng bài)">
+                    <ListOrdered size={15} /> Các bài
+                  </button>
+                )}
                 <button onClick={() => setEditExam(exam)} className="p-2 text-gray-400 hover:text-indigo-600 transition">
                   <Pencil size={14} />
                 </button>
@@ -100,6 +107,7 @@ export default function ExamsPage() {
         </div>
       )}
 
+      {baiExam && <BaiKyThiModal exam={baiExam} onClose={() => setBaiExam(null)} />}
       {(showCreate || editExam) && (
         <DeThiFormModal
           exam={editExam}

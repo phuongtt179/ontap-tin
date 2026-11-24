@@ -31,11 +31,11 @@ Nghiệp vụ   src/domain/    — hàm thuần (không mạng, không giao di�
 | src/data/ | bảng / hàm máy chủ |
 |---|---|
 | `baiHoc.js` | lessons, lesson_visibility, lesson_slides |
-| `baiLam.js` | exam_sessions, quiz_sessions, exam_nop_python (lượt thi / luyện tập) |
+| `baiLam.js` | exam_sessions, quiz_sessions, exam_nop_python, exam_bai_diem (lượt thi / luyện tập) |
 | `baiNop.js` | lesson_submissions (+ hàm ra_soat_dem) |
 | `cauHoi.js` | questions |
 | `chuDe.js` | topics, units, lesson_titles (+ sửa chủ đề kéo theo bài học / câu hỏi / đơn vị) |
-| `deThi.js` | exams, exam_tests |
+| `deThi.js` | exams, exam_bai, exam_tests |
 | `diemDanh.js` | attendance_sessions, attendance_records |
 | `ghiChu.js` | student_notes |
 | `ghiDanh.js` | student_enrollments |
@@ -69,7 +69,7 @@ Thử thật từng nhóm trên Neon (đăng nhập giáo viên + học sinh dem
 | `grade-pending.js` | pg_cron | máy chủ tự chấm bài sót |
 | `ra-soat.js` | học sinh | AI phân loại ĐẠT/CHƯA ĐẠT theo tiêu chí (tối đa 7 lần/ngày, đếm ở máy chủ) |
 | `hoi-dap.js` | học sinh | AI phân loại câu hỏi vào câu hỏi đáp mẫu giáo viên đã duyệt |
-| `thi-python.js` | học sinh | chấm phần thực hành Python của đề thi bằng test (Wandbox, tài khoản DB riêng `cham_thi`) |
+| `thi-python.js` | học sinh | chấm phần thực hành Python của đề thi bằng test (Wandbox qua `src/utils/wandbox.js`, tài khoản DB riêng `cham_thi`); kỳ thi nhiều bài gửi kèm `bai_id` |
 | `teacher-ai.js`, `teacher-assistant.js`, `generate-lesson.js`, `report-note.js` | giáo viên | AI soạn bài, slide, hỏi đáp, nhận xét |
 | `tutor.js` | (tắt với học sinh) | AI trợ giảng — học sinh dưới lớp 8 không dùng AI tạo sinh trực tiếp |
 | `deleteFile.js` | giáo viên | xoá file Cloudinary |
@@ -87,6 +87,10 @@ Lưu ở bảng `lesson_slides`. Có thể nhập PPTX làm nguồn cho AI soạ
 ## Đề thi thực hành
 `exams.practical_type`: word · ppt · python · scratch. Python: test ở `exam_tests` (học sinh không đọc được), mỗi lần nộp ghi
 `exam_nop_python`, tối đa 10 lần, lấy điểm cao nhất. Scratch: giáo viên chấm, AI chấm nháp (`exam_sessions.practical_ai`).
+**Kỳ thi nhiều bài** (24/11/2026, `sql/2026-11-24_neon_ky_thi_nhieu_bai.sql`): giống thi Tin học trẻ — đề Python có các bài ở `exam_bai`
+(đề markdown + trọng số), test theo `exam_tests.bai_id`, mỗi bài 10 lần riêng; `exam_bai_diem` (chỉ `cham_thi` ghi) giữ điểm cao nhất + số lần
+từng bài; `practical_score` = `domain/chamPython.diemKyThi`. Giáo viên: nút **Các bài** (`BaiKyThiModal`); học sinh: `KyThiPython`.
+Wandbox tự đổi trình biên dịch khi bản cũ bị xoá (`utils/wandbox.js` — 11/2026 cpython-3.12.7 bị xoá làm máy chấm lỗi).
 
 ## Luồng câu hỏi
 

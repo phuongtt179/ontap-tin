@@ -54,8 +54,13 @@ export function nopTepThucHanh(sessionId, url, ten) {
 
 /** các lần nộp chấm Python của 1 lượt thi; kemCode = giáo viên xem cả code */
 export function layLanNopPython(sessionId, { kemCode = false } = {}) {
-  return supabase.from('exam_nop_python').select(kemCode ? 'lan, ket_qua, diem, code, created_at' : 'lan, ket_qua, diem')
-    .eq('session_id', sessionId).order('lan').limit(GIOI_HAN)
+  return supabase.from('exam_nop_python').select(kemCode ? 'lan, ket_qua, diem, bai_id, code, created_at' : 'lan, ket_qua, diem, bai_id')
+    .eq('session_id', sessionId).order('created_at').limit(GIOI_HAN)
+}
+
+/** kỳ thi nhiều bài: điểm cao nhất + số lần đã nộp từng bài của 1 lượt thi → [{ bai_id, lan, diem }] */
+export function layDiemTungBai(sessionId) {
+  return supabase.from('exam_bai_diem').select('bai_id, lan, diem').eq('session_id', sessionId).limit(GIOI_HAN)
 }
 
 /** lịch sử: 50 lượt thi gần nhất của em */

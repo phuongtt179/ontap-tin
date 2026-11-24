@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { X, Loader2 } from 'lucide-react'
 import { useAuth } from '../../../context/AuthContext'
-import { layTestPython, luuDeThi, ghiTestPython } from '../../../data/deThi'
+import { layTestPython, luuDeThi, ghiTestPython, layBaiCuaKyThi } from '../../../data/deThi'
 import { loiDeThi, duLieuDeThi, testHopLe } from '../../../domain/deThi'
 import BuocThongTinDe from './BuocThongTinDe'
 import BuocChonCauHoiDe from './BuocChonCauHoiDe'
@@ -29,22 +29,26 @@ export default function DeThiFormModal({ exam, onClose, onDone }) {
     theory_weight: exam?.theory_weight ?? 60,
     practical_weight: exam?.practical_weight ?? 40,
     practical_rubric: exam?.practical_rubric || '',
+    nhieu_bai: false,   // tạo kỳ thi nhiều bài: không cần test chung, thêm bài ở nút "Các bài" (không ghi vào exams)
   })
   const [tests, setTests] = useState([])
+  const [soBai, setSoBai] = useState(0)   // > 0: kỳ thi nhiều bài — test nằm theo từng bài, form này KHÔNG đụng tới test
   useEffect(() => {
     if (!exam?.id) return
     layTestPython(exam.id)
       .then(({ data }) => setTests((data || []).map(t => ({ ...t, diem: Number(t.diem) }))))
+    layBaiCuaKyThi(exam.id).then(({ data }) => setSoBai((data || []).length))
   }, [exam?.id])
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
-    const loi = loiDeThi(form, tests)
+    const laNhieuBai = soBai > 0 || form.nhieu_bai
+    const loi = loiDeThi(form, tests, laNhieuBai ? Math.max(soBai, 1) : 0)
     if (loi) { toast.error(loi); return }
     setSaving(true)
     const duLieu = duLieuDeThi(form)
     const { data: luu, error } = await luuDeThi(isEdit ? exam.id : null, isEdit ? duLieu : { ...duLieu, created_by: user.id })
-    if (!error && luu?.id) {
+    if (!error && luu?.id && !laNhieuBai) {
       // test đề Python: thay toàn bộ bằng danh sách đang sửa (đề không phải Python → xoá hết test cũ)
       const laPython = form.has_practical && form.practical_type === 'python'
       const { error: loiTest } = await ghiTestPython(luu.id, laPython ? testHopLe(tests) : [])
@@ -79,7 +83,7 @@ export default function DeThiFormModal({ exam, onClose, onDone }) {
         {/* Body */}
         <div className="flex-1 overflow-auto p-6">
           {step === 1
-            ? <BuocThongTinDe form={form} setForm={setForm} tests={tests} setTests={setTests} />
+            ? <BuocThongTinDe form={form} setForm={setForm} tests={tests} setTests={setTests} soBai={soBai} />
             : <BuocChonCauHoiDe form={form} setForm={setForm} />}
         </div>
 

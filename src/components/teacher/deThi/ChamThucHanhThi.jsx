@@ -8,6 +8,7 @@ import PPTEditor from '../../editor/PPTEditor'
 import Sb3Viewer from '../../ui/Sb3Viewer'
 import { gradeStudent } from '../../../utils/aiGrader'
 import { layLanNopPython, suaLuotThi } from '../../../data/baiLam'
+import { layBaiCuaKyThi } from '../../../data/deThi'
 
 const NHAN_THUC_HANH = { word: '📝 Word', ppt: '📊 PowerPoint', python: '🐍 Python', scratch: '🐱 Scratch' }
 const KY_TEST = { dung: '✅', sai: '❌', loi: '💥', qua_gio: '⏱️' }
@@ -17,12 +18,14 @@ export default function ChamThucHanhThi({ exam, luot: selectedSession, onCapNhat
   const [practicalComment, setPracticalComment] = useState(selectedSession.practical_comment || '')
   const [savingPractical, setSavingPractical] = useState(false)
   const [nopPython, setNopPython] = useState([])   // các lần nộp chấm Python của lượt này
+  const [tenBai, setTenBai] = useState({})          // kỳ thi nhiều bài: { bai_id: 'Bài k. tên' }
   const [aiDang, setAiDang] = useState(false)
 
   useEffect(() => {
     if (exam.practical_type !== 'python') return
     layLanNopPython(selectedSession.id, { kemCode: true }).then(({ data }) => setNopPython(data || []))
-  }, [selectedSession.id, exam.practical_type])
+    layBaiCuaKyThi(exam.id).then(({ data }) => setTenBai(Object.fromEntries((data || []).map((b, i) => [b.id, `Bài ${i + 1}. ${b.ten}`]))))
+  }, [selectedSession.id, exam.practical_type, exam.id])
 
   // AI chấm nháp bài Scratch / Word / PPT theo tiêu chí của đề — chỉ giáo viên thấy, giáo viên sửa rồi lưu
   async function aiChamNhap() {
@@ -74,10 +77,11 @@ export default function ChamThucHanhThi({ exam, luot: selectedSession, onCapNhat
       </p>
       {exam.practical_type === 'python' && (
         <div className="space-y-2">
-          <p className="text-sm text-gray-600">Máy chấm tự động · {nopPython.length}/10 lần nộp · điểm lấy lần cao nhất: <b className="text-orange-600">{selectedSession.practical_score ?? 0}</b>/10</p>
+          <p className="text-sm text-gray-600">Máy chấm tự động · {nopPython.length} lần nộp{Object.keys(tenBai).length ? ` · ${Object.keys(tenBai).length} bài, mỗi bài tính lần cao nhất` : '/10 · điểm lấy lần cao nhất'}: <b className="text-orange-600">{selectedSession.practical_score ?? 0}</b>/10</p>
           {nopPython.map(l => (
-            <details key={l.lan} className="border border-gray-200 rounded-lg">
+            <details key={`${l.bai_id || ''}-${l.lan}`} className="border border-gray-200 rounded-lg">
               <summary className="cursor-pointer px-3 py-2 text-sm flex flex-wrap items-center gap-2">
+                {l.bai_id && <span className="text-indigo-700 font-semibold">{tenBai[l.bai_id] || 'Bài ?'} ·</span>}
                 <b>Lần {l.lan}</b> · {l.diem} điểm · <span className="text-xs">{(l.ket_qua || []).map(k => KY_TEST[k.trang_thai]).join(' ')}</span>
                 <span className="text-xs text-gray-400">{new Date(l.created_at).toLocaleTimeString('vi-VN')}</span>
               </summary>

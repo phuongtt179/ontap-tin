@@ -15,11 +15,12 @@ export function diemCaoNhat(de, cacLuot) {
 /** test Python dùng được: có output mong đợi */
 export const testHopLe = tests => tests.filter(t => String(t.expected).trim() !== '')
 
-/** kiểm tra đề trước khi lưu → câu báo lỗi, hoặc null nếu được */
-export function loiDeThi(form, tests = []) {
+/** kiểm tra đề trước khi lưu → câu báo lỗi, hoặc null nếu được. soBai > 0: kỳ thi nhiều bài (test nằm theo từng bài) */
+export function loiDeThi(form, tests = [], soBai = 0) {
   if (!form.title.trim()) return 'Nhập tên đề thi'
   if (!form.question_ids.length && !form.has_practical) return 'Chưa chọn câu hỏi nào'
-  if (form.has_practical && form.practical_type === 'python' && !testHopLe(tests).length) return 'Đề Python cần ít nhất 1 test có output mong đợi'
+  if (soBai > 0 && !(form.has_practical && form.practical_type === 'python')) return 'Kỳ thi nhiều bài phải giữ phần thực hành Python'
+  if (form.has_practical && form.practical_type === 'python' && !soBai && !testHopLe(tests).length) return 'Đề Python cần ít nhất 1 test có output mong đợi'
   return null
 }
 

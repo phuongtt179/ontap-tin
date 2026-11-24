@@ -4,7 +4,7 @@
 > **Trước khi viết hàm mới:** tìm ở đây (Ctrl+F theo việc cần làm) — có rồi thì dùng lại, gần giống thì mở rộng hàm cũ.
 > Mô tả lấy từ chú thích ngay trên mỗi hàm trong mã. Hàm thiếu mô tả ghi ⚠.
 
-Tổng: **386** hàm / hằng · thiếu mô tả: **65**
+Tổng: **395** hàm / hằng · thiếu mô tả: **65**
 
 ## src/domain/ — Quy tắc nghiệp vụ (hàm thuần, có kiểm tra tự động)
 
@@ -50,6 +50,7 @@ Tổng: **386** hàm / hằng · thiếu mô tả: **65**
 - `chuanHoaKetQua(s)` — So kết quả: bỏ khoảng trắng cuối mỗi dòng và dòng trống cuối bài (giống cách chấm thông thường)
 - `trangThaiTest(k, mongDoi)` — Trạng thái 1 test từ kết quả chạy { tle } | { rc, out }: 'qua_gio' | 'loi' | 'dung' | 'sai'
 - `chamLanNop(tests, ketQuaChay)` — Chấm 1 lần nộp. tests: [{ expected, diem }], ketQuaChay: kết quả chạy theo đúng thứ tự test. Học sinh chỉ nhận { stt, trang_thai } — không thấy input / output. @returns { ket_qua: [{stt, trang_thai}], diem (thang 10, làm tròn 2 chữ số) }
+- `diemKyThi(cacBai, diemTheoBai)` — Điểm thực hành của kỳ thi nhiều bài (thang 10): trung bình có trọng số điểm cao nhất từng bài. cacBai: [{ id, diem (trọng số) }], diemTheoBai: { [bai_id]: điểm thang 10 } (bài chưa nộp = 0). Làm tròn 2 chữ số.
 - `loiKhongDuocNop(bt, userId, bayGio = Date.now()` — Bài thi này có được nộp thêm lần nữa không. Trả về mã lỗi, hoặc null nếu được. @param bt { user_id, practical_type, submitted_at, started_at, time_limit (phút), practical_lan }
 
 ### dapAn.js — Quy tắc so đáp án và tính điểm phần trắc nghiệm (quiz trong bài, luyện tập, đề thi lý thuyết). Trước 11/11/2026 có 3 bản chép khác nhau (utils/normalizeAnswer, student/ExamsPage, student/LessonPage) → gộp về đây. Hàm thuần: không gọi mạng, không giao diện. ⚠️ Hiện trình duyệt tự chấm rồi ghi điểm — máy chủ chưa tự tính lại (vá bảo mật đợt 3, bước 5).
@@ -62,7 +63,7 @@ Tổng: **386** hàm / hằng · thiếu mô tả: **65**
 - `diemTongLuot(de, luot)` — điểm tổng 1 lượt (thang 10): đề có thực hành = lý thuyết × hệ số + thực hành × hệ số, làm tròn 1 chữ số
 - `diemCaoNhat(de, cacLuot)` — điểm cao nhất trong các lượt ĐÃ NỘP (bỏ lượt bỏ dở, submitted_at null); chưa lượt nào nộp → null
 - `testHopLe(tests)` — test Python dùng được: có output mong đợi
-- `loiDeThi(form, tests = [])` — kiểm tra đề trước khi lưu → câu báo lỗi, hoặc null nếu được
+- `loiDeThi(form, tests = [], soBai = 0)` — kiểm tra đề trước khi lưu → câu báo lỗi, hoặc null nếu được. soBai > 0: kỳ thi nhiều bài (test nằm theo từng bài)
 - `duLieuDeThi(form)` — form → dữ liệu ghi vào exams. Đề chỉ có thực hành → 100% điểm thực hành; không thực hành → 100% lý thuyết
 - `deDanhChoLop(de, lop)` — đề hiện cho lớp đang lọc: đề không giới hạn lớp, hoặc có lớp đó trong danh sách
 
@@ -189,6 +190,7 @@ Tổng: **386** hàm / hằng · thiếu mô tả: **65**
 - `layTepThucHanh(sessionId)` — tên tệp thực hành đã nộp của lượt thi (null nếu chưa)
 - `nopTepThucHanh(sessionId, url, ten)` — nộp tệp thực hành (Scratch …) vào lượt thi
 - `layLanNopPython(sessionId, { kemCode = false } = {})` — các lần nộp chấm Python của 1 lượt thi; kemCode = giáo viên xem cả code
+- `layDiemTungBai(sessionId)` — kỳ thi nhiều bài: điểm cao nhất + số lần đã nộp từng bài của 1 lượt thi → [{ bai_id, lan, diem }]
 - `layLuotThiCuaEm(userId)` — lịch sử: 50 lượt thi gần nhất của em
 - `layLuotLuyenTapCuaEm(userId)` — lịch sử: 50 lượt luyện tập gần nhất của em
 - `layLuotThiCuaDe(examId)` — mọi lượt của 1 đề (trang kết quả): lượt đã nộp mới nhất trước, lượt bỏ dở (chưa nộp) xếp cuối
@@ -261,7 +263,7 @@ Tổng: **386** hàm / hằng · thiếu mô tả: **65**
 - `ghiThuTu(bang, ds)` — ghi lại thứ tự sau khi kéo / bấm lên xuống: chỉ ghi dòng có thứ tự đổi
 - `suaChuDeVaLienQuan(id, { tenCu, khoaCu, tenMoi, khoaMoi })` — Sửa tên / khoá của chủ đề + kéo theo: đổi tên → bài học, câu hỏi, đơn vị đổi theo; đổi khoá → đơn vị chuyển khoá. Đổi tên đơn vị TRƯỚC rồi mới chuyển khoá (bước sau tìm đơn vị theo tên mới — chạy song song thì có thể sót). Trả { error } của bước sửa chủ đề.
 
-### deThi.js — Tầng dữ liệu — đề thi: exams (đề), exam_tests (test chấm Python, học sinh KHÔNG đọc được). Lượt làm bài (exam_sessions, quiz_sessions, exam_nop_python) ở data/baiLam.js. Mỗi hàm trả { data, error } như supabase.
+### deThi.js — Tầng dữ liệu — đề thi: exams (đề), exam_bai (bài của kỳ thi nhiều bài), exam_tests (test chấm Python, học sinh KHÔNG đọc được). Lượt làm bài (exam_sessions, quiz_sessions, exam_nop_python) ở data/baiLam.js. Mỗi hàm trả { data, error } như supabase.
 
 - `layTatCaDeThi()` — mọi đề (trang Đề thi của giáo viên), mới nhất trước
 - `layDeThi(id)` — 1 đề (trang kết quả)
@@ -271,8 +273,13 @@ Tổng: **386** hàm / hằng · thiếu mô tả: **65**
 - `luuDeThi(id, duLieu)` — tạo (id rỗng) hoặc sửa đề → { data: { id } }
 - `xoaDeThi(id)` — ⚠ chưa có mô tả
 - `datMoDeThi(id, mo)` — ⚠ chưa có mô tả
+- `layBaiCuaKyThi(examId)` — kỳ thi nhiều bài: các bài (đề bài, trọng số) theo thứ tự. Đề 1 bài kiểu cũ → rỗng
+- `luuBaiKyThi(id, duLieu)` — thêm (id rỗng) hoặc sửa 1 bài của kỳ thi → { data: { id } }
+- `xoaBaiKyThi(id)` — xoá 1 bài của kỳ thi (test, điểm từng bài của bài đó xoá theo)
+- `layTestCuaBai(baiId)` — test của 1 bài trong kỳ thi (thứ tự)
+- `ghiTestCuaBai(examId, baiId, tests)` — thay toàn bộ test của 1 bài bằng danh sách mới. Trả { error }
 - `layTestPython(examId)` — test chấm Python của đề (thứ tự)
-- `ghiTestPython(examId, tests)` — thay toàn bộ test của đề bằng danh sách mới (rỗng = xoá hết). Trả { error }
+- `ghiTestPython(examId, tests)` — thay toàn bộ test của đề 1 bài bằng danh sách mới (rỗng = xoá hết). Không đụng test của kỳ thi nhiều bài. Trả { error }
 - `demDeThi()` — số đề thi (chỉ đếm)
 
 ### diemDanh.js — Tầng dữ liệu — điểm danh: attendance_sessions (buổi, giáo viên mở / đóng), attendance_records (lượt em điểm danh). RLS trên Neon: học sinh chỉ thấy buổi ĐANG MỞ của khoá mình và chỉ ghi lượt của chính mình.
@@ -559,6 +566,11 @@ Tổng: **386** hàm / hằng · thiếu mô tả: **65**
 ### video.js — Link video giáo viên dán → link nhúng YouTube (null nếu không nhận ra — khi đó hiện link thường).
 
 - `getEmbedUrl(url)` — Link video giáo viên dán → link nhúng YouTube (null nếu không nhận ra — khi đó hiện link thường).
+
+### wandbox.js — Chạy Python trên Wandbox (dịch vụ ngoài) — dùng chung cho máy chấm đề thi (api/thi-python.js) và chấm bài thực hành khi không có Pyodide (utils/gradePrep.js, cả máy chủ api/grade-pending). Wandbox thỉnh thoảng XOÁ phiên bản cũ (11/2026 xoá cpython-3.12.7 → mọi lần chạy báo "Unknown compiler", máy chấm hỏng): không ghi cứng 1 phiên bản; báo "Unknown compiler" thì tự chọn bản Python 3 mới nhất trong danh sách rồi chạy lại. Bị chặn vì gọi dồn (429) thì chờ 3 – 6 – 6 giây, thử lại tối đa 3 lần (máy chủ có 60 giây cho 1 lần chấm).
+
+- `chonPython(ds)` — chọn trình biên dịch Python 3 từ danh sách của Wandbox: ưu tiên bản 3.12 mới nhất, không có thì bản 3.x mới nhất (bỏ bản "head")
+- `chayWandbox(body, { timeout = 20000 } = {})` — chạy 1 lần trên Wandbox, body = { code, stdin? } → kết quả JSON của Wandbox; lỗi mạng / dịch vụ → ném lỗi
 
 ### weakness.js — Phân tích bảng điểm AI (lesson_submissions.ai_breakdown = [{ criterion, earned, max, note? }]) để tìm "lỗi hay gặp" — dùng cho (1) gia sư AI cá nhân hóa theo từng em, (2) thẻ lỗi chung của lớp.
 
