@@ -4,7 +4,7 @@
 > **Trước khi viết hàm mới:** tìm ở đây (Ctrl+F theo việc cần làm) — có rồi thì dùng lại, gần giống thì mở rộng hàm cũ.
 > Mô tả lấy từ chú thích ngay trên mỗi hàm trong mã. Hàm thiếu mô tả ghi ⚠.
 
-Tổng: **395** hàm / hằng · thiếu mô tả: **65**
+Tổng: **419** hàm / hằng · thiếu mô tả: **65**
 
 ## src/domain/ — Quy tắc nghiệp vụ (hàm thuần, có kiểm tra tự động)
 
@@ -52,6 +52,8 @@ Tổng: **395** hàm / hằng · thiếu mô tả: **65**
 - `chamLanNop(tests, ketQuaChay)` — Chấm 1 lần nộp. tests: [{ expected, diem }], ketQuaChay: kết quả chạy theo đúng thứ tự test. Học sinh chỉ nhận { stt, trang_thai } — không thấy input / output. @returns { ket_qua: [{stt, trang_thai}], diem (thang 10, làm tròn 2 chữ số) }
 - `diemKyThi(cacBai, diemTheoBai)` — Điểm thực hành của kỳ thi nhiều bài (thang 10): trung bình có trọng số điểm cao nhất từng bài. cacBai: [{ id, diem (trọng số) }], diemTheoBai: { [bai_id]: điểm thang 10 } (bài chưa nộp = 0). Làm tròn 2 chữ số.
 - `loiKhongDuocNop(bt, userId, bayGio = Date.now()` — Bài thi này có được nộp thêm lần nữa không. Trả về mã lỗi, hoặc null nếu được. @param bt { user_id, practical_type, submitted_at, started_at, time_limit (phút), practical_lan }
+- `GIAY_GIUA_HAI_LAN_LUYEN` *(hằng)* — luyện bài lẻ: không giới hạn lần, nhưng mỗi em cách nhau ≥ 10 giây (Wandbox chặn khi gọi dồn)
+- `loiKhongDuocLuyen({ bai, duocMo, laGiaoVien, lanCuoi }, bayGio = Date.now()` — Luyện bài lẻ: có được nộp chấm không. Trả mã lỗi hoặc null. @param bai { ung_dung, cach_cham } hoặc null (không có); duocMo: bài mở cho khoá em đã được duyệt; laGiaoVien: giáo viên / trợ giảng (luyện thử mọi bài); lanCuoi: thời điểm lần nộp luyện gần nhất của em hoặc null
 
 ### dapAn.js — Quy tắc so đáp án và tính điểm phần trắc nghiệm (quiz trong bài, luyện tập, đề thi lý thuyết). Trước 11/11/2026 có 3 bản chép khác nhau (utils/normalizeAnswer, student/ExamsPage, student/LessonPage) → gộp về đây. Hàm thuần: không gọi mạng, không giao diện. ⚠️ Hiện trình duyệt tự chấm rồi ghi điểm — máy chủ chưa tự tính lại (vá bảo mật đợt 3, bước 5).
 
@@ -97,6 +99,17 @@ Tổng: **395** hàm / hằng · thiếu mô tả: **65**
 
 - `baiDaMoChoLop(lesson, moKhoa)` — @param lesson { id, topic } @param moKhoa { chuDe: Set<topic>, bai: Set|Map<lesson_id> } | null
 - `loTrinhKhoa(donVi = [], baiHoc = [], moKhoa = null)` — Lộ trình khoá cho AI trả lời câu hỏi chương trình học: "• Đơn vị: bài, bài" — CHỈ bài đã mở cho lớp (không để AI biết / gợi ý tên bài học sinh chưa được mở). @param donVi đơn vị đã sắp theo thứ tự · @param baiHoc bài đã xuất bản (đã sắp theo thứ tự bài)
+
+### nganHang.js — Quy tắc ngân hàng bài (phòng thi): danh mục ứng dụng / dạng / độ khó, kiểm tra bài trước khi lưu, chọn đề ngẫu nhiên. Hàm thuần: không gọi mạng, không giao diện → kiểm tra tự động được (nganHang.test.js).
+
+- `UNG_DUNG` *(hằng)* — ứng dụng của bài → nhãn hiển thị
+- `CACH_CHAM` *(hằng)* — cách chấm → nhãn hiển thị
+- `DO_KHO` *(hằng)* — độ khó → nhãn hiển thị
+- `DANG_PYTHON` *(hằng)* — dạng bài Python — khớp chuyên đề khoá Cơ bản + 8 chuyên đề khoá Nâng cao (chuẩn hoá 25/11/2026 theo dạng bài codemath)
+- `loiBaiLuyen(bai, tests = [])` — kiểm tra bài trước khi lưu → câu báo lỗi, hoặc null nếu được. tests: [{ expected }]
+- `chonNgauNhien(cacBai, yeuCau, { boQua = new Set()` — Chọn đề ngẫu nhiên từ ngân hàng. cacBai: [{ id, dang, do_kho, tu_khoa_hoc }]; yeuCau: [{ so, do_kho?, dang? }] (mỗi dòng: lấy `so` bài thoả điều kiện); boQua: Set id không lấy (đã dùng / đã có trong đề); tranhKhoaHoc: bỏ bài chép từ khoá học. → { ids } hoặc { loi: 'câu báo' } nếu không đủ bài. Một bài không bị chọn 2 lần.
+- `locBai(ds, { tim = '', dang = '', do_kho = '', khoa = '', boKhoaHoc = false } = {})` — lọc danh sách bài: tìm (không dấu) theo tên / nguồn, dạng, độ khó, khoá được mở, bỏ bài từ khoá học
+- `LOC_TRONG` *(hằng)* — bộ lọc rỗng (mặc định) cho locBai
 
 ### phanThuong.js — Quy tắc trang Phần thưởng của giáo viên: gắn tên / lớp vào yêu cầu đổi quà, lọc + xếp, quà hiện theo khoá. Hàm thuần.
 
@@ -273,7 +286,8 @@ Tổng: **395** hàm / hằng · thiếu mô tả: **65**
 - `luuDeThi(id, duLieu)` — tạo (id rỗng) hoặc sửa đề → { data: { id } }
 - `xoaDeThi(id)` — ⚠ chưa có mô tả
 - `datMoDeThi(id, mo)` — ⚠ chưa có mô tả
-- `layBaiCuaKyThi(examId)` — kỳ thi nhiều bài: các bài (đề bài, trọng số) theo thứ tự. Đề 1 bài kiểu cũ → rỗng
+- `layBaiCuaKyThi(examId)` — kỳ thi nhiều bài: các bài (đề bài, trọng số) theo thứ tự. Bài liên kết ngân hàng lấy tên + đề từ ngân hàng. Đề 1 bài kiểu cũ → rỗng
+- `themBaiNganHangVaoKyThi(examId, dsBai, thuTuDau)` — thêm các bài ngân hàng vào cuối kỳ thi (liên kết, mỗi bài 100 điểm). dsBai: [{ id, ten }]
 - `luuBaiKyThi(id, duLieu)` — thêm (id rỗng) hoặc sửa 1 bài của kỳ thi → { data: { id } }
 - `xoaBaiKyThi(id)` — xoá 1 bài của kỳ thi (test, điểm từng bài của bài đó xoá theo)
 - `layTestCuaBai(baiId)` — test của 1 bài trong kỳ thi (thứ tự)
@@ -381,6 +395,21 @@ Tổng: **395** hàm / hằng · thiếu mô tả: **65**
 - `datMoChuDe(grade, className, topic, moKhoa)` — mở (moKhoa=true) hoặc khoá 1 chủ đề cho lớp; mở trùng không tính là lỗi
 - `datMoBai(grade, className, lessonId, moKhoa)` — mở hoặc khoá 1 bài cho lớp; mở trùng không tính là lỗi
 
+### nganHang.js — Tầng dữ liệu — ngân hàng bài (phòng thi): bai_luyen (đề, học sinh đọc bài được mở), bai_luyen_bi_mat + bai_luyen_test (chỉ giáo viên), bai_luyen_mo (mở cho khoá), bai_luyen_ket_qua / bai_luyen_nop (máy chấm ghi). Mỗi hàm trả { data, error } như supabase.
+
+- `layNganHang(ungDung = 'python')` — giáo viên: mọi bài của 1 ứng dụng (không kèm đề cho nhẹ) + các khoá được mở + số kỳ thi đang dùng
+- `layBaiDayDu(id)` — 1 bài đầy đủ cho giáo viên sửa: đề, phần bí mật (lời giải, tiêu chí), test
+- `luuBaiDayDu(id, { bai, loi_giai = '', tieu_chi = '', tests = [], khoa = [] })` — thêm (id rỗng) hoặc sửa bài, ghi luôn phần bí mật, test, khoá được mở. Trả { data: { id }, error }
+- `datMoChoKhoa(baiId, khoa)` — thay danh sách khoá được mở của 1 bài
+- `xoaBaiLuyen(id)` — xoá bài (bị chặn nếu kỳ thi còn dùng — khoá ngoại exam_bai.bai_luyen_id)
+- `layBaiChoKhoa(grade)` — học sinh: các bài mở cho khoá (RLS chỉ cho thấy bài mở cho khoá em đã được duyệt)
+- `layDeBai(id)` — 1 bài để học sinh làm: chỉ đề, không có lời giải / test
+- `layKetQuaCuaEm(userId)` — kết quả luyện của em (điểm cao nhất, số lần) theo từng bài
+- `layLanNopLuyen(baiId, userId)` — các lần nộp của em ở 1 bài, mới nhất trước
+- `layKetQuaTheoBai(baiId)` — giáo viên: kết quả luyện của mọi học sinh ở 1 bài
+- `moNhieuBaiChoKhoa(ids, grade)` — mở nhiều bài cùng lúc cho 1 khoá (bài đã mở thì giữ nguyên)
+- `dongNhieuBaiVoiKhoa(ids, grade)` — đóng nhiều bài với 1 khoá
+
 ### phanThuong.js — Tầng dữ liệu — phần thưởng: reward_items (quà), reward_requests (yêu cầu đổi quà), reward_configs (ngưỡng theo khoá). Học sinh đổi quà qua hàm máy chủ redeem_reward (trừ sticker có khoá), không ghi thẳng reward_requests.
 
 - `layQua()` — mọi quà (giáo viên)
@@ -460,6 +489,10 @@ Tổng: **395** hàm / hằng · thiếu mô tả: **65**
 ### useLessonTitles.js
 
 - `useLessonTitles(unitId)` — ⚠ chưa có mô tả
+
+### useNganHang.js — Tải ngân hàng bài 1 lần (cột nhẹ, không kèm đề) rồi lọc tại chỗ. khoa = các khoá được mở, so_ky_thi = số kỳ thi đang liên kết bài.
+
+- `useNganHang(ungDung = 'python')` — tải ngân hàng bài của 1 ứng dụng → { ds (null khi đang tải), taiLai }
 
 ### usePhanThuong.js — Trang Phần thưởng của giáo viên: quà (thêm / sửa / bật tắt / xoá), yêu cầu đổi quà (trao / từ chối + hoàn sticker), ngưỡng sticker theo khoá. Đọc ghi qua data/phanThuong.js; lọc / xếp ở domain/phanThuong.js.
 

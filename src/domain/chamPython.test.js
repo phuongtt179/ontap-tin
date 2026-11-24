@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { execFileSync } from 'child_process'
-import { chuanHoaKetQua, trangThaiTest, chamLanNop, loiKhongDuocNop, diemKyThi, TOI_DA_LAN } from './chamPython'
+import { chuanHoaKetQua, trangThaiTest, chamLanNop, loiKhongDuocNop, diemKyThi, loiKhongDuocLuyen, TOI_DA_LAN } from './chamPython'
 import { chuongTrinhChay } from '../../api/thi-python.js'
 
 describe('chuanHoaKetQua — bỏ khoảng trắng cuối dòng, dòng trống cuối bài', () => {
@@ -112,4 +112,18 @@ describe('diemKyThi — điểm thực hành kỳ thi nhiều bài', () => {
   it('làm tròn 2 chữ số', () => expect(diemKyThi(bai.slice(0, 3), { a: 10 })).toBe(3.33))
   it('không có bài → 0 (không chia cho 0)', () => expect(diemKyThi([], { a: 10 })).toBe(0))
   it('bỏ qua điểm của bài không thuộc kỳ thi', () => expect(diemKyThi(bai.slice(0, 1), { a: 5, z: 10 })).toBe(5))
+})
+
+describe('loiKhongDuocLuyen — luyện bài lẻ trong ngân hàng', () => {
+  const bai = { ung_dung: 'python', cach_cham: 'test' }
+  const bay = Date.parse('2026-11-25T10:00:00Z')
+  it('học sinh, bài mở cho khoá, chưa nộp lần nào → được', () => expect(loiKhongDuocLuyen({ bai, duocMo: true, laGiaoVien: false, lanCuoi: null }, bay)).toBeNull())
+  it('bài không mở cho khoá của em → chặn', () => expect(loiKhongDuocLuyen({ bai, duocMo: false, laGiaoVien: false }, bay)).toBe('forbidden'))
+  it('giáo viên luyện thử mọi bài', () => expect(loiKhongDuocLuyen({ bai, duocMo: false, laGiaoVien: true }, bay)).toBeNull())
+  it('nộp dồn dưới 10 giây → chờ', () => expect(loiKhongDuocLuyen({ bai, duocMo: true, lanCuoi: '2026-11-25T09:59:55Z' }, bay)).toBe('cho_chut'))
+  it('sau 10 giây → được', () => expect(loiKhongDuocLuyen({ bai, duocMo: true, lanCuoi: '2026-11-25T09:59:49Z' }, bay)).toBeNull())
+  it('bài không có / không chấm tự động', () => {
+    expect(loiKhongDuocLuyen({ bai: null, duocMo: true }, bay)).toBe('khong_co_bai')
+    expect(loiKhongDuocLuyen({ bai: { ung_dung: 'scratch', cach_cham: 'tieu_chi' }, duocMo: true }, bay)).toBe('khong_cham_tu_dong')
+  })
 })

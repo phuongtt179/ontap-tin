@@ -5,7 +5,7 @@ import { useEnrollments } from '../../hooks/useEnrollments'
 import { useSelectedGradeContext } from '../../context/SelectedGradeContext'
 import { useHeaderStats } from '../../context/HeaderStatsContext'
 import { useExamGuard } from '../../context/ExamGuardContext'
-import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle, Sparkles, Check, ChevronDown, CheckCircle, Trophy, KeyRound, ClipboardCheck } from 'lucide-react'
+import { BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList, BarChart2, Tags, GraduationCap, School, Users, Menu, X, TableProperties, BookMarked, LibraryBig, NotebookPen, CheckSquare, Gift, MessageCircle, Sparkles, Check, ChevronDown, CheckCircle, Trophy, KeyRound, ClipboardCheck, Library, Dumbbell } from 'lucide-react'
 import ChangePasswordModal from './ChangePasswordModal'
 
 export default function Layout({ children }) {
@@ -35,6 +35,7 @@ export default function Layout({ children }) {
         { to: '/teacher/questions', icon: <PenSquare size={18} />, label: 'Câu hỏi' },
         { to: '/teacher/topics', icon: <Tags size={18} />, label: 'Chủ đề' },
         { to: '/teacher/exams', icon: <ClipboardList size={18} />, label: 'Đề thi' },
+        { to: '/teacher/ngan-hang', icon: <Library size={18} />, label: 'Ngân hàng bài' },
         { to: '/teacher/exam-stats', icon: <TableProperties size={18} />, label: 'Thống kê' },
         { to: '/teacher/ai-tools', icon: <Sparkles size={18} />, label: 'Trung tâm AI' },
         { to: '/teacher/impact', icon: <BarChart2 size={18} />, label: 'Báo cáo tác động' },
@@ -55,6 +56,7 @@ export default function Layout({ children }) {
       ]
     : [
         { to: '/student/learn', icon: <BookMarked size={18} />, label: 'Bài học' },
+        { to: '/student/luyen-bai', icon: <Dumbbell size={18} />, label: 'Luyện bài' },
         { to: '/student/exams', icon: <ClipboardList size={18} />, label: 'Đề thi' },
       ]
 

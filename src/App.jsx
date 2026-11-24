@@ -44,6 +44,8 @@ import { lazy, Suspense } from 'react'
 const SlideEditorPage = lazy(() => import('./pages/teacher/SlideEditorPage'))
 const TeachPage = lazy(() => import('./pages/teacher/TeachPage'))
 const GradingPage = lazy(() => import('./pages/teacher/GradingPage'))
+const NganHangPage = lazy(() => import('./pages/teacher/NganHangPage'))
+const LuyenBaiPage = lazy(() => import('./pages/student/LuyenBaiPage'))
 const DangTai = <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
 
 function RootRedirect() {
@@ -82,6 +84,11 @@ export default function App() {
           <Route path="/teacher/topics" element={
             <ProtectedRoute role="teacher">
               <Layout><TopicsPage /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/teacher/ngan-hang" element={
+            <ProtectedRoute role="teacher">
+              <Layout><Suspense fallback={DangTai}><NganHangPage /></Suspense></Layout>
             </ProtectedRoute>
           } />
           <Route path="/teacher/exams" element={
@@ -206,6 +213,11 @@ export default function App() {
           <Route path="/student/history" element={
             <ProtectedRoute role="student">
               <Layout><HistoryPage /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/student/luyen-bai" element={
+            <ProtectedRoute role="student">
+              <Layout><Suspense fallback={DangTai}><LuyenBaiPage /></Suspense></Layout>
             </ProtectedRoute>
           } />
           <Route path="/student/exams" element={

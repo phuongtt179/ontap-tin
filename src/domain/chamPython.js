@@ -57,3 +57,19 @@ export function loiKhongDuocNop(bt, userId, bayGio = Date.now()) {
   if (bt.practical_lan >= TOI_DA_LAN) return 'het_luot'
   return null
 }
+
+/** luyện bài lẻ: không giới hạn lần, nhưng mỗi em cách nhau ≥ 10 giây (Wandbox chặn khi gọi dồn) */
+export const GIAY_GIUA_HAI_LAN_LUYEN = 10
+
+/**
+ * Luyện bài lẻ: có được nộp chấm không. Trả mã lỗi hoặc null.
+ * @param bai  { ung_dung, cach_cham } hoặc null (không có); duocMo: bài mở cho khoá em đã được duyệt;
+ * laGiaoVien: giáo viên / trợ giảng (luyện thử mọi bài); lanCuoi: thời điểm lần nộp luyện gần nhất của em hoặc null
+ */
+export function loiKhongDuocLuyen({ bai, duocMo, laGiaoVien, lanCuoi }, bayGio = Date.now()) {
+  if (!bai) return 'khong_co_bai'
+  if (bai.ung_dung !== 'python' || bai.cach_cham !== 'test') return 'khong_cham_tu_dong'
+  if (!laGiaoVien && !duocMo) return 'forbidden'
+  if (lanCuoi && bayGio - new Date(lanCuoi).getTime() < GIAY_GIUA_HAI_LAN_LUYEN * 1000) return 'cho_chut'
+  return null
+}

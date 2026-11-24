@@ -54,9 +54,16 @@ export function datMoDeThi(id, mo) {
   return supabase.from('exams').update({ is_active: mo }).eq('id', id)
 }
 
-/** kỳ thi nhiều bài: các bài (đề bài, trọng số) theo thứ tự. Đề 1 bài kiểu cũ → rỗng */
-export function layBaiCuaKyThi(examId) {
-  return supabase.from('exam_bai').select('id, thu_tu, ten, de_bai, diem').eq('exam_id', examId).order('thu_tu').limit(50)
+/** kỳ thi nhiều bài: các bài (đề bài, trọng số) theo thứ tự. Bài liên kết ngân hàng lấy tên + đề từ ngân hàng. Đề 1 bài kiểu cũ → rỗng */
+export async function layBaiCuaKyThi(examId) {
+  const r = await supabase.from('exam_bai').select('id, thu_tu, ten, de_bai, diem, bai_luyen_id, bai_luyen(ten, de_bai)')
+    .eq('exam_id', examId).order('thu_tu').limit(50)
+  return { ...r, data: (r.data || []).map(({ bai_luyen, ...b }) => (bai_luyen ? { ...b, ten: bai_luyen.ten, de_bai: bai_luyen.de_bai } : b)) }
+}
+
+/** thêm các bài ngân hàng vào cuối kỳ thi (liên kết, mỗi bài 100 điểm). dsBai: [{ id, ten }] */
+export function themBaiNganHangVaoKyThi(examId, dsBai, thuTuDau) {
+  return supabase.from('exam_bai').insert(dsBai.map((b, i) => ({ exam_id: examId, thu_tu: thuTuDau + i, ten: b.ten, de_bai: '', diem: 100, bai_luyen_id: b.id })))
 }
 
 /** thêm (id rỗng) hoặc sửa 1 bài của kỳ thi → { data: { id } } */

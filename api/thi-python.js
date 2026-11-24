@@ -2,13 +2,14 @@
 // • Test (input + output mong đợi) nằm ở bảng exam_tests — học sinh không đọc được. Máy chủ đọc bằng tài khoản
 //   riêng cham_thi (CHAM_THI_DATABASE_URL), chỉ có quyền đọc đề / test và ghi lần nộp + điểm thực hành.
 // • Chỉ gửi CODE + INPUT sang Wandbox để chạy; OUTPUT MONG ĐỢI giữ ở đây để so → chương trình không đọc được đáp án.
-// • Kỳ thi nhiều bài (exam_bai): gửi kèm bai_id; mỗi bài test riêng, 10 lần nộp riêng, điểm thực hành = diemKyThi.
+// • Kỳ thi nhiều bài (exam_bai): gửi kèm bai_id; test riêng từng bài (bài liên kết ngân hàng: bai_luyen_test), 10 lần nộp riêng.
+// • Luyện bài lẻ (ngân hàng bai_luyen): gửi luyen_bai_id thay session_id; không giới hạn lần, cách nhau ≥ 10 giây.
 // • Mỗi test tối đa 2 giây. Mỗi bài thi tối đa 10 lần nộp, tính lần cao nhất. Học sinh chỉ thấy đúng / sai / lỗi /
 //   quá giờ của từng test, không thấy input, output.
 import pg from 'pg'
 import { requireUser } from './_auth.js'
 import { chayWandbox } from '../src/utils/wandbox.js'
-import { TOI_DA_LAN, GIAY_MOI_TEST, DO_DAI_TOI_DA, chamLanNop, loiKhongDuocNop, diemKyThi } from '../src/domain/chamPython.js'
+import { TOI_DA_LAN, GIAY_MOI_TEST, DO_DAI_TOI_DA, chamLanNop, loiKhongDuocNop, diemKyThi, loiKhongDuocLuyen } from '../src/domain/chamPython.js'
 
 export const config = { maxDuration: 60 }
 
@@ -37,11 +38,66 @@ print("@@KQ@@" + json.dumps(kq))
 `
 }
 
+// Chạy code với các test trên Wandbox rồi chấm → { ket_qua, diem }. Đề chưa có test / máy chấm lỗi → ném lỗi có maLoi
+async function chayVaCham(ma, tests) {
+  if (!tests.length) throw Object.assign(new Error('de_chua_co_test'), { maLoi: 'de_chua_co_test' })
+  let ketQuaChay
+  try {
+    const j = await chayWandbox({ code: chuongTrinhChay(ma, tests.map(t => t.input)) }, { timeout: 45000 })
+    const dong = String(j.program_output || '').split('\n').find(l => l.startsWith('@@KQ@@'))
+    ketQuaChay = dong ? JSON.parse(dong.slice(6)) : null
+  } catch { ketQuaChay = null }
+  if (!Array.isArray(ketQuaChay) || ketQuaChay.length !== tests.length) throw Object.assign(new Error('may_cham_loi'), { maLoi: 'may_cham_loi' })
+  return chamLanNop(tests, ketQuaChay)
+}
+
+// Luyện bài lẻ từ ngân hàng (bai_luyen): không giới hạn lần, cách nhau ≥ 10 giây; chỉ bài mở cho khoá em đã được duyệt
+async function chamLuyen(res, user, baiId, ma) {
+  const c = await db().connect()
+  try {
+    const laGiaoVien = ['teacher', 'assistant'].includes(user.role)
+    const { rows: [bai] } = await c.query('select id, ung_dung, cach_cham from public.bai_luyen where id = $1', [baiId])
+    const { rows: [mo] } = await c.query(
+      `select 1 from public.bai_luyen_mo m join public.student_enrollments e on e.grade = m.grade
+       where m.bai_id = $1 and e.user_id = $2 and e.is_approved = true limit 1`, [baiId, user.id])
+    const { rows: [cuoi] } = await c.query('select created_at from public.bai_luyen_nop where user_id = $1 order by created_at desc limit 1', [user.id])
+    const loi = loiKhongDuocLuyen({ bai, duocMo: !!mo, laGiaoVien, lanCuoi: cuoi?.created_at })
+    if (loi) return res.status(loi === 'forbidden' ? 403 : loi === 'cho_chut' ? 429 : 400).json({ error: loi })
+    const { rows: tests } = await c.query('select input, expected, diem from public.bai_luyen_test where bai_id = $1 order by thu_tu, id', [baiId])
+    const { ket_qua, diem } = await chayVaCham(ma, tests)
+    await c.query('begin')
+    await c.query('insert into public.bai_luyen_nop (bai_id, user_id, code, ket_qua, diem) values ($1, $2, $3, $4, $5)',
+      [baiId, user.id, ma, JSON.stringify(ket_qua), diem])
+    const { rows: [kq] } = await c.query(
+      `insert into public.bai_luyen_ket_qua (bai_id, user_id, diem, so_lan) values ($1, $2, $3, 1)
+       on conflict (bai_id, user_id) do update set diem = greatest(bai_luyen_ket_qua.diem, excluded.diem),
+         so_lan = bai_luyen_ket_qua.so_lan + 1, cap_nhat = now()
+       returning diem, so_lan`, [baiId, user.id, diem])
+    await c.query('commit')
+    return res.status(200).json({ ket_qua, diem, diem_cao_nhat: Number(kq.diem), so_lan: kq.so_lan })
+  } catch (e) {
+    await c.query('rollback').catch(() => {})
+    if (!e.maLoi) console.error('thi-python luyen', e)
+    const maLoi = e.maLoi || 'loi_may_chu'
+    return res.status(maLoi === 'may_cham_loi' ? 503 : maLoi === 'de_chua_co_test' ? 400 : 500).json({ error: maLoi })
+  } finally {
+    c.release()
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
   const user = await requireUser(req, res)
   if (!user) return
   if (!process.env.CHAM_THI_DATABASE_URL) return res.status(500).json({ error: 'chua_cau_hinh' })
+
+  // luyen_bai_id: luyện bài lẻ trong ngân hàng (không gắn với lượt thi)
+  if (req.body?.luyen_bai_id) {
+    const ma = String(req.body.code ?? '')
+    if (!ma.trim()) return res.status(400).json({ error: 'thieu_bai' })
+    if (ma.length > DO_DAI_TOI_DA) return res.status(400).json({ error: 'bai_qua_dai' })
+    return chamLuyen(res, user, req.body.luyen_bai_id, ma)
+  }
 
   // bai_id: kỳ thi nhiều bài (bảng exam_bai) — mỗi bài 10 lần nộp riêng, test riêng; không có = đề 1 bài kiểu cũ
   const { session_id, code, bai_id = null } = req.body || {}
@@ -50,7 +106,7 @@ export default async function handler(req, res) {
   if (ma.length > DO_DAI_TOI_DA) return res.status(400).json({ error: 'bai_qua_dai' })
 
   const c = await db().connect()
-  let lan = null, examId = null
+  let lan = null, examId = null, baiLuyenId = null
   const traLuot = bai_id
     ? () => c.query('update public.exam_bai_diem set lan = greatest(lan - 1, 0) where session_id = $1 and bai_id = $2', [session_id, bai_id])
     : () => c.query('update public.exam_sessions set practical_lan = greatest(practical_lan - 1, 0) where id = $1', [session_id])
@@ -64,8 +120,9 @@ export default async function handler(req, res) {
     // kỳ thi nhiều bài bắt buộc gửi bài nào, và bài phải thuộc đúng kỳ thi của lượt này; đề 1 bài thì không được gửi bai_id
     if (bt && bt.nhieu_bai !== !!bai_id) { await c.query('rollback'); return res.status(400).json({ error: 'sai_bai' }) }
     if (bt && bai_id) {
-      const { rows: [b] } = await c.query('select 1 from public.exam_bai where id = $1 and exam_id = $2', [bai_id, bt.exam_id])
+      const { rows: [b] } = await c.query('select bai_luyen_id from public.exam_bai where id = $1 and exam_id = $2', [bai_id, bt.exam_id])
       if (!b) { await c.query('rollback'); return res.status(400).json({ error: 'sai_bai' }) }
+      baiLuyenId = b.bai_luyen_id   // bài liên kết ngân hàng → test lấy từ ngân hàng
       await c.query(`insert into public.exam_bai_diem (session_id, bai_id, user_id) values ($1, $2, $3) on conflict do nothing`,
         [session_id, bai_id, bt.user_id])
       const { rows: [d] } = await c.query('select lan from public.exam_bai_diem where session_id = $1 and bai_id = $2 for update', [session_id, bai_id])
@@ -82,20 +139,12 @@ export default async function handler(req, res) {
     else await c.query('update public.exam_sessions set practical_lan = $2 where id = $1', [session_id, lan])
     await c.query('commit')
 
-    const { rows: tests } = bai_id
-      ? await c.query('select input, expected, diem from public.exam_tests where bai_id = $1 order by thu_tu, id', [bai_id])
-      : await c.query('select input, expected, diem from public.exam_tests where exam_id = $1 order by thu_tu, id', [bt.exam_id])
-    if (!tests.length) throw Object.assign(new Error('de_chua_co_test'), { maLoi: 'de_chua_co_test' })
-
-    let ketQuaChay
-    try {
-      const j = await chayWandbox({ code: chuongTrinhChay(ma, tests.map(t => t.input)) }, { timeout: 45000 })
-      const dong = String(j.program_output || '').split('\n').find(l => l.startsWith('@@KQ@@'))
-      ketQuaChay = dong ? JSON.parse(dong.slice(6)) : null
-    } catch { ketQuaChay = null }
-    if (!Array.isArray(ketQuaChay) || ketQuaChay.length !== tests.length) throw Object.assign(new Error('may_cham_loi'), { maLoi: 'may_cham_loi' })
-
-    const { ket_qua, diem } = chamLanNop(tests, ketQuaChay)   // thang 10
+    const { rows: tests } = baiLuyenId
+      ? await c.query('select input, expected, diem from public.bai_luyen_test where bai_id = $1 order by thu_tu, id', [baiLuyenId])
+      : bai_id
+        ? await c.query('select input, expected, diem from public.exam_tests where bai_id = $1 order by thu_tu, id', [bai_id])
+        : await c.query('select input, expected, diem from public.exam_tests where exam_id = $1 order by thu_tu, id', [bt.exam_id])
+    const { ket_qua, diem } = await chayVaCham(ma, tests)   // thang 10
 
     await c.query('begin')
     await c.query('insert into public.exam_nop_python (session_id, user_id, lan, code, ket_qua, diem, bai_id) values ($1, $2, $3, $4, $5, $6, $7)',
