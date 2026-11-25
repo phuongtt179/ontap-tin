@@ -37,3 +37,6 @@ SaoLuu_*.json
 
 # Hồ sơ dự thi (không đưa lên Git trước khi có kết quả)
 HoSoDuThi_2026/
+
+# Giáo trình xuất PDF (tạo bằng scripts, không lên Git)
+GiaoTrinh_PDF/
